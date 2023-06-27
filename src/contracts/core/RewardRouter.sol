@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 import "../libraries/token/IERC20.sol";
 import "../libraries/token/SafeERC20.sol";
-import "../libraries/utils/ReentracyGuard.sol";
+import "../libraries/utils/ReentrancyGuard.sol";
 import "../libraries/token/Address.sol";
 import "./interfaces/IRewardTracker.sol";
 import "./interfaces/IRewardRouter.sol";
@@ -56,7 +56,7 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         require(_token == usdc, "Only USDC is supported");
 
         address account = msg.sender;
-        uint256 llpAmount = ILlpManager(llpManager).addLiquidityForAccount(account, account, _token, _amount, _minUsdg, _minllp);
+        uint256 llpAmount = ILlpManager(llpManager).addLiquidityForAccount(account, account, _token, _amount, _minUsdg, _minLlp);
         IRewardTracker(feeLlpTracker).stakeForAccount(account, account, llp, llpAmount);
 
         emit Stakellp(account, llpAmount);

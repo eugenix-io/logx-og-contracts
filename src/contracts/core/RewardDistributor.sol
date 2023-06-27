@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 import "../libraries/token/IERC20.sol";
 import "../libraries/token/SafeERC20.sol";
-import "../libraries/utils/ReentracyGuard.sol";
+import "../libraries/utils/ReentrancyGuard.sol";
 import "./interfaces/IRewardDistributor.sol";
 import "./interfaces/IRewardTracker.sol";
 import "../access/Governable.sol";

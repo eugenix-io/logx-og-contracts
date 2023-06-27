@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 import "../libraries/token/IERC20.sol";
 import "../libraries/token/SafeERC20.sol";
-import "../libraries/utils/ReentracyGuard.sol";
+import "../libraries/utils/ReentrancyGuard.sol";
 
 import "./interfaces/IRewardDistributor.sol";
 import "./interfaces/IRewardTracker.sol";
@@ -273,7 +273,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
             if (_claimableReward > 0 && stakedAmounts[_account] > 0) {
                 uint256 nextCumulativeReward = cumulativeRewards[_account] + accountReward ;
 
-                averageStakedAmounts[_account] = averageStakedAmounts[_account]*(cumulativeRewards[_account])/(nextCumulativeReward)
+                averageStakedAmounts[_account] = (averageStakedAmounts[_account]*(cumulativeRewards[_account])/(nextCumulativeReward))
                      + ((stakedAmount * accountReward)/(nextCumulativeReward));
 
                 cumulativeRewards[_account] = nextCumulativeReward;

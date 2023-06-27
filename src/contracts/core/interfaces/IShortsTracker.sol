@@ -17,7 +17,6 @@ interface IShortsTracker {
         address _account,
         address _collateralToken,
         address _indexToken,
-        bool _isLong,
         uint256 _sizeDelta,
         uint256 _markPrice,
         bool _isIncrease

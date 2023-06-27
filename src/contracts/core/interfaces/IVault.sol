@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.12;
+pragma solidity 0.8.19;
 
 import "./IVaultUtils.sol";
 
 interface IVault {
     function isInitialized() external view returns (bool);
-    function isSwapEnabled() external view returns (bool);
     function isLeverageEnabled() external view returns (bool);
 
     function setVaultUtils(IVaultUtils _vaultUtils) external;
@@ -14,16 +13,14 @@ interface IVault {
 
     function router() external view returns (address);
     function usdg() external view returns (address);
-    function gov() external view returns (address);
-
     function whitelistedTokenCount() external view returns (uint256);
     function maxLeverage() external view returns (uint256);
+    function gov() external view returns (address);
 
     function minProfitTime() external view returns (uint256);
     function hasDynamicFees() external view returns (bool);
     function fundingInterval() external view returns (uint256);
     function totalTokenWeights() external view returns (uint256);
-    function getTargetUsdgAmount(address _token) external view returns (uint256);
 
     function inManagerMode() external view returns (bool);
     function inPrivateLiquidationMode() external view returns (bool);
@@ -41,7 +38,6 @@ interface IVault {
     function setMaxLeverage(uint256 _maxLeverage) external;
     function setInManagerMode(bool _inManagerMode) external;
     function setManager(address _manager, bool _isManager) external;
-    function setIsSwapEnabled(bool _isSwapEnabled) external;
     function setIsLeverageEnabled(bool _isLeverageEnabled) external;
     function setMaxGasPrice(uint256 _maxGasPrice) external;
     function setUsdgAmount(address _token, uint256 _amount) external;
@@ -80,7 +76,6 @@ interface IVault {
     function directPoolDeposit(address _token) external;
     function buyUSDG(address _token, address _receiver) external returns (uint256);
     function sellUSDG(address _token, address _receiver) external returns (uint256);
-    function swap(address _tokenIn, address _tokenOut, address _receiver) external returns (uint256);
     function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external;
     function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external returns (uint256);
     function validateLiquidation(address _account, address _collateralToken, address _indexToken, bool _isLong, bool _raise) external view returns (uint256, uint256);

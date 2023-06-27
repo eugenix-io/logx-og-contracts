@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-import "../libraries/math/SafeMath.sol";
 import "../libraries/token/IERC20.sol";
 import "../libraries/token/SafeERC20.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
-
+import './interfaces/IMintable.sol';
+import './interfaces/IUSDG.sol';
 import "./interfaces/IVault.sol";
-import "./interfaces/IllpManager.sol";
+import "./interfaces/ILlpManager.sol";
 import "./interfaces/IShortsTracker.sol";
-import "../tokens/interfaces/IUSDG.sol";
-import "../tokens/interfaces/IMintable.sol";
 import "../access/Governable.sol";
 
 pragma solidity 0.8.19;
@@ -20,7 +18,6 @@ pragma solidity 0.8.19;
 */
 
 contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     uint256 public constant PRICE_PRECISION = 10 ** 30;
@@ -64,7 +61,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 amountOut
     );
 
-    constructor(address _vault, address _usdg, address _llp, address _shortsTracker, uint256 _cooldownDuration) public {
+    constructor(address _vault, address _usdg, address _llp, address _shortsTracker, uint256 _cooldownDuration) {
         gov = msg.sender;
         vault = IVault(_vault);
         usdg = _usdg;
@@ -100,19 +97,9 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         aumDeduction = _aumDeduction;
     }
 
-    function addLiquidity(address _token, uint256 _amount, uint256 _minUsdg, uint256 _minllp) external override nonReentrant returns (uint256) {
-        if (inPrivateMode) { revert("llpManager: action not enabled"); }
-        return _addLiquidity(msg.sender, msg.sender, _token, _amount, _minUsdg, _minllp);
-    }
-
     function addLiquidityForAccount(address _fundingAccount, address _account, address _token, uint256 _amount, uint256 _minUsdg, uint256 _minllp) external override nonReentrant returns (uint256) {
         _validateHandler();
         return _addLiquidity(_fundingAccount, _account, _token, _amount, _minUsdg, _minllp);
-    }
-
-    function removeLiquidity(address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) external override nonReentrant returns (uint256) {
-        if (inPrivateMode) { revert("llpManager: action not enabled"); }
-        return _removeLiquidity(msg.sender, _tokenOut, _llpAmount, _minOut, _receiver);
     }
 
     function removeLiquidityForAccount(address _account, address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) external override nonReentrant returns (uint256) {
@@ -123,7 +110,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     function getPrice(bool _maximise) external view returns (uint256) {
         uint256 aum = getAum(_maximise);
         uint256 supply = IERC20(llp).totalSupply();
-        return aum.mul(llp_PRECISION).div(supply);
+        return (aum*llp_PRECISION)/supply;
     }
 
     function getAums() public view returns (uint256[] memory) {
@@ -135,7 +122,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
     function getAumInUsdg(bool maximise) public override view returns (uint256) {
         uint256 aum = getAum(maximise);
-        return aum.mul(10 ** USDG_DECIMALS).div(PRICE_PRECISION);
+        return aum*(10 ** USDG_DECIMALS)/(PRICE_PRECISION);
     }
 
     function getAum(bool maximise) public view returns (uint256) {
@@ -157,7 +144,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             uint256 decimals = _vault.tokenDecimals(token);
 
             if (_vault.stableTokens(token)) {
-                aum = aum.add(poolAmount.mul(price).div(10 ** decimals));
+                aum = aum+(poolAmount*(price)/(10 ** decimals));
             } else {//AnirudhDoubt - why is that we are only considering global short sizes
                 // add global short profit / loss
                 uint256 size = _vault.globalShortSizes(token);
@@ -166,27 +153,27 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
                     (uint256 delta, bool hasProfit) = getGlobalShortDelta(token, price, size);
                     if (!hasProfit) {
                         // add losses from shorts
-                        aum = aum.add(delta);
+                        aum = aum+(delta);
                     } else {
-                        shortProfits = shortProfits.add(delta);
+                        shortProfits = shortProfits+(delta);
                     }
                 }
 
-                aum = aum.add(_vault.guaranteedUsd(token));//AnirudhDoubt - what is guaranteedUsd
+                aum = aum+(_vault.guaranteedUsd(token));//AnirudhDoubt - what is guaranteedUsd
                 //AnirudhDoubt - what is reservedAmount for each token
                 uint256 reservedAmount = _vault.reservedAmounts(token);
-                aum = aum.add(poolAmount.sub(reservedAmount).mul(price).div(10 ** decimals));
+                aum = aum+(poolAmount-(reservedAmount)*(price)/(10 ** decimals));
             }
         }
 
-        aum = shortProfits > aum ? 0 : aum.sub(shortProfits);
-        return aumDeduction > aum ? 0 : aum.sub(aumDeduction);
+        aum = shortProfits > aum ? 0 : aum-(shortProfits);
+        return aumDeduction > aum ? 0 : aum-(aumDeduction);
     }
 
     function getGlobalShortDelta(address _token, uint256 _price, uint256 _size) public view returns (uint256, bool) {
         uint256 averagePrice = getGlobalShortAveragePrice(_token);
-        uint256 priceDelta = averagePrice > _price ? avxeragePrice.sub(_price) : _price.sub(averagePrice);
-        uint256 delta = _size.mul(priceDelta).div(averagePrice);
+        uint256 priceDelta = averagePrice > _price ? averagePrice-(_price) : _price-(averagePrice);
+        uint256 delta = _size*(priceDelta)/(averagePrice);
         return (delta, averagePrice > _price);
     }
 
@@ -209,9 +196,9 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 vaultAveragePrice = vault.globalShortAveragePrices(_token);
         uint256 shortsTrackerAveragePrice = _shortsTracker.globalShortAveragePrices(_token);
 
-        return vaultAveragePrice.mul(BASIS_POINTS_DIVISOR.sub(_shortsTrackerAveragePriceWeight))
-            .add(shortsTrackerAveragePrice.mul(_shortsTrackerAveragePriceWeight))
-            .div(BASIS_POINTS_DIVISOR);
+        return vaultAveragePrice*(BASIS_POINTS_DIVISOR-(_shortsTrackerAveragePriceWeight))
+            +(shortsTrackerAveragePrice*(_shortsTrackerAveragePriceWeight))
+            /(BASIS_POINTS_DIVISOR);
     }
 
     function _addLiquidity(address _fundingAccount, address _account, address _token, uint256 _amount, uint256 _minUsdg, uint256 _minllp) private returns (uint256) {
@@ -225,7 +212,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 usdgAmount = vault.buyUSDG(_token, address(this));
         require(usdgAmount >= _minUsdg, "llpManager: insufficient USDG output");
 
-        uint256 mintAmount = aumInUsdg == 0 ? usdgAmount : usdgAmount.mul(llpSupply).div(aumInUsdg);
+        uint256 mintAmount = aumInUsdg == 0 ? usdgAmount : usdgAmount*(llpSupply)/(aumInUsdg);
         require(mintAmount >= _minllp, "llpManager: insufficient llp output");
 
         IMintable(llp).mint(_account, mintAmount);
@@ -239,16 +226,16 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
     function _removeLiquidity(address _account, address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) private returns (uint256) {
         require(_llpAmount > 0, "llpManager: invalid _llpAmount");
-        require(lastAddedAt[_account].add(cooldownDuration) <= block.timestamp, "llpManager: cooldown duration not yet passed");
+        require(lastAddedAt[_account]+(cooldownDuration) <= block.timestamp, "llpManager: cooldown duration not yet passed");
 
         // calculate aum before sellUSDG
         uint256 aumInUsdg = getAumInUsdg(false);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
-        uint256 usdgAmount = _llpAmount.mul(aumInUsdg).div(llpSupply);
+        uint256 usdgAmount = _llpAmount*(aumInUsdg)/(llpSupply);
         uint256 usdgBalance = IERC20(usdg).balanceOf(address(this));
         if (usdgAmount > usdgBalance) {
-            IUSDG(usdg).mint(address(this), usdgAmount.sub(usdgBalance));
+            IUSDG(usdg).mint(address(this), usdgAmount-(usdgBalance));
         }
 
         IMintable(llp).burn(_account, _llpAmount);
