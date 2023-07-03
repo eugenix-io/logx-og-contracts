@@ -13,7 +13,6 @@ interface IVault {
 
     function router() external view returns (address);
     function usdg() external view returns (address);
-    function whitelistedTokenCount() external view returns (uint256);
     function maxLeverage() external view returns (uint256);
     function gov() external view returns (address);
 
@@ -43,6 +42,7 @@ interface IVault {
     function setUsdgAmount(address _token, uint256 _amount) external;
     function setBufferAmount(address _token, uint256 _amount) external;
     function setMaxGlobalShortSize(address _token, uint256 _amount) external;
+    function setMaxGlobalLongSize(address _token, uint256 _amount) external;
     function setInPrivateLiquidationMode(bool _inPrivateLiquidationMode) external;
     function setLiquidator(address _liquidator, bool _isActive) external;
 
@@ -104,8 +104,11 @@ interface IVault {
     function shortableTokens(address _token) external view returns (bool);
     function feeReserves(address _token) external view returns (uint256);
     function globalShortSizes(address _token) external view returns (uint256);
+    function globalLongSizes(address _token) external view returns (uint256);
     function globalShortAveragePrices(address _token) external view returns (uint256);
+    function globalLongAveragePrices(address _token) external view returns (uint256);
     function maxGlobalShortSizes(address _token) external view returns (uint256);
+    function maxGlobalLongSizes(address _token) external view returns (uint256);
     function tokenDecimals(address _token) external view returns (uint256);
     function tokenWeights(address _token) external view returns (uint256);
     function guaranteedUsd(address _token) external view returns (uint256);

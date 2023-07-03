@@ -7,7 +7,7 @@ import './interfaces/IMintable.sol';
 import './interfaces/IUSDG.sol';
 import "./interfaces/IVault.sol";
 import "./interfaces/ILlpManager.sol";
-import "./interfaces/IShortsTracker.sol";
+import "./interfaces/IPositionsTracker.sol";
 import "../access/Governable.sol";
 
 pragma solidity 0.8.19;
@@ -27,19 +27,18 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
 
     IVault public override vault;
-    IShortsTracker public shortsTracker;
+    IPositionsTracker public positionsTracker;
     address public override usdg;
     address public override llp;
 
     uint256 public override cooldownDuration;
-    mapping (address => uint256) public override lastAddedAt;
+    mapping(address => uint256) public override lastAddedAt;
 
     uint256 public aumAddition;
     uint256 public aumDeduction;
 
     bool public inPrivateMode;
-    uint256 public shortsTrackerAveragePriceWeight;
-    mapping (address => bool) public isHandler;
+    mapping(address => bool) public isHandler;
 
     event AddLiquidity(
         address account,
@@ -61,12 +60,18 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 amountOut
     );
 
-    constructor(address _vault, address _usdg, address _llp, address _shortsTracker, uint256 _cooldownDuration) {
+    constructor(
+        address _vault,
+        address _usdg,
+        address _llp,
+        address _positionsTracker,
+        uint256 _cooldownDuration
+    ) {
         gov = msg.sender;
         vault = IVault(_vault);
         usdg = _usdg;
         llp = _llp;
-        shortsTracker = IShortsTracker(_shortsTracker);
+        positionsTracker = IPositionsTracker(_positionsTracker);
         cooldownDuration = _cooldownDuration;
     }
 
@@ -74,43 +79,74 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         inPrivateMode = _inPrivateMode;
     }
 
-    function setShortsTracker(IShortsTracker _shortsTracker) external onlyGov {
-        shortsTracker = _shortsTracker;
-    }
-
-    function setShortsTrackerAveragePriceWeight(uint256 _shortsTrackerAveragePriceWeight) external override onlyGov {
-        require(shortsTrackerAveragePriceWeight <= BASIS_POINTS_DIVISOR, "llpManager: invalid weight");
-        shortsTrackerAveragePriceWeight = _shortsTrackerAveragePriceWeight;
+    function setpositionsTracker(IPositionsTracker _positionsTracker) external onlyGov {
+        positionsTracker = _positionsTracker;
     }
 
     function setHandler(address _handler, bool _isActive) external onlyGov {
         isHandler[_handler] = _isActive;
     }
 
-    function setCooldownDuration(uint256 _cooldownDuration) external override onlyGov {
-        require(_cooldownDuration <= MAX_COOLDOWN_DURATION, "llpManager: invalid _cooldownDuration");
+    function setCooldownDuration(
+        uint256 _cooldownDuration
+    ) external override onlyGov {
+        require(
+            _cooldownDuration <= MAX_COOLDOWN_DURATION,
+            "llpManager: invalid _cooldownDuration"
+        );
         cooldownDuration = _cooldownDuration;
     }
 
-    function setAumAdjustment(uint256 _aumAddition, uint256 _aumDeduction) external onlyGov {
+    function setAumAdjustment(
+        uint256 _aumAddition,
+        uint256 _aumDeduction
+    ) external onlyGov {
         aumAddition = _aumAddition;
         aumDeduction = _aumDeduction;
     }
 
-    function addLiquidityForAccount(address _fundingAccount, address _account, address _token, uint256 _amount, uint256 _minUsdg, uint256 _minllp) external override nonReentrant returns (uint256) {
+    function addLiquidityForAccount(
+        address _fundingAccount,
+        address _account,
+        address _token,
+        uint256 _amount,
+        uint256 _minUsdg,
+        uint256 _minllp
+    ) external override nonReentrant returns (uint256) {
         _validateHandler();
-        return _addLiquidity(_fundingAccount, _account, _token, _amount, _minUsdg, _minllp);
+        return
+            _addLiquidity(
+                _fundingAccount,
+                _account,
+                _token,
+                _amount,
+                _minUsdg,
+                _minllp
+            );
     }
 
-    function removeLiquidityForAccount(address _account, address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) external override nonReentrant returns (uint256) {
+    function removeLiquidityForAccount(
+        address _account,
+        address _tokenOut,
+        uint256 _llpAmount,
+        uint256 _minOut,
+        address _receiver
+    ) external override nonReentrant returns (uint256) {
         _validateHandler();
-        return _removeLiquidity(_account, _tokenOut, _llpAmount, _minOut, _receiver);
+        return
+            _removeLiquidity(
+                _account,
+                _tokenOut,
+                _llpAmount,
+                _minOut,
+                _receiver
+            );
     }
 
     function getPrice(bool _maximise) external view returns (uint256) {
         uint256 aum = getAum(_maximise);
         uint256 supply = IERC20(llp).totalSupply();
-        return (aum*llp_PRECISION)/supply;
+        return (aum * llp_PRECISION) / supply;
     }
 
     function getAums() public view returns (uint256[] memory) {
@@ -120,15 +156,17 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         return amounts;
     }
 
-    function getAumInUsdg(bool maximise) public override view returns (uint256) {
+    function getAumInUsdg(
+        bool maximise
+    ) public view override returns (uint256) {
         uint256 aum = getAum(maximise);
-        return aum*(10 ** USDG_DECIMALS)/(PRICE_PRECISION);
+        return (aum * (10 ** USDG_DECIMALS)) / (PRICE_PRECISION);
     }
 
     function getAum(bool maximise) public view returns (uint256) {
         uint256 length = vault.allWhitelistedTokensLength();
         uint256 aum = aumAddition;
-        uint256 shortProfits = 0;
+        uint256 profits = 0;
         IVault _vault = vault;
 
         for (uint256 i = 0; i < length; i++) {
@@ -139,103 +177,117 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
                 continue;
             }
 
-            uint256 price = maximise ? _vault.getMaxPrice(token) : _vault.getMinPrice(token);
+            uint256 price = maximise
+                ? _vault.getMaxPrice(token)
+                : _vault.getMinPrice(token);
             uint256 poolAmount = _vault.poolAmounts(token);
             uint256 decimals = _vault.tokenDecimals(token);
 
             if (_vault.stableTokens(token)) {
-                aum = aum+(poolAmount*(price)/(10 ** decimals));
-            } else {//AnirudhDoubt - why is that we are only considering global short sizes
-                // add global short profit / loss
-                uint256 size = _vault.globalShortSizes(token);
+                aum = aum + ((poolAmount * (price)) / (10 ** decimals));
+            } else {
+                aum = aum + ((poolAmount * (price)) / (10 ** decimals));
+                uint256 shortSize = _vault.globalShortSizes(token);
 
-                if (size > 0) {
-                    (uint256 delta, bool hasProfit) = getGlobalShortDelta(token, price, size);
+                if (shortSize > 0) {
+                    ( bool hasProfit, uint256 delta) = positionsTracker.getGlobalPositionDelta(token, false);
                     if (!hasProfit) {
                         // add losses from shorts
-                        aum = aum+(delta);
+                        aum = aum + (delta);
                     } else {
-                        shortProfits = shortProfits+(delta);
+                        profits = profits + (delta);
                     }
                 }
 
-                aum = aum+(_vault.guaranteedUsd(token));//AnirudhDoubt - what is guaranteedUsd
-                //AnirudhDoubt - what is reservedAmount for each token
-                uint256 reservedAmount = _vault.reservedAmounts(token);
-                aum = aum+(poolAmount-(reservedAmount)*(price)/(10 ** decimals));
+                uint256 longSize = _vault.globalLongSizes(token);
+
+                if (longSize > 0) {
+                    ( bool hasProfit, uint256 delta) = positionsTracker.getGlobalPositionDelta(token, true);
+                    if (!hasProfit) {
+                        // add losses from longs
+                        aum = aum + (delta);
+                    } else {
+                        profits = profits + (delta);
+                    }
+                }
             }
         }
 
-        aum = shortProfits > aum ? 0 : aum-(shortProfits);
-        return aumDeduction > aum ? 0 : aum-(aumDeduction);
+        aum = profits > aum ? 0 : aum - (profits) ;
+        return aumDeduction > aum ? 0 : aum - (aumDeduction);
     }
 
-    function getGlobalShortDelta(address _token, uint256 _price, uint256 _size) public view returns (uint256, bool) {
-        uint256 averagePrice = getGlobalShortAveragePrice(_token);
-        uint256 priceDelta = averagePrice > _price ? averagePrice-(_price) : _price-(averagePrice);
-        uint256 delta = _size*(priceDelta)/(averagePrice);
-        return (delta, averagePrice > _price);
+    function getGlobalShortAveragePrice(
+        address _token
+    ) public view returns (uint256) {
+        return positionsTracker.globalShortAveragePrices(_token);
     }
 
-    //AnirudhDoubt - what is the reason behind providing two ways for calculating globalShortAvgPrice
-    //one using vault and another one using shortsTracker. in GLPManager shortsTrackerAveragePriceWeight = BASIS_POINTS_DIVISOR
-    // this implies that the weightage for shortPrice generated through vault is 0.
-    function getGlobalShortAveragePrice(address _token) public view returns (uint256) {
-        IShortsTracker _shortsTracker = shortsTracker;
-        if (address(_shortsTracker) == address(0) || !_shortsTracker.isGlobalShortDataReady()) {
-            return vault.globalShortAveragePrices(_token);
-        }
-
-        uint256 _shortsTrackerAveragePriceWeight = shortsTrackerAveragePriceWeight;
-        if (_shortsTrackerAveragePriceWeight == 0) {
-            return vault.globalShortAveragePrices(_token);
-        } else if (_shortsTrackerAveragePriceWeight == BASIS_POINTS_DIVISOR) {
-            return _shortsTracker.globalShortAveragePrices(_token);
-        }
-
-        uint256 vaultAveragePrice = vault.globalShortAveragePrices(_token);
-        uint256 shortsTrackerAveragePrice = _shortsTracker.globalShortAveragePrices(_token);
-
-        return vaultAveragePrice*(BASIS_POINTS_DIVISOR-(_shortsTrackerAveragePriceWeight))
-            +(shortsTrackerAveragePrice*(_shortsTrackerAveragePriceWeight))
-            /(BASIS_POINTS_DIVISOR);
-    }
-
-    function _addLiquidity(address _fundingAccount, address _account, address _token, uint256 _amount, uint256 _minUsdg, uint256 _minllp) private returns (uint256) {
+    function _addLiquidity(
+        address _fundingAccount,
+        address _account,
+        address _token,
+        uint256 _amount,
+        uint256 _minUsdg,
+        uint256 _minllp
+    ) private returns (uint256) {
         require(_amount > 0, "llpManager: invalid _amount");
 
         // calculate aum before buyUSDG
         uint256 aumInUsdg = getAumInUsdg(true);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
-        IERC20(_token).safeTransferFrom(_fundingAccount, address(vault), _amount);
+        IERC20(_token).safeTransferFrom(
+            _fundingAccount,
+            address(vault),
+            _amount
+        );
         uint256 usdgAmount = vault.buyUSDG(_token, address(this));
         require(usdgAmount >= _minUsdg, "llpManager: insufficient USDG output");
 
-        uint256 mintAmount = aumInUsdg == 0 ? usdgAmount : usdgAmount*(llpSupply)/(aumInUsdg);
+        uint256 mintAmount = aumInUsdg == 0
+            ? usdgAmount
+            : (usdgAmount * (llpSupply)) / (aumInUsdg);
         require(mintAmount >= _minllp, "llpManager: insufficient llp output");
 
         IMintable(llp).mint(_account, mintAmount);
 
         lastAddedAt[_account] = block.timestamp;
 
-        emit AddLiquidity(_account, _token, _amount, aumInUsdg, llpSupply, usdgAmount, mintAmount);
+        emit AddLiquidity(
+            _account,
+            _token,
+            _amount,
+            aumInUsdg,
+            llpSupply,
+            usdgAmount,
+            mintAmount
+        );
 
         return mintAmount;
     }
 
-    function _removeLiquidity(address _account, address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) private returns (uint256) {
+    function _removeLiquidity(
+        address _account,
+        address _tokenOut,
+        uint256 _llpAmount,
+        uint256 _minOut,
+        address _receiver
+    ) private returns (uint256) {
         require(_llpAmount > 0, "llpManager: invalid _llpAmount");
-        require(lastAddedAt[_account]+(cooldownDuration) <= block.timestamp, "llpManager: cooldown duration not yet passed");
+        require(
+            lastAddedAt[_account] + (cooldownDuration) <= block.timestamp,
+            "llpManager: cooldown duration not yet passed"
+        );
 
         // calculate aum before sellUSDG
         uint256 aumInUsdg = getAumInUsdg(false);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
-        uint256 usdgAmount = _llpAmount*(aumInUsdg)/(llpSupply);
+        uint256 usdgAmount = (_llpAmount * (aumInUsdg)) / (llpSupply);
         uint256 usdgBalance = IERC20(usdg).balanceOf(address(this));
         if (usdgAmount > usdgBalance) {
-            IUSDG(usdg).mint(address(this), usdgAmount-(usdgBalance));
+            IUSDG(usdg).mint(address(this), usdgAmount - (usdgBalance));
         }
 
         IMintable(llp).burn(_account, _llpAmount);
@@ -244,7 +296,15 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 amountOut = vault.sellUSDG(_tokenOut, _receiver);
         require(amountOut >= _minOut, "llpManager: insufficient output");
 
-        emit RemoveLiquidity(_account, _tokenOut, _llpAmount, aumInUsdg, llpSupply, usdgAmount, amountOut);
+        emit RemoveLiquidity(
+            _account,
+            _tokenOut,
+            _llpAmount,
+            aumInUsdg,
+            llpSupply,
+            usdgAmount,
+            amountOut
+        );
 
         return amountOut;
     }

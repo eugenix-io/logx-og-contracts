@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 
 import '../libraries/token/IERC20.sol';
 import './interfaces/IVault.sol';
-import './interfaces/IShortsTracker.sol';
+import './interfaces/IPositionsTracker.sol';
 import './interfaces/IRouter.sol';
 import './interfaces/ITimeLock.sol';
 import '../libraries/token/SafeERC20.sol';
@@ -17,7 +17,7 @@ contract BasePositionManager{
     address public admin;
 
     address public vault;
-    address public shortsTracker;
+    address public positionsTracker;
     address public router;
 
     // to prevent using the deposit and withdrawal of collateral as a zero fee swap,
@@ -49,13 +49,13 @@ contract BasePositionManager{
     constructor(
         address _vault,
         address _router,
-        address _shortsTracker,
+        address _positionsTracker,
         uint256 _depositFee
     ) {
         vault = _vault;
         router = _router;
         depositFee = _depositFee;
-        shortsTracker = _shortsTracker;
+        positionsTracker = _positionsTracker;
 
         admin = msg.sender;
     }
@@ -149,9 +149,7 @@ contract BasePositionManager{
         address timelock = IVault(vault).gov();
 
         // should be called strictly before position is updated in Vault
-        if(!_isLong){
-            IShortsTracker(shortsTracker).updateGlobalShortData(_account, _collateralToken, _indexToken, _sizeDelta, markPrice, true);
-        }
+        IPositionsTracker(positionsTracker).updateGlobalPositionsData(_account, _collateralToken, _indexToken, _sizeDelta, markPrice, true, _isLong);
         //AnirudhTodo - why do we need to specifically enable and disable Leverage?
         ITimelock(timelock).enableLeverage(vault);
         IRouter(router).pluginIncreasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
@@ -171,9 +169,7 @@ contract BasePositionManager{
         address timelock = IVault(_vault).gov();
 
         // should be called strictly before position is updated in Vault
-        if(!_isLong){
-            IShortsTracker(shortsTracker).updateGlobalShortData(_account, _collateralToken, _indexToken, _sizeDelta, markPrice, false);
-        }
+        IPositionsTracker(positionsTracker).updateGlobalPositionsData(_account, _collateralToken, _indexToken, _sizeDelta, markPrice, false, _isLong);
         
 
         ITimelock(timelock).enableLeverage(_vault);
