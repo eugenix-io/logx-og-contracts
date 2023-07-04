@@ -165,7 +165,6 @@ contract PositionRouter is
     constructor(
         address _vault,
         address _router,
-        address _shortsTracker,
         uint256 _depositFee,
         uint256 _minExecutionFee
     ) BasePositionManager(_vault, _router, _depositFee) {
@@ -210,7 +209,8 @@ contract PositionRouter is
         uint256 _acceptablePrice,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
-        require(_executionFee >= minExecutionFee, "fee");
+        require(_executionFee >= minExecutionFee, "execution fee less than min execution fee");
+        require(_executionFee == msg.value, "execution fee not equal to value in msg.");
         require(_path.length == 1 || _path.length == 2, "len");
 
         if (_amountIn > 0) {
@@ -219,7 +219,7 @@ contract PositionRouter is
                 _path[0],
                 msg.sender,
                 address(this),
-                _amountIn + _executionFee
+                _amountIn
             );
         }
 
@@ -322,12 +322,9 @@ contract PositionRouter is
         }
 
         delete increasePositionRequests[_key];
-        //execution fee should also be provided in collateral token
         IERC20(request.path[0]).safeTransfer(request.account, request.amountIn);
-        IERC20(request.path[0]).safeTransfer(
-            _executionFeeReceiver,
-            request.executionFee
-        );
+        (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
+        require(success, "failed to send eth to executor");
 
         emit CancelIncreasePosition(
             request.account,
@@ -359,12 +356,7 @@ contract PositionRouter is
     ) external payable nonReentrant returns (bytes32) {
         require(_executionFee >= minExecutionFee, "fee");
         require(_path.length == 1 || _path.length == 2, "len");
-        //AnirudhCheck - transfering execution fees to PositionRouter
-        IERC20(_path[0]).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _executionFee
-        );
+        require(_exectuionFee == msg.value, "value sent is not equal to execution fee");
 
         return
             _createDecreasePosition(
@@ -465,10 +457,8 @@ contract PositionRouter is
 
         delete decreasePositionRequests[_key];
 
-        IERC20(request.path[0]).safeTransfer(
-            _executionFeeReceiver,
-            request.executionFee
-        );
+        (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
+        require(success, "failed to send eth to executor");
 
         emit CancelDecreasePosition(
             request.account,
@@ -616,7 +606,9 @@ contract PositionRouter is
             request.acceptablePrice
         );
 
-        //_transferOutETHWithGasLimitFallbackToWeth(request.executionFee, _executionFeeReceiver);
+        //AnirudhTodo - handle if this call fails to send execution fee.
+        (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
+        require(success, "failed to send eth to executor");
 
         emit ExecuteIncreasePosition(
             request.account,
@@ -745,6 +737,9 @@ contract PositionRouter is
             request.receiver,
             amountOut
         );
+
+        (bool success, ) = _executionFeeReceiver.call{value: request.executionFee}("");
+        require(success, "Posiiton Router: Failed to send fee to executor");
 
         emit ExecuteDecreasePosition(
             request.account,

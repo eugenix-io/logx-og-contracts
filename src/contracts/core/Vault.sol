@@ -1618,7 +1618,7 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong
     ) internal pure returns (uint256) {
         bool hasProfit = _isLong ? _nextPrice > _averagePrice : _nextPrice < _averagePrice;
-        uint256 nextDelta = _getNextDelta(hasProfit, _delta, _realisedPnl, _isLong);
+        uint256 nextDelta = _getNextDelta(hasProfit, _delta, _realisedPnl);
         uint256 divisor;
         if(_isLong){
             divisor = hasProfit ? _nextSize+(nextDelta): _nextSize-(nextDelta);
@@ -1634,8 +1634,7 @@ contract Vault is ReentrancyGuard, IVault {
     function _getNextDelta(
         bool _hasProfit,
         uint256 _delta,
-        int256 _realisedPnl,
-        bool _isLong
+        int256 _realisedPnl
     ) internal pure returns (uint256) {
         // global delta 10000, realised pnl 1000 => new pnl 9000
         // global delta 10000, realised pnl -1000 => new pnl 11000

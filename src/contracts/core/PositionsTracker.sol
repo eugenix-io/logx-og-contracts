@@ -109,7 +109,6 @@ contract PositionsTracker is Governable, IPositionsTracker {
         int256 realisedPnl = getRealisedPnl(_account,_collateralToken, _indexToken, _sizeDelta, _isIncrease, _isLong);
         uint256 averagePrice = _isLong? globalLongAveragePrices[_indexToken] : globalShortAveragePrices[_indexToken];
         uint256 priceDelta = averagePrice > _nextPrice ? averagePrice-(_nextPrice) : _nextPrice-(averagePrice);
-        bool hasProfit = (_isLong) ? averagePrice > _nextPrice: averagePrice < _nextPrice;
 
         uint256 nextSize;
         uint256 delta;
@@ -172,7 +171,7 @@ contract PositionsTracker is Governable, IPositionsTracker {
         bool _isLong
     ) internal pure returns (uint256) {
         bool hasProfit = _isLong ? _nextPrice > _averagePrice : _nextPrice < _averagePrice;
-        uint256 nextDelta = _getNextDelta(hasProfit, _delta, _realisedPnl, _isLong);
+        uint256 nextDelta = _getNextDelta(hasProfit, _delta, _realisedPnl);
         uint256 divisor;
         if(_isLong){
             divisor = hasProfit ? _nextSize+(nextDelta): _nextSize-(nextDelta);
@@ -189,8 +188,7 @@ contract PositionsTracker is Governable, IPositionsTracker {
     function _getNextDelta(
         bool _hasProfit,
         uint256 _delta,
-        int256 _realisedPnl,
-        bool _isLong
+        int256 _realisedPnl
     ) internal pure returns (uint256) {
         // global delta 10000, realised pnl 1000 => new pnl 9000
         // global delta 10000, realised pnl -1000 => new pnl 11000
