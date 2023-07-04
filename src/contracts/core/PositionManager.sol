@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 
 import './BasePositionManager.sol';
 import './interfaces/IVault.sol';
-import './interfaces/IPositionsTracker.sol';
 import './interfaces/ITimeLock.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
 import './interfaces/IOrderBook.sol';
@@ -90,12 +89,6 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
     ) external nonReentrant onlyLiquidator {
         address _vault = vault;
         address timelock = IVault(_vault).gov();
-        (uint256 size, , , , , , , ) = IVault(vault).getPosition(_account, _collateralToken, _indexToken, _isLong);
-
-        uint256 markPrice = _isLong ? IVault(_vault).getMinPrice(_indexToken) : IVault(_vault).getMaxPrice(_indexToken);
-        // should be called strictly before position is updated in Vault
-        IPositionsTracker(positionsTracker).updateGlobalPositionsData(_account, _collateralToken, _indexToken, size, markPrice, false, _isLong);
-        
 
         ITimelock(timelock).enableLeverage(_vault);
         IVault(_vault).liquidatePosition(_account, _collateralToken, _indexToken, _isLong, _feeReceiver);
@@ -106,24 +99,7 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         _validateIncreaseOrder(_account, _orderIndex);
 
         address _vault = vault;
-        address timelock = IVault(_vault).gov();
-
-        (
-            /*address purchaseToken*/,
-            /*uint256 purchaseTokenAmount*/,
-            address collateralToken,
-            address indexToken,
-            uint256 sizeDelta,
-            bool isLong,
-            /*uint256 triggerPrice*/,
-            /*bool triggerAboveThreshold*/,
-            /*uint256 executionFee*/
-        ) = IOrderBook(orderBook).getIncreaseOrder(_account, _orderIndex);
-
-        uint256 markPrice = isLong ? IVault(_vault).getMaxPrice(indexToken) : IVault(_vault).getMinPrice(indexToken);
-        // should be called strictly before position is updated in Vault
-        IPositionsTracker(positionsTracker).updateGlobalPositionsData(_account, collateralToken, indexToken, sizeDelta, markPrice, false, isLong);
-        
+        address timelock = IVault(_vault).gov();        
 
         ITimelock(timelock).enableLeverage(_vault);
         IOrderBook(orderBook).executeIncreaseOrder(_account, _orderIndex, _feeReceiver);
@@ -134,23 +110,6 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
     function executeDecreaseOrder(address _account, uint256 _orderIndex, address payable _feeReceiver) external onlyOrderKeeper {
         address _vault = vault;
         address timelock = IVault(_vault).gov();
-
-        (
-            address collateralToken,
-            /*uint256 collateralDelta*/,
-            address indexToken,
-            uint256 sizeDelta,
-            bool isLong,
-            /*uint256 triggerPrice*/,
-            /*bool triggerAboveThreshold*/,
-            /*uint256 executionFee*/
-        ) = IOrderBook(orderBook).getDecreaseOrder(_account, _orderIndex);
-
-        uint256 markPrice = isLong ? IVault(_vault).getMinPrice(indexToken) : IVault(_vault).getMaxPrice(indexToken);
-        // should be called strictly before position is updated in Vault
-        IPositionsTracker(positionsTracker).updateGlobalPositionsData(_account, collateralToken, indexToken, sizeDelta, markPrice, false, isLong);
-        
-        
 
         ITimelock(timelock).enableLeverage(_vault);
         IOrderBook(orderBook).executeDecreaseOrder(_account, _orderIndex, _feeReceiver);

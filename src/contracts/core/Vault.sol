@@ -33,6 +33,7 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public constant MAX_LIQUIDATION_FEE_USD = 100 * PRICE_PRECISION; // 100 USD
     uint256 public constant MIN_FUNDING_RATE_INTERVAL = 1 hours;
     uint256 public constant MAX_FUNDING_RATE_FACTOR = 10000; // 1%
+    uint256 public constant MAX_INT256 = uint256(type(int256).max);
 
     bool public override isInitialized;
     bool public override isLeverageEnabled = true;
@@ -795,6 +796,12 @@ contract Vault is ReentrancyGuard, IVault {
             false
         );
         _validate(liquidationState != 0, 36);
+        uint256 markPrice = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
+        if (_isLong) {
+            globalLongAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, true);
+        } else {
+            globalShortAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, false, true);
+        }
         if (liquidationState == 2) {
             // max leverage exceeded but there is collateral remaining after deducting losses so decreasePosition instead
             //anirudhDoubt: what does above comment mean
@@ -819,9 +826,6 @@ contract Vault is ReentrancyGuard, IVault {
 
         _decreaseReservedAmount(_collateralToken, position.reserveAmount);
 
-        uint256 markPrice = _isLong
-            ? getMinPrice(_indexToken)
-            : getMaxPrice(_indexToken);
         emit LiquidatePosition(
             key,
             _account,
@@ -1200,7 +1204,7 @@ contract Vault is ReentrancyGuard, IVault {
             if(globalLongSizes[_indexToken] ==0){
                 globalLongAveragePrices[_indexToken] = price;
             } else {
-                globalLongAveragePrices[_indexToken] = getNextGlobalAveragePrice(globalLongSizes[_indexToken], globalLongAveragePrices[_indexToken], price, _sizeDelta, true);
+                globalLongAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
             }
             _increaseGlobalLongSize(_indexToken, _sizeDelta);
 
@@ -1208,9 +1212,7 @@ contract Vault is ReentrancyGuard, IVault {
             if (globalShortSizes[_indexToken] == 0) {
                 globalShortAveragePrices[_indexToken] = price;
             } else {
-                globalShortAveragePrices[
-                    _indexToken
-                ] = getNextGlobalAveragePrice(globalShortSizes[_indexToken], globalShortAveragePrices[_indexToken], price, _sizeDelta, false);
+                globalShortAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
             }
 
             _increaseGlobalShortSize(_indexToken, _sizeDelta);
@@ -1360,6 +1362,14 @@ contract Vault is ReentrancyGuard, IVault {
             _isLong
         );
 
+        uint256 price = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
+
+        if (_isLong) {
+            globalLongAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
+        } else {
+            globalShortAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
+        }
+
         if (position.size != _sizeDelta) {
             position.entryFundingRate = getEntryFundingRate(
                 _collateralToken,
@@ -1377,9 +1387,6 @@ contract Vault is ReentrancyGuard, IVault {
                 true
             );
 
-            uint256 price = _isLong
-                ? getMinPrice(_indexToken)
-                : getMaxPrice(_indexToken);
             emit DecreasePosition(
                 key,
                 _account,
@@ -1591,33 +1598,129 @@ contract Vault is ReentrancyGuard, IVault {
             (poolAmount);
     }
 
-    // for longs: nextAveragePrice = (nextPrice * nextSize)/ (nextSize + delta)
-    // for shorts: nextAveragePrice = (nextPrice * nextSize) / (nextSize - delta)
-    /*anirudhExp - this function gives the avg price at which all the short pos of _indexToken
-    are bought after buying _sizeDelta at _nextPrice.
-    hasProfit - is from the perspective of traders.
-    _sizeDelta - is the amount of _indexToken which is being shorted freshly. it is price* amount of _indexToken
-    */
     function getNextGlobalAveragePrice(
-        uint256 size,
-        uint256 averagePrice,
-        uint256 _nextPrice, 
+        address _account,
+        address _collateralToken,
+        address _indexToken,
+        uint256 _nextPrice,
         uint256 _sizeDelta,
-        bool _isLong
-    ) public pure returns (uint256) {
-        uint256 priceDelta = averagePrice > _nextPrice ? averagePrice - (_nextPrice) : _nextPrice - (averagePrice);
-        uint256 delta = (size * (priceDelta)) / (averagePrice);
-        bool hasProfit = _isLong ? averagePrice < _nextPrice: averagePrice > _nextPrice;
+        bool _isLong,
+        bool _isIncrease
+    ) public view returns (uint256) {
+        int256 realisedPnl = getRealisedPnl(_account,_collateralToken, _indexToken, _sizeDelta, _isIncrease, _isLong);
+        uint256 averagePrice = _isLong? globalLongAveragePrices[_indexToken] : globalShortAveragePrices[_indexToken];
+        uint256 priceDelta = averagePrice > _nextPrice ? averagePrice-(_nextPrice) : _nextPrice-(averagePrice);
 
-        uint256 nextSize = size + (_sizeDelta);
-        uint256 divisor; 
-        if(_isLong){
-            divisor = hasProfit ? nextSize + (delta) : nextSize - (delta);
-        } else {
-            divisor = hasProfit ? nextSize - (delta) : nextSize + (delta);
+        uint256 nextSize;
+        uint256 delta;
+        // avoid stack to deep
+        {
+            uint256 size = _isLong ? globalLongSizes[_indexToken]: globalLongSizes[_indexToken];
+            nextSize = _isIncrease ? size+(_sizeDelta) : size-(_sizeDelta);
+
+            if (nextSize == 0) {
+                return 0;
+            }
+
+            if (averagePrice == 0) {
+                return _nextPrice;
+            }
+            delta = size*(priceDelta)/(averagePrice);
         }
 
-        return (_nextPrice * (nextSize)) / (divisor);
+        return _getNextGlobalPositionAveragePrice(
+            averagePrice,
+            _nextPrice,
+            nextSize,
+            delta,
+            realisedPnl,
+            _isLong
+        );
+
+    }
+
+    function getRealisedPnl(
+        address _account,
+        address _collateralToken,
+        address _indexToken,
+        uint256 _sizeDelta,
+        bool _isIncrease, 
+        bool _isLong
+    ) public view returns (int256) {
+        if (_isIncrease) {
+            return 0;
+        }
+        //AnirudhTodo - averagePrice here is not the global one. Its the averageprice of the position.
+        (uint256 size, /*uint256 collateral*/, uint256 averagePrice, , , , , uint256 lastIncreasedTime) = getPosition(_account, _collateralToken, _indexToken, _isLong);
+
+        (bool hasProfit, uint256 delta) = getDelta(_indexToken, size, averagePrice, _isLong, lastIncreasedTime);
+        // get the proportional change in pnl
+        uint256 adjustedDelta = _sizeDelta*(delta)/(size);
+        require(adjustedDelta < MAX_INT256, "ShortsTracker: overflow");
+        return hasProfit ? int256(adjustedDelta) : -int256(adjustedDelta);
+    }
+
+    function _getNextGlobalPositionAveragePrice(
+        uint256 _averagePrice,
+        uint256 _nextPrice,
+        uint256 _nextSize,
+        uint256 _delta,
+        int256 _realisedPnl,
+        bool _isLong
+    ) internal pure returns (uint256) {
+        bool hasProfit = _isLong ? _nextPrice > _averagePrice : _nextPrice < _averagePrice;
+        uint256 nextDelta = _getNextDelta(hasProfit, _delta, _realisedPnl, _isLong);
+        uint256 divisor;
+        if(_isLong){
+            divisor = hasProfit ? _nextSize+(nextDelta): _nextSize-(nextDelta);
+        }else{
+            divisor = hasProfit ? _nextSize-(nextDelta) : _nextSize+(nextDelta);
+        }
+
+        uint256 nextAveragePrice = _nextPrice*(_nextSize)/divisor;
+
+        return nextAveragePrice;
+    }
+
+    function _getNextDelta(
+        bool _hasProfit,
+        uint256 _delta,
+        int256 _realisedPnl,
+        bool _isLong
+    ) internal pure returns (uint256) {
+        // global delta 10000, realised pnl 1000 => new pnl 9000
+        // global delta 10000, realised pnl -1000 => new pnl 11000
+        // global delta -10000, realised pnl 1000 => new pnl -11000
+        // global delta -10000, realised pnl -1000 => new pnl -9000
+        // global delta 10000, realised pnl 11000 => new pnl -1000 (flips sign)
+        // global delta -10000, realised pnl -11000 => new pnl 1000 (flips sign)
+        
+        if (_hasProfit) {
+            // global shorts pnl is positive
+            if (_realisedPnl > 0) {
+                if (uint256(_realisedPnl) > _delta) {
+                    _delta = uint256(_realisedPnl)-(_delta);
+                    _hasProfit = false;
+                } else {
+                    _delta = _delta-(uint256(_realisedPnl));
+                }
+            } else {
+                _delta = _delta+(uint256(-_realisedPnl));
+            }
+            return _delta;
+        }
+
+        if (_realisedPnl > 0) {
+            _delta = _delta+(uint256(_realisedPnl));
+        } else {
+            if (uint256(-_realisedPnl) > _delta) {
+                _delta = uint256(-_realisedPnl)-(_delta);
+                _hasProfit = true;
+            } else {
+                _delta = _delta-(uint256(-_realisedPnl));
+            }
+        }
+        return _delta;
     }
 
     function _validate(bool _condition, uint256 _errorCode) private view {

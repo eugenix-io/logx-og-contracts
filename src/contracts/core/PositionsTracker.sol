@@ -43,8 +43,6 @@ contract PositionsTracker is Governable, IPositionsTracker {
         globalLongAveragePrices[_token] = _averagePrice;
     }
 
-    //AnirudhTodo - rmeoved isLong variable from this function parameter. check in places where this function is called whether isLong check is done 
-    // and this function is called.
     function updateGlobalPositionsData(
         address _account,
         address _collateralToken,
