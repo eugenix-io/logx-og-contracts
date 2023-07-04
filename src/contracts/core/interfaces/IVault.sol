@@ -108,7 +108,6 @@ interface IVault {
     function maxGlobalShortSizes(address _token) external view returns (uint256);
     function maxGlobalLongSizes(address _token) external view returns (uint256);
     function tokenDecimals(address _token) external view returns (uint256);
-    function guaranteedUsd(address _token) external view returns (uint256);
     function poolAmounts(address _token) external view returns (uint256);
     function bufferAmounts(address _token) external view returns (uint256);
     function reservedAmounts(address _token) external view returns (uint256);

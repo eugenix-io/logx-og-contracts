@@ -65,9 +65,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override fundingRateFactor;
     uint256 public override stableFundingRateFactor;
 
-    bool public includeAmmPrice = true;
-    bool public useSwapPricing = false;
-
     bool public override inManagerMode = false;
     bool public override inPrivateLiquidationMode = false;
 
@@ -102,13 +99,6 @@ contract Vault is ReentrancyGuard, IVault {
 
     // reservedAmounts tracks the number of tokens reserved for open leverage positions
     mapping(address => uint256) public override reservedAmounts;
-
-    // guaranteedUsd tracks the amount of USD that is "guaranteed" by opened leverage positions
-    // this value is used to calculate the redemption values for selling of USDG
-    // this is an estimated amount, it is possible for the actual guaranteed value to be lower
-    // in the case of sudden price decreases, the guaranteed value should be corrected
-    // after liquidations are carried out
-    mapping(address => uint256) public override guaranteedUsd;
 
     // cumulativeFundingRates tracks the funding rates based on utilization
     mapping(address => uint256) public override cumulativeFundingRates;
@@ -222,8 +212,6 @@ contract Vault is ReentrancyGuard, IVault {
     event DecreaseUsdgAmount(address token, uint256 amount);
     event IncreaseReservedAmount(address token, uint256 amount);
     event DecreaseReservedAmount(address token, uint256 amount);
-    event IncreaseGuaranteedUsd(address token, uint256 amount);
-    event DecreaseGuaranteedUsd(address token, uint256 amount);
 
     // once the parameters are verified to be working correctly,
     // gov should be set to a timelock contract or a governance contract
@@ -540,7 +528,6 @@ contract Vault is ReentrancyGuard, IVault {
     ) external override nonReentrant returns (uint256) {
         _validateManager();
         _validate(whitelistedTokens[_token], 16);
-        useSwapPricing = true;
 
         uint256 tokenAmount = _transferIn(_token);
         _validate(tokenAmount > 0, 17);
@@ -574,8 +561,6 @@ contract Vault is ReentrancyGuard, IVault {
             mintAmount,
             feeBasisPoints
         );
-
-        useSwapPricing = false;
         return mintAmount;
     }
 
@@ -631,7 +616,6 @@ contract Vault is ReentrancyGuard, IVault {
     ) external override nonReentrant returns (uint256) {
         _validateManager();
         _validate(whitelistedTokens[_token], 19);
-        useSwapPricing = true;
 
         uint256 usdgAmount = _transferIn(usdg);
         _validate(usdgAmount > 0, 20);
@@ -664,7 +648,6 @@ contract Vault is ReentrancyGuard, IVault {
 
         emit SellUSDG(_receiver, _token, usdgAmount, amountOut, feeBasisPoints);
 
-        useSwapPricing = false;
         return amountOut;
     }
 
@@ -764,8 +747,6 @@ contract Vault is ReentrancyGuard, IVault {
             _validate(isLiquidator[msg.sender], 34);
         }
 
-        // set includeAmmPrice to false to prevent manipulated liquidations
-        includeAmmPrice = false;
 
         updateCumulativeFundingRate(_collateralToken, _indexToken);
 
@@ -804,7 +785,6 @@ contract Vault is ReentrancyGuard, IVault {
                 _isLong,
                 _account
             );
-            includeAmmPrice = true;
             return;
         }
 
@@ -857,7 +837,6 @@ contract Vault is ReentrancyGuard, IVault {
             _feeReceiver
         );
 
-        includeAmmPrice = true;
     }
 
     function usdToTokenMin(
@@ -901,22 +880,6 @@ contract Vault is ReentrancyGuard, IVault {
         );
         reservedAmounts[_token] = reservedAmounts[_token] - (_amount);
         emit DecreaseReservedAmount(_token, _amount);
-    }
-
-    function _increaseGuaranteedUsd(
-        address _token,
-        uint256 _usdAmount
-    ) private {
-        guaranteedUsd[_token] = guaranteedUsd[_token] + (_usdAmount);
-        emit IncreaseGuaranteedUsd(_token, _usdAmount);
-    }
-
-    function _decreaseGuaranteedUsd(
-        address _token,
-        uint256 _usdAmount
-    ) private {
-        guaranteedUsd[_token] = guaranteedUsd[_token] - (_usdAmount);
-        emit DecreaseGuaranteedUsd(_token, _usdAmount);
     }
 
     // for longs: nextAveragePrice = (nextPrice * nextSize)/ (nextSize + delta)

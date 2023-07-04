@@ -120,7 +120,7 @@ contract BasePositionManager{
 
         if (_isLong) {
             uint256 maxGlobalLongSize = maxGlobalLongSizes[_indexToken];
-            if (maxGlobalLongSize > 0 && IVault(vault).guaranteedUsd(_indexToken)+(_sizeDelta) > maxGlobalLongSize) {
+            if (maxGlobalLongSize > 0 && IVault(vault).globalLongSizes(_indexToken)+(_sizeDelta) > maxGlobalLongSize) {
                 revert("max longs exceeded");
             }
         } else {
