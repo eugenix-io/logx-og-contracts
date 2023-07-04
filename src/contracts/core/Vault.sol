@@ -1409,10 +1409,6 @@ contract Vault is ReentrancyGuard, IVault {
                 price
             );
         } else {
-
-            uint256 price = _isLong
-                ? getMinPrice(_indexToken)
-                : getMaxPrice(_indexToken);
             emit DecreasePosition(
                 key,
                 _account,

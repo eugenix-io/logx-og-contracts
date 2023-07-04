@@ -168,7 +168,7 @@ contract PositionRouter is
         address _shortsTracker,
         uint256 _depositFee,
         uint256 _minExecutionFee
-    ) BasePositionManager(_vault, _router, _shortsTracker, _depositFee) {
+    ) BasePositionManager(_vault, _router, _depositFee) {
         minExecutionFee = _minExecutionFee;
     }
 

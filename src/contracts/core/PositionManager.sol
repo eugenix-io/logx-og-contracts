@@ -23,10 +23,9 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
     constructor(
         address _vault,
         address _router,
-        address _positionsTracker,
         uint256 _depositFee,
         address _orderBook
-    ) BasePositionManager(_vault, _router, _positionsTracker, _depositFee){
+    ) BasePositionManager(_vault, _router, _depositFee){
         orderBook = _orderBook;
     }
     //AnirudhTodo - research about this mode and check if it is needed?

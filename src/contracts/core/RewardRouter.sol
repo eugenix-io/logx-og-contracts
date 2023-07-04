@@ -28,10 +28,6 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
     event Stakellp(address account, uint256 amount);
     event Unstakellp(address account, uint256 amount);
 
-    receive() external payable {
-        require(msg.sender == usdc, "Router: invalid sender");
-    }
-
     function initialize(
         address _usdc,
         address _llp,
@@ -66,6 +62,7 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     function unstakeAndRedeemLlp(address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) external nonReentrant returns (uint256) {
         require(_llpAmount > 0, "RewardRouter: invalid _llpAmount");
+        require(_tokenOut == usdc, "Only USDC is supported");
 
         address account = msg.sender;
         IRewardTracker(feeLlpTracker).unstakeForAccount(account, llp, _llpAmount, account);
