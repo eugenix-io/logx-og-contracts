@@ -5,8 +5,7 @@ pragma solidity 0.8.19;
 interface IOrderBook {
 
     function getIncreaseOrder(address _account, uint256 _orderIndex) external view returns (
-        address purchaseToken, 
-        uint256 purchaseTokenAmount,
+        uint256 amountIn,
         address collateralToken,
         address indexToken,
         uint256 sizeDelta,
@@ -27,7 +26,6 @@ interface IOrderBook {
         uint256 executionFee
     );
 
-    function executeSwapOrder(address, uint256, address payable) external;
     function executeDecreaseOrder(address, uint256, address payable) external;
     function executeIncreaseOrder(address, uint256, address payable) external;
 }

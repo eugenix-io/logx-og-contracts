@@ -44,41 +44,6 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         _;
     }
 
-    function increasePosition(
-        address[] memory _path,
-        address _indexToken,
-        uint256 _amountIn,
-        //uint256 _minOut, //AniurdhTodo - check if this is definitely not needed
-        uint256 _sizeDelta,
-        bool _isLong,
-        uint256 _price
-    ) external nonReentrant onlyPartnersOrLegacyMode {
-        require(_path.length == 1 || _path.length == 2, "PositionManager: invalid _path.length");
-
-        if (_amountIn > 0) {
-            if (_path.length == 1) {
-                IRouter(router).pluginTransfer(_path[0], msg.sender, address(this), _amountIn);
-            }
-
-            uint256 afterFeeAmount = _collectFees(msg.sender, _path, _amountIn, _indexToken, _isLong, _sizeDelta);
-            IERC20(_path[_path.length - 1]).safeTransfer(vault, afterFeeAmount);
-        }
-
-        _increasePosition(msg.sender, _path[_path.length - 1], _indexToken, _sizeDelta, _isLong, _price);
-    }
-
-    function decreasePosition(
-        address _collateralToken,
-        address _indexToken,
-        uint256 _collateralDelta,
-        uint256 _sizeDelta,
-        bool _isLong,
-        address _receiver,
-        uint256 _price
-    ) external nonReentrant onlyPartnersOrLegacyMode {
-        _decreasePosition(msg.sender, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver, _price);
-    }
-
     function liquidatePosition(
         address _account,
         address _collateralToken,
@@ -118,8 +83,7 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
 
     function _validateIncreaseOrder(address _account, uint256 _orderIndex) internal view {
         (
-            address _purchaseToken,
-            uint256 _purchaseTokenAmount,
+            uint256 amountIn,
             address _collateralToken,
             address _indexToken,
             uint256 _sizeDelta,
@@ -147,7 +111,7 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         if (size == 0) { return; }
 
         uint256 nextSize = size+(_sizeDelta);
-        uint256 collateralDelta = _vault.tokenToUsdMin(_purchaseToken, _purchaseTokenAmount);
+        uint256 collateralDelta = _vault.tokenToUsdMin(_collateralToken, amountIn);
         uint256 nextCollateral = collateral+(collateralDelta);
 
         uint256 prevLeverage = size*(BASIS_POINTS_DIVISOR)/(collateral);

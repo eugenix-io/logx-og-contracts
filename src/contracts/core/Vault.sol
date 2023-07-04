@@ -37,6 +37,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     bool public override isInitialized;
     bool public override isLeverageEnabled = true;
+    address public usdc;
 
     IVaultUtils public vaultUtils;
 
@@ -230,18 +231,19 @@ contract Vault is ReentrancyGuard, IVault {
         address _priceFeed,
         uint256 _liquidationFeeUsd,
         uint256 _fundingRateFactor,
-        uint256 _stableFundingRateFactor
+        uint256 _stableFundingRateFactor,
+        address _usdc
     ) external {
         _onlyGov();
         _validate(!isInitialized, 1);
         isInitialized = true;
-
         router = _router;
         usdg = _usdg;
         priceFeed = _priceFeed;
         liquidationFeeUsd = _liquidationFeeUsd;
         fundingRateFactor = _fundingRateFactor;
         stableFundingRateFactor = _stableFundingRateFactor;
+        usdc = _usdc;
     }
 
     function setVaultUtils(IVaultUtils _vaultUtils) external override {
@@ -400,19 +402,10 @@ contract Vault is ReentrancyGuard, IVault {
 
     function _validateTokens(
         address _collateralToken,
-        address _indexToken,
-        bool _isLong
+        address _indexToken
     ) private view {
-        if (_isLong) {
-            _validate(_collateralToken == _indexToken, 42);
-            _validate(whitelistedTokens[_collateralToken], 43);
-            _validate(!stableTokens[_collateralToken], 44);
-            return;
-        }
-
-        _validate(whitelistedTokens[_collateralToken], 45);
-        _validate(stableTokens[_collateralToken], 46);
-        _validate(!stableTokens[_indexToken], 47);
+        _validate(_collateralToken == usdc, 42);
+        _validate(whitelistedTokens[_indexToken], 43);
         _validate(shortableTokens[_indexToken], 48);
     }
 
@@ -436,7 +429,6 @@ contract Vault is ReentrancyGuard, IVault {
         maxUsdgAmounts[_token] = _maxUsdgAmount;
         stableTokens[_token] = _isStable;
         shortableTokens[_token] = _isShortable;
-
 
         // validate price feed
         getMaxPrice(_token);
@@ -1074,7 +1066,7 @@ contract Vault is ReentrancyGuard, IVault {
         _validate(isLeverageEnabled, 28);
         _validateGasPrice();
         _validateRouter(_account);//AnirudhInfo - validate whether msg.sender is approved to place order for account
-        _validateTokens(_collateralToken, _indexToken, _isLong);
+        _validateTokens(_collateralToken, _indexToken);
         vaultUtils.validateIncreasePosition(
             _account,
             _collateralToken,

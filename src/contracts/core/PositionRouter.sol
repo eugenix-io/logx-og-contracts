@@ -9,7 +9,6 @@ import '../libraries/token/SafeERC20.sol';
 import './BasePositionManager.sol';
 import './interfaces/IPositionRouter.sol';
 /**
- * Currently we are accepting execution fee in the same token as collateral which is USDC. 
  * AnirudhTodo - add constructor.
 */
 contract PositionRouter is
@@ -30,9 +29,7 @@ contract PositionRouter is
         uint256 acceptablePrice;
         uint256 executionFee;
         uint256 blockNumber;
-        uint256 blockTime;
-        bool hasCollateralInETH;
-    }
+        uint256 blockTime;    }
 
     struct DecreasePositionRequest {
         address account;
@@ -233,8 +230,7 @@ contract PositionRouter is
                 _sizeDelta,
                 _isLong,
                 _acceptablePrice,
-                _executionFee,
-                false
+                _executionFee
             );
     }
 
@@ -247,8 +243,7 @@ contract PositionRouter is
         uint256 _sizeDelta,
         bool _isLong,
         uint256 _acceptablePrice,
-        uint256 _executionFee,
-        bool _hasCollateralInETH
+        uint256 _executionFee
     ) internal returns (bytes32) {
         IncreasePositionRequest memory request = IncreasePositionRequest(
             _account,
@@ -261,8 +256,7 @@ contract PositionRouter is
             _acceptablePrice,
             _executionFee,
             block.number,
-            block.timestamp,
-            _hasCollateralInETH
+            block.timestamp
         );
 
         (uint256 index, bytes32 requestKey) = _storeIncreasePositionRequest(
@@ -324,7 +318,7 @@ contract PositionRouter is
         delete increasePositionRequests[_key];
         IERC20(request.path[0]).safeTransfer(request.account, request.amountIn);
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
-        require(success, "failed to send eth to executor");
+        require(success, "failed to return execution fee");
 
         emit CancelIncreasePosition(
             request.account,
@@ -356,7 +350,7 @@ contract PositionRouter is
     ) external payable nonReentrant returns (bytes32) {
         require(_executionFee >= minExecutionFee, "fee");
         require(_path.length == 1 || _path.length == 2, "len");
-        require(_exectuionFee == msg.value, "value sent is not equal to execution fee");
+        require(_executionFee == msg.value, "value sent is not equal to execution fee");
 
         return
             _createDecreasePosition(
@@ -458,7 +452,7 @@ contract PositionRouter is
         delete decreasePositionRequests[_key];
 
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
-        require(success, "failed to send eth to executor");
+        require(success, "failed to return execution fee");
 
         emit CancelDecreasePosition(
             request.account,
