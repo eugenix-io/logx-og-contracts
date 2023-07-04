@@ -19,7 +19,6 @@ interface IVault {
     function minProfitTime() external view returns (uint256);
     function hasDynamicFees() external view returns (bool);
     function fundingInterval() external view returns (uint256);
-    function totalTokenWeights() external view returns (uint256);
 
     function inManagerMode() external view returns (bool);
     function inPrivateLiquidationMode() external view returns (bool);
@@ -63,7 +62,6 @@ interface IVault {
     function setTokenConfig(
         address _token,
         uint256 _tokenDecimals,
-        uint256 _redemptionBps,
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
@@ -110,7 +108,6 @@ interface IVault {
     function maxGlobalShortSizes(address _token) external view returns (uint256);
     function maxGlobalLongSizes(address _token) external view returns (uint256);
     function tokenDecimals(address _token) external view returns (uint256);
-    function tokenWeights(address _token) external view returns (uint256);
     function guaranteedUsd(address _token) external view returns (uint256);
     function poolAmounts(address _token) external view returns (uint256);
     function bufferAmounts(address _token) external view returns (uint256);

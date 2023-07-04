@@ -64,7 +64,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override fundingInterval = 8 hours;
     uint256 public override fundingRateFactor;
     uint256 public override stableFundingRateFactor;
-    uint256 public override totalTokenWeights;
 
     bool public includeAmmPrice = true;
     bool public useSwapPricing = false;
@@ -90,9 +89,6 @@ contract Vault is ReentrancyGuard, IVault {
 
     // tokenBalances is used only to determine _transferIn values
     mapping(address => uint256) public override tokenBalances;
-
-    // tokenWeights allows customisation of index composition
-    mapping(address => uint256) public override tokenWeights;
 
     // usdgAmounts tracks the amount of USDG debt for each whitelisted token
     mapping(address => uint256) public override usdgAmounts;
@@ -435,7 +431,6 @@ contract Vault is ReentrancyGuard, IVault {
     function setTokenConfig(
         address _token,
         uint256 _tokenDecimals,
-        uint256 _tokenWeight,
         uint256 _minProfitBps,
         uint256 _maxUsdgAmount,
         bool _isStable,
@@ -447,18 +442,13 @@ contract Vault is ReentrancyGuard, IVault {
             allWhitelistedTokens.push(_token);
         }
 
-        uint256 _totalTokenWeights = totalTokenWeights;
-        _totalTokenWeights = _totalTokenWeights - (tokenWeights[_token]);
-
         whitelistedTokens[_token] = true;
         tokenDecimals[_token] = _tokenDecimals;
-        tokenWeights[_token] = _tokenWeight;
         minProfitBasisPoints[_token] = _minProfitBps;
         maxUsdgAmounts[_token] = _maxUsdgAmount;
         stableTokens[_token] = _isStable;
         shortableTokens[_token] = _isShortable;
 
-        totalTokenWeights = _totalTokenWeights + (_tokenWeight);
 
         // validate price feed
         getMaxPrice(_token);
