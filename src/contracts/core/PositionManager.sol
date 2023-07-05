@@ -12,8 +12,6 @@ import '../libraries/token/SafeERC20.sol';
 contract PositionManager is BasePositionManager, ReentrancyGuard {
     using SafeERC20 for IERC20;
     address public orderBook;
-    //AnirudhTodo - research to findout what is inLegacy mode.
-    bool public inLegacyMode;
     bool public shouldValidateIncreaseOrder;
 
     mapping (address => bool) public isOrderKeeper;
@@ -27,11 +25,6 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         address _orderBook
     ) BasePositionManager(_vault, _router, _depositFee){
         orderBook = _orderBook;
-    }
-    //AnirudhTodo - research about this mode and check if it is needed?
-    modifier onlyPartnersOrLegacyMode() {
-        require(isPartner[msg.sender] || inLegacyMode, "PositionManager: forbidden");
-        _;
     }
 
     modifier onlyLiquidator() {
