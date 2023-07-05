@@ -169,7 +169,7 @@ contract PositionRouter is
     }
 
     modifier onlyPositionKeeper() {
-        require(isPositionKeeper[msg.sender], "403");
+        require(isPositionKeeper[msg.sender], "PositionRouter: 403");
         _;
     }
 
@@ -206,8 +206,8 @@ contract PositionRouter is
         uint256 _acceptablePrice,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
-        require(_executionFee >= minExecutionFee, "execution fee less than min execution fee");
-        require(_executionFee == msg.value, "execution fee not equal to value in msg.");
+        require(_executionFee >= minExecutionFee, "PositionRouter: execution fee less than min execution fee");
+        require(_executionFee == msg.value, "PositionRouter: execution fee not equal to value in msg.");
 
         if (_amountIn > 0) {
             IRouter(router).pluginTransfer(
@@ -316,7 +316,7 @@ contract PositionRouter is
         delete increasePositionRequests[_key];
         IERC20(request._collateralToken).safeTransfer(request.account, request.amountIn);
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
-        require(success, "failed to return execution fee");
+        require(success, "PositionRouter: failed to return execution fee");
 
         emit CancelIncreasePosition(
             request.account,
@@ -346,8 +346,8 @@ contract PositionRouter is
         uint256 _minOut,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
-        require(_executionFee >= minExecutionFee, "fee");
-        require(_executionFee == msg.value, "value sent is not equal to execution fee");
+        require(_executionFee >= minExecutionFee, "PositionRouter: fee");
+        require(_executionFee == msg.value, "PositionRouter: value sent is not equal to execution fee");
 
         return
             _createDecreasePosition(
@@ -449,7 +449,7 @@ contract PositionRouter is
         delete decreasePositionRequests[_key];
 
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
-        require(success, "failed to return execution fee");
+        require(success, "PositionRouter: failed to return execution fee");
 
         emit CancelDecreasePosition(
             request.account,
@@ -493,11 +493,11 @@ contract PositionRouter is
         if (isKeeperCall) {
             return _positionBlockNumber - minBlockDelayKeeper <= block.number;
         }
-        require(msg.sender == _account, "403");
+        require(msg.sender == _account, "PositionRouter: 403");
 
         require(
             _positionBlockTime + minTimeDelayPublic <= block.timestamp,
-            "delay"
+            "PositionRouter: delay"
         );
 
         return true;
@@ -599,7 +599,7 @@ contract PositionRouter is
 
         //AnirudhTodo - handle if this call fails to send execution fee.
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
-        require(success, "failed to send eth to executor");
+        require(success, "PositionRouter: failed to send eth to executor");
 
         emit ExecuteIncreasePosition(
             request.account,
@@ -625,7 +625,7 @@ contract PositionRouter is
     ) internal view returns (bool) {
         require(
             block.timestamp < _positionBlockTime + (maxTimeDelay),
-            "expired"
+            "PositionRouter: expired"
         );
 
         return

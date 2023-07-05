@@ -92,7 +92,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     ) external override onlyGov {
         require(
             _cooldownDuration <= MAX_COOLDOWN_DURATION,
-            "llpManager: invalid _cooldownDuration"
+            "LlpManager: invalid _cooldownDuration"
         );
         cooldownDuration = _cooldownDuration;
     }
@@ -231,7 +231,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 _minUsdg,
         uint256 _minllp
     ) private returns (uint256) {
-        require(_amount > 0, "llpManager: invalid _amount");
+        require(_amount > 0, "LlpManager: invalid _amount");
 
         // calculate aum before buyUSDG
         uint256 aumInUsdg = getAumInUsdg(true);
@@ -243,12 +243,12 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             _amount
         );
         uint256 usdgAmount = vault.buyUSDG(_token, address(this));
-        require(usdgAmount >= _minUsdg, "llpManager: insufficient USDG output");
+        require(usdgAmount >= _minUsdg, "LlpManager: insufficient USDG output");
 
         uint256 mintAmount = aumInUsdg == 0
             ? usdgAmount
             : (usdgAmount * (llpSupply)) / (aumInUsdg);
-        require(mintAmount >= _minllp, "llpManager: insufficient llp output");
+        require(mintAmount >= _minllp, "LlpManager: insufficient llp output");
 
         IMintable(llp).mint(_account, mintAmount);
 
@@ -274,10 +274,10 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 _minOut,
         address _receiver
     ) private returns (uint256) {
-        require(_llpAmount > 0, "llpManager: invalid _llpAmount");
+        require(_llpAmount > 0, "LlpManager: invalid _llpAmount");
         require(
             lastAddedAt[_account] + (cooldownDuration) <= block.timestamp,
-            "llpManager: cooldown duration not yet passed"
+            "LlpManager: cooldown duration not yet passed"
         );
 
         // calculate aum before sellUSDG
@@ -294,7 +294,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
         IERC20(usdg).transfer(address(vault), usdgAmount);
         uint256 amountOut = vault.sellUSDG(_tokenOut, _receiver);
-        require(amountOut >= _minOut, "llpManager: insufficient output");
+        require(amountOut >= _minOut, "LlpManager: insufficient output");
 
         emit RemoveLiquidity(
             _account,
@@ -310,6 +310,6 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     }
 
     function _validateHandler() private view {
-        require(isHandler[msg.sender], "llpManager: forbidden");
+        require(isHandler[msg.sender], "LlpManager: forbidden");
     }
 }

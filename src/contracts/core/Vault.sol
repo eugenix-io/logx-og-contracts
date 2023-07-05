@@ -1597,7 +1597,7 @@ contract Vault is ReentrancyGuard, IVault {
         (bool hasProfit, uint256 delta) = getDelta(_indexToken, size, averagePrice, _isLong, lastIncreasedTime);
         // get the proportional change in pnl
         uint256 adjustedDelta = _sizeDelta*(delta)/(size);
-        require(adjustedDelta < MAX_INT256, "ShortsTracker: overflow");
+        require(adjustedDelta < MAX_INT256, "Vault: overflow");
         return hasProfit ? int256(adjustedDelta) : -int256(adjustedDelta);
     }
 

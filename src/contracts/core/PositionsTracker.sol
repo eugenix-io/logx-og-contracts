@@ -22,7 +22,7 @@ contract PositionsTracker is Governable, IPositionsTracker {
     mapping (address => uint256) override public globalLongAveragePrices;
 
     modifier onlyHandler() {
-        require(isHandler[msg.sender], "ShortsTracker: forbidden");
+        require(isHandler[msg.sender], "PositionsTracker: forbidden");
         _;
     }
 
@@ -31,7 +31,7 @@ contract PositionsTracker is Governable, IPositionsTracker {
     }
 
     function setHandler(address _handler, bool _isActive) external onlyGov {
-        require(_handler != address(0), "ShortsTracker: invalid _handler");
+        require(_handler != address(0), "PositionsTracker: invalid _handler");
         isHandler[_handler] = _isActive;
     }
 
@@ -158,7 +158,7 @@ contract PositionsTracker is Governable, IPositionsTracker {
         (bool hasProfit, uint256 delta) = _vault.getDelta(_indexToken, size, averagePrice, _isLong, lastIncreasedTime);
         // get the proportional change in pnl
         uint256 adjustedDelta = _sizeDelta*(delta)/(size);
-        require(adjustedDelta < MAX_INT256, "ShortsTracker: overflow");
+        require(adjustedDelta < MAX_INT256, "PositionsTracker: overflow");
         return hasProfit ? int256(adjustedDelta) : -int256(adjustedDelta);
     }
 

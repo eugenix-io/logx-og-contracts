@@ -61,11 +61,11 @@ contract PriceFeed is IPriceFeed, Governable {
     }
 
     function validateData(PythPriceData memory _priceData) internal view {
-        require(_priceData.publishTime + maxAllowedDelay > block.timestamp , "Failed: current price data not available!");
+        require(_priceData.publishTime + maxAllowedDelay > block.timestamp , "PriceFeed: current price data not available!");
     }
 
     modifier onlyUpdater(){
-        require(msg.sender == updater, "sender does not have entitlements to update price");
+        require(msg.sender == updater, "PriceFeed: sender does not have entitlements to update price");
         _;
     }
 

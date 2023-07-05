@@ -49,7 +49,7 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     function mintAndStakeLlp(address _token, uint256 _amount, uint256 _minUsdg, uint256 _minLlp) external nonReentrant returns (uint256) {
         require(_amount > 0, "RewardRouter: invalid _amount");
-        require(_token == usdc, "Only USDC is supported");
+        require(_token == usdc, "RewardRouter: Only USDC is supported");
 
         address account = msg.sender;
         uint256 llpAmount = ILlpManager(llpManager).addLiquidityForAccount(account, account, _token, _amount, _minUsdg, _minLlp);
@@ -62,7 +62,7 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     function unstakeAndRedeemLlp(address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) external nonReentrant returns (uint256) {
         require(_llpAmount > 0, "RewardRouter: invalid _llpAmount");
-        require(_tokenOut == usdc, "Only USDC is supported");
+        require(_tokenOut == usdc, "RewardRouter: Only USDC is supported");
 
         address account = msg.sender;
         IRewardTracker(feeLlpTracker).unstakeForAccount(account, llp, _llpAmount, account);

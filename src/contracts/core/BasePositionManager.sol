@@ -40,7 +40,7 @@ contract BasePositionManager{
 
 
     modifier onlyAdmin() {
-        require(msg.sender == admin, "forbidden");
+        require(msg.sender == admin, "BasePositionManager: forbidden");
         _;
     }
 
@@ -121,12 +121,12 @@ contract BasePositionManager{
         if (_isLong) {
             uint256 maxGlobalLongSize = maxGlobalLongSizes[_indexToken];
             if (maxGlobalLongSize > 0 && IVault(vault).globalLongSizes(_indexToken)+(_sizeDelta) > maxGlobalLongSize) {
-                revert("max longs exceeded");
+                revert("BasePositionManager: max longs exceeded");
             }
         } else {
             uint256 maxGlobalShortSize = maxGlobalShortSizes[_indexToken];
             if (maxGlobalShortSize > 0 && IVault(vault).globalShortSizes(_indexToken)+(_sizeDelta) > maxGlobalShortSize) {
-                revert("max shorts exceeded");
+                revert("BasePositionManager: max shorts exceeded");
             }
         }
     }
@@ -136,9 +136,9 @@ contract BasePositionManager{
 
         uint256 markPrice = _isLong ? IVault(vault).getMaxPrice(_indexToken) : IVault(vault).getMinPrice(_indexToken);
         if (_isLong) {
-            require(markPrice <= acceptablePrice, "markPrice > price");
+            require(markPrice <= acceptablePrice, "BasePositionManager: markPrice > price");
         } else {
-            require(markPrice >= acceptablePrice, "markPrice < price");
+            require(markPrice >= acceptablePrice, "BasePositionManager: markPrice < price");
         }
 
         address timelock = IVault(vault).gov();
@@ -154,9 +154,9 @@ contract BasePositionManager{
 
         uint256 markPrice = _isLong ? IVault(_vault).getMinPrice(_indexToken) : IVault(_vault).getMaxPrice(_indexToken);
         if (_isLong) {
-            require(markPrice >= _price, "markPrice < price");
+            require(markPrice >= _price, "BasePositionManager: markPrice < price");
         } else {
-            require(markPrice <= _price, "markPrice > price");
+            require(markPrice <= _price, "BasePositionManager: markPrice > price");
         }
 
         address timelock = IVault(_vault).gov();
