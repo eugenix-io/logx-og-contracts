@@ -86,7 +86,7 @@ contract BasePositionManager{
 
     function _collectFees(
         address _account,
-        address[] memory _path,
+        address _collateralToken,
         uint256 _amountIn,
         address _indexToken,
         bool _isLong,
@@ -94,7 +94,7 @@ contract BasePositionManager{
     ) internal returns (uint256) {
         bool shouldDeductFee = checkShouldDeductFee(
             _account,
-            _path,
+            _collateralToken,
             _amountIn,
             _indexToken,
             _isLong,
@@ -105,7 +105,7 @@ contract BasePositionManager{
         if (shouldDeductFee) {
             uint256 afterFeeAmount = _amountIn*(BASIS_POINTS_DIVISOR-(depositFee))/(BASIS_POINTS_DIVISOR);
             uint256 feeAmount = _amountIn-(afterFeeAmount);
-            address feeToken = _path[_path.length - 1];
+            address feeToken = _collateralToken;
             feeReserves[feeToken] = feeReserves[feeToken]+(feeAmount);
             return afterFeeAmount;
         }
@@ -171,7 +171,7 @@ contract BasePositionManager{
 
     function checkShouldDeductFee(
         address _account,
-        address[] memory _path,
+        address _collateralToken,
         uint256 _amountIn,
         address _indexToken,
         bool _isLong,
@@ -184,7 +184,7 @@ contract BasePositionManager{
         // if the position size is not increasing, this is a collateral deposit
         if (_sizeDelta == 0) { return true; }
 
-        address collateralToken = _path[_path.length - 1];
+        address collateralToken = _collateralToken;
 
         (uint256 size, uint256 collateral, , , , , , ) = IVault(vault).getPosition(_account, collateralToken, _indexToken, _isLong);
 

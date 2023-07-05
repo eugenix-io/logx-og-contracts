@@ -20,7 +20,7 @@ contract PositionRouter is
 
     struct IncreasePositionRequest {
         address account;
-        address[] path;
+        address _collateralToken;
         address indexToken;
         uint256 amountIn;
         uint256 minOut;
@@ -33,7 +33,7 @@ contract PositionRouter is
 
     struct DecreasePositionRequest {
         address account;
-        address[] path;
+        address _collateralToken;
         address indexToken;
         uint256 collateralDelta;
         uint256 sizeDelta;
@@ -62,7 +62,7 @@ contract PositionRouter is
 
     event CreateIncreasePosition(
         address indexed account,
-        address[] path,
+        address _collateralToken,
         address indexToken,
         uint256 amountIn,
         uint256 minOut,
@@ -79,7 +79,7 @@ contract PositionRouter is
 
     event CancelIncreasePosition(
         address indexed account,
-        address[] path,
+        address _collateralToken,
         address indexToken,
         uint256 amountIn,
         uint256 minOut,
@@ -93,7 +93,7 @@ contract PositionRouter is
 
     event CreateDecreasePosition(
         address indexed account,
-        address[] path,
+        address _collateralToken,
         address indexToken,
         uint256 collateralDelta,
         uint256 sizeDelta,
@@ -110,7 +110,7 @@ contract PositionRouter is
 
     event ExecuteDecreasePosition(
         address indexed account,
-        address[] path,
+        address _collateralToken,
         address indexToken,
         uint256 collateralDelta,
         uint256 sizeDelta,
@@ -125,7 +125,7 @@ contract PositionRouter is
 
     event CancelDecreasePosition(
         address indexed account,
-        address[] path,
+        address _collateralToken,
         address indexToken,
         uint256 collateralDelta,
         uint256 sizeDelta,
@@ -140,7 +140,7 @@ contract PositionRouter is
 
     event ExecuteIncreasePosition(
         address indexed account,
-        address[] path,
+        address _collateralToken,
         address indexToken,
         uint256 amountIn,
         uint256 minOut,
@@ -197,7 +197,7 @@ contract PositionRouter is
     }
 
     function createIncreasePosition(
-        address[] memory _path,
+        address _collateralToken,
         address _indexToken,
         uint256 _amountIn,
         uint256 _minOut,
@@ -208,12 +208,10 @@ contract PositionRouter is
     ) external payable nonReentrant returns (bytes32) {
         require(_executionFee >= minExecutionFee, "execution fee less than min execution fee");
         require(_executionFee == msg.value, "execution fee not equal to value in msg.");
-        require(_path.length == 1 || _path.length == 2, "len");
 
         if (_amountIn > 0) {
-            //AnirudhInfo - path[0] is collateral token.
             IRouter(router).pluginTransfer(
-                _path[0],
+                _collateralToken,
                 msg.sender,
                 address(this),
                 _amountIn
@@ -223,7 +221,7 @@ contract PositionRouter is
         return
             _createIncreasePosition(
                 msg.sender,
-                _path,
+                _collateralToken,
                 _indexToken,
                 _amountIn,
                 _minOut,
@@ -236,7 +234,7 @@ contract PositionRouter is
 
     function _createIncreasePosition(
         address _account,
-        address[] memory _path,
+        address _collateralToken,
         address _indexToken,
         uint256 _amountIn,
         uint256 _minOut,
@@ -247,7 +245,7 @@ contract PositionRouter is
     ) internal returns (bytes32) {
         IncreasePositionRequest memory request = IncreasePositionRequest(
             _account,
-            _path,
+            _collateralToken,
             _indexToken,
             _amountIn,
             _minOut,
@@ -264,7 +262,7 @@ contract PositionRouter is
         );
         emit CreateIncreasePosition(
             _account,
-            _path,
+            _collateralToken,
             _indexToken,
             _amountIn,
             _minOut,
@@ -316,13 +314,13 @@ contract PositionRouter is
         }
 
         delete increasePositionRequests[_key];
-        IERC20(request.path[0]).safeTransfer(request.account, request.amountIn);
+        IERC20(request._collateralToken).safeTransfer(request.account, request.amountIn);
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
         require(success, "failed to return execution fee");
 
         emit CancelIncreasePosition(
             request.account,
-            request.path,
+            request._collateralToken,
             request.indexToken,
             request.amountIn,
             request.minOut,
@@ -338,7 +336,7 @@ contract PositionRouter is
     }
 
     function createDecreasePosition(
-        address[] memory _path,
+        address _collateralToken,
         address _indexToken,
         uint256 _collateralDelta,
         uint256 _sizeDelta,
@@ -349,13 +347,12 @@ contract PositionRouter is
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
         require(_executionFee >= minExecutionFee, "fee");
-        require(_path.length == 1 || _path.length == 2, "len");
         require(_executionFee == msg.value, "value sent is not equal to execution fee");
 
         return
             _createDecreasePosition(
                 msg.sender,
-                _path,
+                _collateralToken,
                 _indexToken,
                 _collateralDelta,
                 _sizeDelta,
@@ -369,7 +366,7 @@ contract PositionRouter is
 
     function _createDecreasePosition(
         address _account,
-        address[] memory _path,
+        address _collateralToken,
         address _indexToken,
         uint256 _collateralDelta,
         uint256 _sizeDelta,
@@ -381,7 +378,7 @@ contract PositionRouter is
     ) internal returns (bytes32) {
         DecreasePositionRequest memory request = DecreasePositionRequest(
             _account,
-            _path,
+            _collateralToken,
             _indexToken,
             _collateralDelta,
             _sizeDelta,
@@ -399,7 +396,7 @@ contract PositionRouter is
         );
         emit CreateDecreasePosition(
             request.account,
-            request.path,
+            request._collateralToken,
             request.indexToken,
             request.collateralDelta,
             request.sizeDelta,
@@ -456,7 +453,7 @@ contract PositionRouter is
 
         emit CancelDecreasePosition(
             request.account,
-            request.path,
+            request._collateralToken,
             request.indexToken,
             request.collateralDelta,
             request.sizeDelta,
@@ -579,13 +576,13 @@ contract PositionRouter is
             uint256 amountIn = request.amountIn;
             uint256 afterFeeAmount = _collectFees(
                 request.account,
-                request.path,
+                request._collateralToken,
                 amountIn,
                 request.indexToken,
                 request.isLong,
                 request.sizeDelta
             );
-            IERC20(request.path[request.path.length - 1]).safeTransfer(
+            IERC20(request._collateralToken).safeTransfer(
                 vault,
                 afterFeeAmount
             );
@@ -593,7 +590,7 @@ contract PositionRouter is
 
         _increasePosition(
             request.account,
-            request.path[request.path.length - 1],
+            request._collateralToken,
             request.indexToken,
             request.sizeDelta,
             request.isLong,
@@ -606,7 +603,7 @@ contract PositionRouter is
 
         emit ExecuteIncreasePosition(
             request.account,
-            request.path,
+            request._collateralToken,
             request.indexToken,
             request.amountIn,
             request.minOut,
@@ -718,7 +715,7 @@ contract PositionRouter is
 
         uint256 amountOut = _decreasePosition(
             request.account,
-            request.path[0],
+            request._collateralToken,
             request.indexToken,
             request.collateralDelta,
             request.sizeDelta,
@@ -727,7 +724,7 @@ contract PositionRouter is
             request.acceptablePrice
         );
 
-        IERC20(request.path[request.path.length - 1]).safeTransfer(
+        IERC20(request._collateralToken).safeTransfer(
             request.receiver,
             amountOut
         );
@@ -737,7 +734,7 @@ contract PositionRouter is
 
         emit ExecuteDecreasePosition(
             request.account,
-            request.path,
+            request._collateralToken,
             request.indexToken,
             request.collateralDelta,
             request.sizeDelta,
