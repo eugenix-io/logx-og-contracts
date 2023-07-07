@@ -33,6 +33,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
     uint256 public override cooldownDuration;
     mapping(address => uint256) public override lastAddedAt;
+    mapping(address => bool) public whiteListedTokens;
 
     uint256 public aumAddition;
     uint256 public aumDeduction;
@@ -87,6 +88,14 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         isHandler[_handler] = _isActive;
     }
 
+    function whiteListToken(address token) public onlyGov {
+        whiteListedTokens[token] = true;
+    }
+
+    function removeFromWhiteListToken(address token) public onlyGov {
+        whiteListedTokens[token] = false;
+    }
+
     function setCooldownDuration(
         uint256 _cooldownDuration
     ) external override onlyGov {
@@ -114,6 +123,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 _minllp
     ) external override nonReentrant returns (uint256) {
         _validateHandler();
+        _validateToken(_token);
         return
             _addLiquidity(
                 _fundingAccount,
@@ -133,6 +143,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         address _receiver
     ) external override nonReentrant returns (uint256) {
         _validateHandler();
+        _validateToken(_tokenOut);
         return
             _removeLiquidity(
                 _account,
@@ -311,5 +322,9 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
     function _validateHandler() private view {
         require(isHandler[msg.sender], "LlpManager: forbidden");
+    }
+
+    function _validateToken(address token) private view {
+        require(whiteListedTokens[token], "LlpManager: Token not whiteListed.");
     }
 }
