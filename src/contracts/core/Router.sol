@@ -15,14 +15,14 @@ contract Router is IRouter, Governable {
     using SafeERC20 for IERC20;
 
     address vault;
-    address usdg;
+    address usdl;
     address weth;
     mapping(address => bool) plugins;
     mapping(address => mapping(address => bool)) approvedPlugins;
 
-    constructor(address _vault, address _usdg, address _weth) {
+    constructor(address _vault, address _usdl, address _weth) {
         vault = _vault;
-        usdg = _usdg;
+        usdl = _usdl;
         weth = _weth;
     }
 

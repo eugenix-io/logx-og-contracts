@@ -14,7 +14,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     using SafeERC20 for IERC20;
 
     uint256 public constant PRICE_PRECISION = 1e30;
-    uint256 public constant USDG_PRECISION = 1e18;
+    uint256 public constant USDL_PRECISION = 1e18;
 
     struct IncreaseOrder {
         address account;
@@ -46,7 +46,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
     address public gov;
     address public weth;
-    address public usdg;
+    address public usdl;
     address public router;
     address public vault;
     uint256 public minExecutionFee;
@@ -198,7 +198,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         address router,
         address vault,
         address weth,
-        address usdg,
+        address usdl,
         uint256 minExecutionFee,
         uint256 minPurchaseTokenAmountUsd
     );
@@ -219,7 +219,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         address _router,
         address _vault,
         address _weth,
-        address _usdg,
+        address _usdl,
         uint256 _minExecutionFee,
         uint256 _minPurchaseTokenAmountUsd
     ) external onlyGov {
@@ -229,11 +229,11 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         router = _router;
         vault = _vault;
         weth = _weth;
-        usdg = _usdg;
+        usdl = _usdl;
         minExecutionFee = _minExecutionFee;
         minPurchaseTokenAmountUsd = _minPurchaseTokenAmountUsd;
 
-        emit Initialize(_router, _vault, _weth, _usdg, _minExecutionFee, _minPurchaseTokenAmountUsd);
+        emit Initialize(_router, _vault, _weth, _usdl, _minExecutionFee, _minPurchaseTokenAmountUsd);
     }
 
     receive() external payable {
@@ -270,9 +270,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         }
     }
 
-    function getUsdgMinPrice(address _otherToken) public view returns (uint256) {
-        // USDG_PRECISION is the same as 1 USDG
-        uint256 redemptionAmount = IVault(vault).getRedemptionAmount(_otherToken, USDG_PRECISION);
+    function getUsdlMinPrice(address _otherToken) public view returns (uint256) {
+        uint256 redemptionAmount = IVault(vault).getRedemptionAmount(_otherToken, USDL_PRECISION);
         uint256 otherTokenPrice = IVault(vault).getMinPrice(_otherToken);
 
         uint256 otherTokenDecimals = IVault(vault).tokenDecimals(_otherToken);

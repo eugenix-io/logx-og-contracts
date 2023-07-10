@@ -4,7 +4,7 @@ import "../libraries/token/IERC20.sol";
 import "../libraries/token/SafeERC20.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
 import './interfaces/IMintable.sol';
-import './interfaces/IUSDG.sol';
+import './interfaces/IUSDL.sol';
 import "./interfaces/IVault.sol";
 import "./interfaces/ILlpManager.sol";
 import "./interfaces/IPositionsTracker.sol";
@@ -14,21 +14,21 @@ pragma solidity 0.8.19;
 
 /* TODO
     3. Create LLP token
-    7. Why do we need USDG. If valid reason create similar to USDG token else remove it completely
+    7. Why do we need usdl. If valid reason create similar to usdl token else remove it completely
 */
 
 contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     using SafeERC20 for IERC20;
 
     uint256 public constant PRICE_PRECISION = 10 ** 30;
-    uint256 public constant USDG_DECIMALS = 18;
+    uint256 public constant usdl_DECIMALS = 18;
     uint256 public constant llp_PRECISION = 10 ** 18;
     uint256 public constant MAX_COOLDOWN_DURATION = 48 hours;
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
 
     IVault public override vault;
     IPositionsTracker public positionsTracker;
-    address public override usdg;
+    address public override usdl;
     address public override llp;
 
     uint256 public override cooldownDuration;
@@ -45,9 +45,9 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         address account,
         address token,
         uint256 amount,
-        uint256 aumInUsdg,
+        uint256 aumInusdl,
         uint256 llpSupply,
-        uint256 usdgAmount,
+        uint256 usdlAmount,
         uint256 mintAmount
     );
 
@@ -55,22 +55,22 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         address account,
         address token,
         uint256 llpAmount,
-        uint256 aumInUsdg,
+        uint256 aumInusdl,
         uint256 llpSupply,
-        uint256 usdgAmount,
+        uint256 usdlAmount,
         uint256 amountOut
     );
 
     constructor(
         address _vault,
-        address _usdg,
+        address _usdl,
         address _llp,
         address _positionsTracker,
         uint256 _cooldownDuration
     ) {
         gov = msg.sender;
         vault = IVault(_vault);
-        usdg = _usdg;
+        usdl = _usdl;
         llp = _llp;
         positionsTracker = IPositionsTracker(_positionsTracker);
         cooldownDuration = _cooldownDuration;
@@ -119,7 +119,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         address _account,
         address _token,
         uint256 _amount,
-        uint256 _minUsdg,
+        uint256 _minusdl,
         uint256 _minllp
     ) external override nonReentrant returns (uint256) {
         _validateHandler();
@@ -130,7 +130,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
                 _account,
                 _token,
                 _amount,
-                _minUsdg,
+                _minusdl,
                 _minllp
             );
     }
@@ -167,11 +167,11 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         return amounts;
     }
 
-    function getAumInUsdg(
+    function getAumInUsdl(
         bool maximise
     ) public view override returns (uint256) {
         uint256 aum = getAum(maximise);
-        return (aum * (10 ** USDG_DECIMALS)) / (PRICE_PRECISION);
+        return (aum * (10 ** usdl_DECIMALS)) / (PRICE_PRECISION);
     }
 
     function getAum(bool maximise) public view returns (uint256) {
@@ -239,13 +239,13 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         address _account,
         address _token,
         uint256 _amount,
-        uint256 _minUsdg,
+        uint256 _minusdl,
         uint256 _minllp
     ) private returns (uint256) {
         require(_amount > 0, "LlpManager: invalid _amount");
 
-        // calculate aum before buyUSDG
-        uint256 aumInUsdg = getAumInUsdg(true);
+        // calculate aum before buyusdl
+        uint256 aumInusdl = getAumInUsdl(true);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
         IERC20(_token).safeTransferFrom(
@@ -253,12 +253,12 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             address(vault),
             _amount
         );
-        uint256 usdgAmount = vault.buyUSDG(_token, address(this));
-        require(usdgAmount >= _minUsdg, "LlpManager: insufficient USDG output");
+        uint256 usdlAmount = vault.buyUSDL(_token, address(this));
+        require(usdlAmount >= _minusdl, "LlpManager: insufficient usdl output");
 
-        uint256 mintAmount = aumInUsdg == 0
-            ? usdgAmount
-            : (usdgAmount * (llpSupply)) / (aumInUsdg);
+        uint256 mintAmount = aumInusdl == 0
+            ? usdlAmount
+            : (usdlAmount * (llpSupply)) / (aumInusdl);
         require(mintAmount >= _minllp, "LlpManager: insufficient llp output");
 
         IMintable(llp).mint(_account, mintAmount);
@@ -269,9 +269,9 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             _account,
             _token,
             _amount,
-            aumInUsdg,
+            aumInusdl,
             llpSupply,
-            usdgAmount,
+            usdlAmount,
             mintAmount
         );
 
@@ -291,29 +291,29 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             "LlpManager: cooldown duration not yet passed"
         );
 
-        // calculate aum before sellUSDG
-        uint256 aumInUsdg = getAumInUsdg(false);
+        // calculate aum before sellusdl
+        uint256 aumInusdl = getAumInUsdl(false);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
-        uint256 usdgAmount = (_llpAmount * (aumInUsdg)) / (llpSupply);
-        uint256 usdgBalance = IERC20(usdg).balanceOf(address(this));
-        if (usdgAmount > usdgBalance) {
-            IUSDG(usdg).mint(address(this), usdgAmount - (usdgBalance));
+        uint256 usdlAmount = (_llpAmount * (aumInusdl)) / (llpSupply);
+        uint256 usdlBalance = IERC20(usdl).balanceOf(address(this));
+        if (usdlAmount > usdlBalance) {
+            IUSDL(usdl).mint(address(this), usdlAmount - (usdlBalance));
         }
 
         IMintable(llp).burn(_account, _llpAmount);
 
-        IERC20(usdg).transfer(address(vault), usdgAmount);
-        uint256 amountOut = vault.sellUSDG(_tokenOut, _receiver);
+        IERC20(usdl).transfer(address(vault), usdlAmount);
+        uint256 amountOut = vault.sellUSDL(_tokenOut, _receiver);
         require(amountOut >= _minOut, "LlpManager: insufficient output");
 
         emit RemoveLiquidity(
             _account,
             _tokenOut,
             _llpAmount,
-            aumInUsdg,
+            aumInusdl,
             llpSupply,
-            usdgAmount,
+            usdlAmount,
             amountOut
         );
 

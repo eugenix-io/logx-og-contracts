@@ -47,12 +47,12 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         IERC20(_token).safeTransfer(_account, _amount);
     }
 
-    function mintAndStakeLlp(address _token, uint256 _amount, uint256 _minUsdg, uint256 _minLlp) external nonReentrant returns (uint256) {
+    function mintAndStakeLlp(address _token, uint256 _amount, uint256 _minUsdl, uint256 _minLlp) external nonReentrant returns (uint256) {
         require(_amount > 0, "RewardRouter: invalid _amount");
         require(_token == usdc, "RewardRouter: Only USDC is supported");
 
         address account = msg.sender;
-        uint256 llpAmount = ILlpManager(llpManager).addLiquidityForAccount(account, account, _token, _amount, _minUsdg, _minLlp);
+        uint256 llpAmount = ILlpManager(llpManager).addLiquidityForAccount(account, account, _token, _amount, _minUsdl, _minLlp);
         IRewardTracker(feeLlpTracker).stakeForAccount(account, account, llp, llpAmount);
 
         emit Stakellp(account, llpAmount);
