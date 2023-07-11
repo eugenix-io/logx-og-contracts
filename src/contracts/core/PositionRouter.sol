@@ -8,9 +8,7 @@ import '../libraries/token/IERC20.sol';
 import '../libraries/token/SafeERC20.sol';
 import './BasePositionManager.sol';
 import './interfaces/IPositionRouter.sol';
-/**
- * AnirudhTodo - add constructor.
-*/
+
 contract PositionRouter is
     BasePositionManager,
     IPositionRouter,
@@ -732,5 +730,4 @@ contract PositionRouter is
         return true;
     }
 
-    //AniurdhTodo - need to complete these implementations or remove them from Interface itself.
 }

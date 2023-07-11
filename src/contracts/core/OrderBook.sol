@@ -148,51 +148,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         uint256 triggerPrice,
         bool triggerAboveThreshold
     );
-    event CreateSwapOrder(
-        address indexed account,
-        uint256 orderIndex,
-        address[] path,
-        uint256 amountIn,
-        uint256 minOut,
-        uint256 triggerRatio,
-        bool triggerAboveThreshold,
-        bool shouldUnwrap,
-        uint256 executionFee
-    );
-    event CancelSwapOrder(
-        address indexed account,
-        uint256 orderIndex,
-        address[] path,
-        uint256 amountIn,
-        uint256 minOut,
-        uint256 triggerRatio,
-        bool triggerAboveThreshold,
-        bool shouldUnwrap,
-        uint256 executionFee
-    );
-    event UpdateSwapOrder(
-        address indexed account,
-        uint256 ordexIndex,
-        address[] path,
-        uint256 amountIn,
-        uint256 minOut,
-        uint256 triggerRatio,
-        bool triggerAboveThreshold,
-        bool shouldUnwrap,
-        uint256 executionFee
-    );
-    event ExecuteSwapOrder(
-        address indexed account,
-        uint256 orderIndex,
-        address[] path,
-        uint256 amountIn,
-        uint256 minOut,
-        uint256 amountOut,
-        uint256 triggerRatio,
-        bool triggerAboveThreshold,
-        bool shouldUnwrap,
-        uint256 executionFee
-    );
 
     event Initialize(
         address router,
