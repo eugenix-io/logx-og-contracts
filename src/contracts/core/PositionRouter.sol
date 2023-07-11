@@ -21,7 +21,6 @@ contract PositionRouter is
         address _collateralToken;
         address indexToken;
         uint256 amountIn;
-        uint256 minOut;
         uint256 sizeDelta;
         bool isLong;
         uint256 acceptablePrice;
@@ -38,15 +37,17 @@ contract PositionRouter is
         bool isLong;
         address receiver;
         uint256 acceptablePrice;
-        uint256 minOut;
         uint256 executionFee;
         uint256 blockNumber;
         uint256 blockTime;
     }
 
     uint256 public minExecutionFee;
+    //mapping from user address to number of increase position requests sent from that address
     mapping(address => uint256) increasePositionsIndex;
+    //mapping with key = keccak256(userAddress, index) and value = increase position request
     mapping(bytes32 => IncreasePositionRequest) increasePositionRequests;
+    //array of increase position request keys
     bytes32[] increasePositionRequestKeys;
     mapping(address => uint256) decreasePositionsIndex;
     mapping(bytes32 => DecreasePositionRequest) decreasePositionRequests;
@@ -63,7 +64,6 @@ contract PositionRouter is
         address _collateralToken,
         address indexToken,
         uint256 amountIn,
-        uint256 minOut,
         uint256 sizeDelta,
         bool isLong,
         uint256 acceptablePrice,
@@ -80,7 +80,6 @@ contract PositionRouter is
         address _collateralToken,
         address indexToken,
         uint256 amountIn,
-        uint256 minOut,
         uint256 sizeDelta,
         bool isLong,
         uint256 acceptablePrice,
@@ -98,7 +97,6 @@ contract PositionRouter is
         bool isLong,
         address receiver,
         uint256 acceptablePrice,
-        uint256 minOut,
         uint256 executionFee,
         uint256 index,
         uint256 queueIndex,
@@ -115,7 +113,6 @@ contract PositionRouter is
         bool isLong,
         address receiver,
         uint256 acceptablePrice,
-        uint256 minOut,
         uint256 executionFee,
         uint256 blockGap,
         uint256 timeGap
@@ -130,7 +127,6 @@ contract PositionRouter is
         bool isLong,
         address receiver,
         uint256 acceptablePrice,
-        uint256 minOut,
         uint256 executionFee,
         uint256 blockGap,
         uint256 timeGap
@@ -141,7 +137,6 @@ contract PositionRouter is
         address _collateralToken,
         address indexToken,
         uint256 amountIn,
-        uint256 minOut,
         uint256 sizeDelta,
         bool isLong,
         uint256 acceptablePrice,
@@ -156,6 +151,8 @@ contract PositionRouter is
         uint256 minTimeDelayPublic,
         uint256 maxTimeDelay
     );
+
+    event SetMinExecutionFee(uint256 minExecutionFee);
 
     constructor(
         address _vault,
@@ -178,6 +175,11 @@ contract PositionRouter is
         emit SetPositionKeeper(_account, _isActive);
     }
 
+    function setMinExecutionFee(uint256 _minExecutionFee) external onlyAdmin {
+        minExecutionFee = _minExecutionFee;
+        emit SetMinExecutionFee(_minExecutionFee);
+    }
+
     function setDelayValues(
         uint256 _minBlockDelayKeeper,
         uint256 _minTimeDelayPublic,
@@ -193,18 +195,19 @@ contract PositionRouter is
         );
     }
 
+
+
     function createIncreasePosition(
         address _collateralToken,
         address _indexToken,
         uint256 _amountIn,
-        uint256 _minOut,
         uint256 _sizeDelta,
         bool _isLong,
         uint256 _acceptablePrice,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
         require(_executionFee >= minExecutionFee, "PositionRouter: execution fee less than min execution fee");
-        require(_executionFee == msg.value, "PositionRouter: execution fee not equal to value in msg.");
+        require(_executionFee == msg.value, "PositionRouter: execution fee not equal to value in msg.value");
 
         if (_amountIn > 0) {
             IRouter(router).pluginTransfer(
@@ -221,7 +224,6 @@ contract PositionRouter is
                 _collateralToken,
                 _indexToken,
                 _amountIn,
-                _minOut,
                 _sizeDelta,
                 _isLong,
                 _acceptablePrice,
@@ -234,7 +236,6 @@ contract PositionRouter is
         address _collateralToken,
         address _indexToken,
         uint256 _amountIn,
-        uint256 _minOut,
         uint256 _sizeDelta,
         bool _isLong,
         uint256 _acceptablePrice,
@@ -245,7 +246,6 @@ contract PositionRouter is
             _collateralToken,
             _indexToken,
             _amountIn,
-            _minOut,
             _sizeDelta,
             _isLong,
             _acceptablePrice,
@@ -262,7 +262,6 @@ contract PositionRouter is
             _collateralToken,
             _indexToken,
             _amountIn,
-            _minOut,
             _sizeDelta,
             _isLong,
             _acceptablePrice,
@@ -273,22 +272,7 @@ contract PositionRouter is
             block.timestamp,
             tx.gasprice
         );
-
         return requestKey;
-    }
-
-    function _storeIncreasePositionRequest(
-        IncreasePositionRequest memory _request
-    ) internal returns (uint256, bytes32) {
-        address account = _request.account;
-        uint256 index = increasePositionsIndex[account] + 1;
-        increasePositionsIndex[account] = index;
-        bytes32 key = getRequestKey(account, index);
-
-        increasePositionRequests[key] = _request;
-        increasePositionRequestKeys.push(key);
-
-        return (index, key);
     }
 
     function cancelIncreasePosition(
@@ -320,7 +304,6 @@ contract PositionRouter is
             request._collateralToken,
             request.indexToken,
             request.amountIn,
-            request.minOut,
             request.sizeDelta,
             request.isLong,
             request.acceptablePrice,
@@ -328,175 +311,6 @@ contract PositionRouter is
             block.number - request.blockNumber,
             block.timestamp - request.blockTime
         );
-
-        return true;
-    }
-
-    function createDecreasePosition(
-        address _collateralToken,
-        address _indexToken,
-        uint256 _collateralDelta,
-        uint256 _sizeDelta,
-        bool _isLong,
-        address _receiver,
-        uint256 _acceptablePrice,
-        uint256 _minOut,
-        uint256 _executionFee
-    ) external payable nonReentrant returns (bytes32) {
-        require(_executionFee >= minExecutionFee, "PositionRouter: fee");
-        require(_executionFee == msg.value, "PositionRouter: value sent is not equal to execution fee");
-
-        return
-            _createDecreasePosition(
-                msg.sender,
-                _collateralToken,
-                _indexToken,
-                _collateralDelta,
-                _sizeDelta,
-                _isLong,
-                _receiver,
-                _acceptablePrice,
-                _minOut,
-                _executionFee
-            );
-    }
-
-    function _createDecreasePosition(
-        address _account,
-        address _collateralToken,
-        address _indexToken,
-        uint256 _collateralDelta,
-        uint256 _sizeDelta,
-        bool _isLong,
-        address _receiver,
-        uint256 _acceptablePrice,
-        uint256 _minOut,
-        uint256 _executionFee
-    ) internal returns (bytes32) {
-        DecreasePositionRequest memory request = DecreasePositionRequest(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _collateralDelta,
-            _sizeDelta,
-            _isLong,
-            _receiver,
-            _acceptablePrice,
-            _minOut,
-            _executionFee,
-            block.number,
-            block.timestamp
-        );
-
-        (uint256 index, bytes32 requestKey) = _storeDecreasePositionRequest(
-            request
-        );
-        emit CreateDecreasePosition(
-            request.account,
-            request._collateralToken,
-            request.indexToken,
-            request.collateralDelta,
-            request.sizeDelta,
-            request.isLong,
-            request.receiver,
-            request.acceptablePrice,
-            request.minOut,
-            request.executionFee,
-            index,
-            decreasePositionRequestKeys.length - 1,
-            block.number,
-            block.timestamp
-        );
-        return requestKey;
-    }
-
-    function _storeDecreasePositionRequest(
-        DecreasePositionRequest memory _request
-    ) internal returns (uint256, bytes32) {
-        address account = _request.account;
-        uint256 index = decreasePositionsIndex[account] + 1;
-        decreasePositionsIndex[account] = index;
-        bytes32 key = getRequestKey(account, index);
-
-        decreasePositionRequests[key] = _request;
-        decreasePositionRequestKeys.push(key);
-
-        return (index, key);
-    }
-
-    function cancelDecreasePosition(
-        bytes32 _key,
-        address payable _executionFeeReceiver
-    ) public nonReentrant returns (bool) {
-        DecreasePositionRequest memory request = decreasePositionRequests[_key];
-        // if the request was already executed or cancelled, return true so that the executeDecreasePositions loop will continue executing the next request
-        if (request.account == address(0)) {
-            return true;
-        }
-
-        bool shouldCancel = _validateCancellation(
-            request.blockNumber,
-            request.blockTime,
-            request.account
-        );
-        if (!shouldCancel) {
-            return false;
-        }
-
-        delete decreasePositionRequests[_key];
-
-        (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
-        require(success, "PositionRouter: failed to return execution fee");
-
-        emit CancelDecreasePosition(
-            request.account,
-            request._collateralToken,
-            request.indexToken,
-            request.collateralDelta,
-            request.sizeDelta,
-            request.isLong,
-            request.receiver,
-            request.acceptablePrice,
-            request.minOut,
-            request.executionFee,
-            block.number - request.blockNumber,
-            block.timestamp - request.blockTime
-        );
-
-        return true;
-    }
-
-    function _validateCancellation(
-        uint256 _positionBlockNumber,
-        uint256 _positionBlockTime,
-        address _account
-    ) internal view returns (bool) {
-        return
-            _validateExecutionOrCancellation(
-                _positionBlockNumber,
-                _positionBlockTime,
-                _account
-            );
-    }
-
-    function _validateExecutionOrCancellation(
-        uint256 _positionBlockNumber,
-        uint256 _positionBlockTime,
-        address _account
-    ) internal view returns (bool) {
-        bool isKeeperCall = msg.sender == address(this) ||
-            isPositionKeeper[msg.sender];
-
-        if (isKeeperCall) {
-            return _positionBlockNumber - minBlockDelayKeeper <= block.number;
-        }
-        require(msg.sender == _account, "PositionRouter: 403");
-
-        require(
-            _positionBlockTime + minTimeDelayPublic <= block.timestamp,
-            "PositionRouter: delay"
-        );
-
         return true;
     }
 
@@ -578,7 +392,6 @@ contract PositionRouter is
             request.acceptablePrice
         );
 
-        //AnirudhTodo - handle if this call fails to send execution fee.
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
         require(success, "PositionRouter: failed to send eth to executor");
 
@@ -587,7 +400,6 @@ contract PositionRouter is
             request._collateralToken,
             request.indexToken,
             request.amountIn,
-            request.minOut,
             request.sizeDelta,
             request.isLong,
             request.acceptablePrice,
@@ -599,31 +411,146 @@ contract PositionRouter is
         return true;
     }
 
-    function _validateExecution(
-        uint256 _positionBlockNumber,
-        uint256 _positionBlockTime,
-        address _account
-    ) internal view returns (bool) {
-        require(
-            block.timestamp < _positionBlockTime + (maxTimeDelay),
-            "PositionRouter: expired"
-        );
+    function _storeIncreasePositionRequest(
+        IncreasePositionRequest memory _request
+    ) internal returns (uint256, bytes32) {
+        address account = _request.account;
+        uint256 index = increasePositionsIndex[account] + 1;
+        increasePositionsIndex[account] = index;
+        bytes32 key = getRequestKey(account, index);
+
+        increasePositionRequests[key] = _request;
+        increasePositionRequestKeys.push(key);
+
+        return (index, key);
+    }
+
+    function createDecreasePosition(
+        address _collateralToken,
+        address _indexToken,
+        uint256 _collateralDelta,
+        uint256 _sizeDelta,
+        bool _isLong,
+        address _receiver,
+        uint256 _acceptablePrice,
+        uint256 _executionFee
+    ) external payable nonReentrant returns (bytes32) {
+        require(_executionFee >= minExecutionFee, "PositionRouter: fee");
+        require(_executionFee == msg.value, "PositionRouter: value sent is not equal to execution fee");
 
         return
-            _validateExecutionOrCancellation(
-                _positionBlockNumber,
-                _positionBlockTime,
-                _account
+            _createDecreasePosition(
+                msg.sender,
+                _collateralToken,
+                _indexToken,
+                _collateralDelta,
+                _sizeDelta,
+                _isLong,
+                _receiver,
+                _acceptablePrice,
+                _executionFee
             );
     }
 
-    function getRequestKey(
-        address account,
-        uint256 index
-    ) internal pure returns (bytes32) {
-        //AnirudhTodo - remove keccak256 as hashing is not needed here. Hashing is implemented
-        // as GMX does it.
-        return keccak256(abi.encodePacked(account, index));
+    function _createDecreasePosition(
+        address _account,
+        address _collateralToken,
+        address _indexToken,
+        uint256 _collateralDelta,
+        uint256 _sizeDelta,
+        bool _isLong,
+        address _receiver,
+        uint256 _acceptablePrice,
+        uint256 _executionFee
+    ) internal returns (bytes32) {
+        DecreasePositionRequest memory request = DecreasePositionRequest(
+            _account,
+            _collateralToken,
+            _indexToken,
+            _collateralDelta,
+            _sizeDelta,
+            _isLong,
+            _receiver,
+            _acceptablePrice,
+            _executionFee,
+            block.number,
+            block.timestamp
+        );
+
+        (uint256 index, bytes32 requestKey) = _storeDecreasePositionRequest(
+            request
+        );
+        emit CreateDecreasePosition(
+            request.account,
+            request._collateralToken,
+            request.indexToken,
+            request.collateralDelta,
+            request.sizeDelta,
+            request.isLong,
+            request.receiver,
+            request.acceptablePrice,
+            request.executionFee,
+            index,
+            decreasePositionRequestKeys.length - 1,
+            block.number,
+            block.timestamp
+        );
+        return requestKey;
+    }
+
+    function _storeDecreasePositionRequest(
+        DecreasePositionRequest memory _request
+    ) internal returns (uint256, bytes32) {
+        address account = _request.account;
+        uint256 index = decreasePositionsIndex[account] + 1;
+        decreasePositionsIndex[account] = index;
+        bytes32 key = getRequestKey(account, index);
+
+        decreasePositionRequests[key] = _request;
+        decreasePositionRequestKeys.push(key);
+
+        return (index, key);
+    }
+
+    function cancelDecreasePosition(
+        bytes32 _key,
+        address payable _executionFeeReceiver
+    ) public nonReentrant returns (bool) {
+        DecreasePositionRequest memory request = decreasePositionRequests[_key];
+        // if the request was already executed or cancelled, return true so that the executeDecreasePositions loop will continue executing the next request
+        if (request.account == address(0)) {
+            return true;
+        }
+
+        bool shouldCancel = _validateCancellation(
+            request.blockNumber,
+            request.blockTime,
+            request.account
+        );
+        if (!shouldCancel) {
+            return false;
+        }
+
+        delete decreasePositionRequests[_key];
+
+        (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
+        require(success, "PositionRouter: failed to return execution fee");
+
+        emit CancelDecreasePosition(
+            request.account,
+            request._collateralToken,
+            request.indexToken,
+            request.collateralDelta,
+            request.sizeDelta,
+            request.isLong,
+            request.receiver,
+            request.acceptablePrice,
+            request.executionFee,
+            block.number - request.blockNumber,
+            block.timestamp - request.blockTime
+        );
+
+        return true;
     }
 
     function executeDecreasePositions(
@@ -722,12 +649,70 @@ contract PositionRouter is
             request.isLong,
             request.receiver,
             request.acceptablePrice,
-            request.minOut,
             request.executionFee,
             block.number - (request.blockNumber),
             block.timestamp - (request.blockTime)
         );
         return true;
+    }
+
+    function _validateExecution(
+        uint256 _positionBlockNumber,
+        uint256 _positionBlockTime,
+        address _account
+    ) internal view returns (bool) {
+        require(
+            block.timestamp < _positionBlockTime + (maxTimeDelay),
+            "PositionRouter: expired"
+        );
+
+        return
+            _validateExecutionOrCancellation(
+                _positionBlockNumber,
+                _positionBlockTime,
+                _account
+            );
+    }
+
+    function _validateCancellation(
+        uint256 _positionBlockNumber,
+        uint256 _positionBlockTime,
+        address _account
+    ) internal view returns (bool) {
+        return
+            _validateExecutionOrCancellation(
+                _positionBlockNumber,
+                _positionBlockTime,
+                _account
+            );
+    }
+
+    function _validateExecutionOrCancellation(
+        uint256 _positionBlockNumber,
+        uint256 _positionBlockTime,
+        address _account
+    ) internal view returns (bool) {
+        bool isKeeperCall = msg.sender == address(this) ||
+            isPositionKeeper[msg.sender];
+
+        if (isKeeperCall) {
+            return _positionBlockNumber + minBlockDelayKeeper <= block.number;
+        }
+        require(msg.sender == _account, "PositionRouter: 403");
+
+        require(
+            _positionBlockTime + minTimeDelayPublic <= block.timestamp,
+            "PositionRouter: delay"
+        );
+
+        return true;
+    }
+
+    function getRequestKey(
+        address account,
+        uint256 index
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(account, index));
     }
 
 }
