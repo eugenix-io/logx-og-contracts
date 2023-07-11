@@ -162,9 +162,8 @@ contract PositionRouter is
     constructor(
         address _vault,
         address _router,
-        uint256 _depositFee,
         uint256 _minExecutionFee
-    ) BasePositionManager(_vault, _router, _depositFee) {
+    ) BasePositionManager(_vault, _router) {
         minExecutionFee = _minExecutionFee;
     }
 
@@ -571,22 +570,6 @@ contract PositionRouter is
         }
 
         delete increasePositionRequests[_key];
-
-        if (request.amountIn > 0) {
-            uint256 amountIn = request.amountIn;
-            uint256 afterFeeAmount = _collectFees(
-                request.account,
-                request._collateralToken,
-                amountIn,
-                request.indexToken,
-                request.isLong,
-                request.sizeDelta
-            );
-            IERC20(request._collateralToken).safeTransfer(
-                vault,
-                afterFeeAmount
-            );
-        }
 
         _increasePosition(
             request.account,
