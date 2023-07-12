@@ -21,9 +21,8 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
     constructor(
         address _vault,
         address _router,
-        uint256 _depositFee,
         address _orderBook
-    ) BasePositionManager(_vault, _router, _depositFee){
+    ) BasePositionManager(_vault, _router){
         orderBook = _orderBook;
     }
 
@@ -108,8 +107,7 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         uint256 nextCollateral = collateral+(collateralDelta);
 
         uint256 prevLeverage = size*(BASIS_POINTS_DIVISOR)/(collateral);
-        // allow for a maximum of a increasePositionBufferBps decrease since there might be some swap fees taken from the collateral
-        uint256 nextLeverageWithBuffer = nextSize*(BASIS_POINTS_DIVISOR + increasePositionBufferBps)/(nextCollateral);
+        uint256 nextLeverageWithBuffer = nextSize*(BASIS_POINTS_DIVISOR)/(nextCollateral);
 
         require(nextLeverageWithBuffer >= prevLeverage, "PositionManager: long leverage decrease");
     }
