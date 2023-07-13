@@ -34,12 +34,13 @@ contract PriceFeed is IPriceFeed, Governable {
 
     uint256 maxAllowedDelay;
     address updater; 
+    address pythContract;
 
     mapping(address => PythPriceData) tokenPrices;
 
-    constructor(address[] memory _tokens, PythPriceData[] memory _prices, uint size, uint _maxAllowedDelay){
-        setPrices(_tokens, _prices, size);
+    constructor(uint _maxAllowedDelay, address _pythContract){
         maxAllowedDelay = _maxAllowedDelay;
+        pythContract = _pythContract;
     }
 
     function getPriceOfToken(address _token) external override view returns(uint){
@@ -88,5 +89,9 @@ contract PriceFeed is IPriceFeed, Governable {
         for(uint i =0;i< size;i++){
             tokenPrices[_tokens[i]] = _prices[i];
         }
+    }
+
+    function setPythContract(address _pythContract) external onlyGov{
+        pythContract = _pythContract;
     }
 }
