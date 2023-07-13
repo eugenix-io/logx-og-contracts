@@ -41,6 +41,14 @@ contract BasePositionManager{
         admin = msg.sender;
     }
 
+    function setAdmin(address _admin) external onlyAdmin {
+        admin = _admin;
+    }
+
+    function setRouter(address _router) external onlyAdmin {
+        router = _router;
+    }
+
     function setMaxGlobalSizes(
         address[] memory _tokens,
         uint256[] memory _longSizes,
