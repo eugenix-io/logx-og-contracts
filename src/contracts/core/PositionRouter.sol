@@ -52,7 +52,7 @@ contract PositionRouter is
     mapping(address => uint256) decreasePositionsIndex;
     mapping(bytes32 => DecreasePositionRequest) decreasePositionRequests;
     bytes32[] decreasePositionRequestKeys;
-    mapping(address => bool) public isPositionKeeper;
+    mapping(address => bool) public isPositionKeeper;//address of priceFeed contract needs to be added to this mapping
     uint256 public minBlockDelayKeeper;
     uint256 public minTimeDelayPublic;
     uint256 public maxTimeDelay;

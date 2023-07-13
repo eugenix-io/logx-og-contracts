@@ -21,48 +21,53 @@ import './interfaces/IPriceFeed.sol';
 import '../access/Governable.sol';
 import './interfaces/IPositionRouter.sol';
 import './interfaces/IPriceEvents.sol';
+import 'pyth-sdk-solidity/IPyth.sol';
+import 'pyth-sdk-solidity/PythStructs.sol';
 
 
 contract PriceFeed is IPriceFeed, Governable {
-
-    struct PythPriceData{
-        uint64 price;
-        uint64 conf;
-        uint32 expo;
-        uint256 publishTime;
-    }
 
     uint256 maxAllowedDelay;
     address updater; 
     address pythContract;
 
-    mapping(address => PythPriceData) tokenPrices;
+    mapping(address => bytes32) tokenPriceIdMapping;
+    mapping(bytes32 => PythStructs.Price) tokenPrices;
+    bytes32[] tokenPriceIds;
 
-    constructor(uint _maxAllowedDelay, address _pythContract){
+    constructor(uint _maxAllowedDelay, address _pythContract, address _updater){
         maxAllowedDelay = _maxAllowedDelay;
         pythContract = _pythContract;
+        updater = _updater;
     }
 
-    function getPriceOfToken(address _token) external override view returns(uint){
-        PythPriceData memory priceData = tokenPrices[_token];
+    function getPriceOfToken(address _token) external override view returns(uint256){
+        bytes32 priceId = tokenPriceIdMapping[_token];
+        PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return priceData.price/(10 ** (priceData.expo)); 
+        return getFinalPrice(uint64(priceData.price), priceData.expo);
     }
 
-    function getMaxPriceOfToken(address _token) external override view returns(uint){
-        PythPriceData memory priceData = tokenPrices[_token];
+    function getMaxPriceOfToken(address _token) external override view returns(uint256){
+        bytes32 priceId = tokenPriceIdMapping[_token];
+        PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return (priceData.price + priceData.conf)/(10 ** priceData.expo) ; 
+        return getFinalPrice(uint64(priceData.price) + priceData.conf, priceData.expo);
     }
 
-    function getMinPriceOfToken(address _token) external override view returns(uint){
-        PythPriceData memory priceData = tokenPrices[_token];
+    function getMinPriceOfToken(address _token) external override view returns(uint256){
+        bytes32 priceId = tokenPriceIdMapping[_token];
+        PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return (priceData.price - priceData.conf)/(10 ** priceData.expo); 
+        return getFinalPrice(uint64(priceData.price) - priceData.conf, priceData.expo); 
     }
 
-    function validateData(PythPriceData memory _priceData) internal view {
+    function validateData(PythStructs.Price memory _priceData) internal view {
         require(_priceData.publishTime + maxAllowedDelay > block.timestamp , "PriceFeed: current price data not available!");
+    }
+
+    function setUpdater(address _updater) external onlyGov{
+        updater = _updater;
     }
 
     modifier onlyUpdater(){
@@ -70,25 +75,32 @@ contract PriceFeed is IPriceFeed, Governable {
         _;
     }
 
+    function getFinalPrice(uint64 price, int32 expo) internal pure returns(uint256){
+        if(expo > 0){
+            return price*(10 ** uint32(expo));
+        }
+        else{
+            return price/(10 ** uint32(-1 * expo));
+        }
+    }
+
     function setPricesAndExecute(
-        address[] memory _tokens,
-        PythPriceData[] memory _prices,
+        bytes[] calldata priceUpdateData,
         address _positionRouter,
         uint256 _endIndexForIncreasePositions,
-        uint256 _endIndexForDecreasePositions, 
-        uint256 _size
+        uint256 _endIndexForDecreasePositions
     ) external onlyUpdater {
-        setPrices(_tokens, _prices, _size);
+        uint fee = IPyth(pythContract).getUpdateFee(priceUpdateData);
+        IPyth(pythContract).updatePriceFeeds{value: fee}(priceUpdateData);
+        uint numPriceIds = tokenPriceIds.length;
+        for(uint i=0;i<numPriceIds;i++){
+            PythStructs.Price memory price = IPyth(pythContract).getPrice(tokenPriceIds[i]);
+            tokenPrices[tokenPriceIds[i]] = price;
+        }
         IPositionRouter positionRouter = IPositionRouter(_positionRouter);
 
         positionRouter.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
         positionRouter.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
-    }
-
-    function setPrices(address[] memory _tokens, PythPriceData[] memory _prices, uint256 size) internal {
-        for(uint i =0;i< size;i++){
-            tokenPrices[_tokens[i]] = _prices[i];
-        }
     }
 
     function setPythContract(address _pythContract) external onlyGov{
