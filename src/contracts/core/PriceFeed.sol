@@ -70,6 +70,16 @@ contract PriceFeed is IPriceFeed, Governable {
         updater = _updater;
     }
 
+    function setPythContract(address _pythContract) external onlyGov{
+        pythContract = _pythContract;
+    }
+
+    function updateTokenIdMapping(address _token, bytes calldata _priceId) external onlyGov{
+        tokenPriceIdMapping[_token] = bytes32(keccak256(_priceId));
+        //AnirudhTodo - delete existing priceId from tokenPriceIds
+        tokenPriceIds.push(bytes32(keccak256(_priceId)));
+    }
+
     modifier onlyUpdater(){
         require(msg.sender == updater, "PriceFeed: sender does not have entitlements to update price");
         _;
@@ -101,9 +111,5 @@ contract PriceFeed is IPriceFeed, Governable {
 
         positionRouter.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
         positionRouter.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
-    }
-
-    function setPythContract(address _pythContract) external onlyGov{
-        pythContract = _pythContract;
     }
 }
