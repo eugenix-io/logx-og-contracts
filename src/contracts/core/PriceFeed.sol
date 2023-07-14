@@ -23,6 +23,7 @@ import './interfaces/IPositionRouter.sol';
 import './interfaces/IPriceEvents.sol';
 import 'pyth-sdk-solidity/IPyth.sol';
 import 'pyth-sdk-solidity/PythStructs.sol';
+import 'forge-std/console.sol';
 
 
 contract PriceFeed is IPriceFeed, Governable {
@@ -48,6 +49,10 @@ contract PriceFeed is IPriceFeed, Governable {
         return getFinalPrice(uint64(priceData.price), priceData.expo);
     }
 
+    function getMaxAllowedDelay() external view returns(uint256){
+        return maxAllowedDelay;
+    }
+
     function getPriceId(address _token) external view returns(bytes32){
         return tokenPriceIdMapping[_token];
     }
@@ -67,6 +72,9 @@ contract PriceFeed is IPriceFeed, Governable {
     }
 
     function validateData(PythStructs.Price memory _priceData) internal view {
+        console.log(_priceData.publishTime);
+        console.log(maxAllowedDelay);
+        console.log(block.timestamp);
         require(_priceData.publishTime + maxAllowedDelay > block.timestamp , "PriceFeed: current price data not available!");
     }
 
@@ -76,6 +84,10 @@ contract PriceFeed is IPriceFeed, Governable {
 
     function setPythContract(address _pythContract) external onlyGov{
         pythContract = _pythContract;
+    }
+
+    function setMaxAllowedDelay(uint256 _maxAllowedDelay) external onlyGov{
+        maxAllowedDelay = _maxAllowedDelay;
     }
 
     function updateTokenIdMapping(address _token, bytes32 _priceId) external onlyGov{

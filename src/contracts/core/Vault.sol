@@ -169,7 +169,6 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 fee
     );
     event LiquidatePosition(
-        bytes32 key,
         address account,
         address collateralToken,
         address indexToken,
@@ -741,14 +740,16 @@ contract Vault is ReentrancyGuard, IVault {
 
 
         updateCumulativeFundingRate(_collateralToken, _indexToken);
-
+        Position memory position;
+        {
         bytes32 key = getPositionKey(
             _account,
             _collateralToken,
             _indexToken,
             _isLong
         );
-        Position memory position = positions[key];
+        position = positions[key];
+        }
         _validate(position.size > 0, 35);
 
         (uint256 liquidationState, uint256 marginFees) = validateLiquidation(
@@ -789,7 +790,6 @@ contract Vault is ReentrancyGuard, IVault {
         _decreaseReservedAmount(_collateralToken, position.reserveAmount);
 
         emit LiquidatePosition(
-            key,
             _account,
             _collateralToken,
             _indexToken,
@@ -815,7 +815,12 @@ contract Vault is ReentrancyGuard, IVault {
             _decreaseGlobalLongSize(_indexToken, position.size);
         }
 
-        delete positions[key];
+        delete positions[getPositionKey(
+            _account,
+            _collateralToken,
+            _indexToken,
+            _isLong
+        )];
 
         // pay the fee receiver using the pool, we assume that in general the liquidated amount should be sufficient to cover
         // the liquidation fees
