@@ -195,8 +195,6 @@ contract PositionRouter is
         );
     }
 
-
-
     function createIncreasePosition(
         address _collateralToken,
         address _indexToken,

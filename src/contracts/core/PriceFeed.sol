@@ -48,6 +48,10 @@ contract PriceFeed is IPriceFeed, Governable {
         return getFinalPrice(uint64(priceData.price), priceData.expo);
     }
 
+    function getPriceId(address _token) external view returns(bytes32){
+        return tokenPriceIdMapping[_token];
+    }
+
     function getMaxPriceOfToken(address _token) external override view returns(uint256){
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
@@ -99,7 +103,7 @@ contract PriceFeed is IPriceFeed, Governable {
         address _positionRouter,
         uint256 _endIndexForIncreasePositions,
         uint256 _endIndexForDecreasePositions
-    ) external onlyUpdater {
+    ) external payable onlyUpdater {
         uint fee = IPyth(pythContract).getUpdateFee(priceUpdateData);
         IPyth(pythContract).updatePriceFeeds{value: fee}(priceUpdateData);
         uint numPriceIds = tokenPriceIds.length;
