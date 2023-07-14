@@ -33,7 +33,7 @@ contract PriceFeed is IPriceFeed, Governable {
 
     mapping(address => bytes32) tokenPriceIdMapping;
     mapping(bytes32 => PythStructs.Price) tokenPrices;
-    bytes32[] tokenPriceIds;
+    address[] supportedTokens;
 
     constructor(uint _maxAllowedDelay, address _pythContract, address _updater){
         maxAllowedDelay = _maxAllowedDelay;
@@ -78,10 +78,14 @@ contract PriceFeed is IPriceFeed, Governable {
         pythContract = _pythContract;
     }
 
-    function updateTokenIdMapping(address _token, bytes calldata _priceId) external onlyGov{
-        tokenPriceIdMapping[_token] = bytes32(keccak256(_priceId));
-        //AnirudhTodo - delete existing priceId from tokenPriceIds
-        tokenPriceIds.push(bytes32(keccak256(_priceId)));
+    function updateTokenIdMapping(address _token, bytes32 _priceId) external onlyGov{
+        if(tokenPriceIdMapping[_token] != bytes32(0)){
+            tokenPriceIdMapping[_token] = _priceId;
+        }
+        else{
+            tokenPriceIdMapping[_token] = _priceId;
+            supportedTokens.push(_token);
+        }
     }
 
     modifier onlyUpdater(){
@@ -106,10 +110,12 @@ contract PriceFeed is IPriceFeed, Governable {
     ) external payable onlyUpdater {
         uint fee = IPyth(pythContract).getUpdateFee(priceUpdateData);
         IPyth(pythContract).updatePriceFeeds{value: fee}(priceUpdateData);
-        uint numPriceIds = tokenPriceIds.length;
+        uint numPriceIds = supportedTokens.length;
         for(uint i=0;i<numPriceIds;i++){
-            PythStructs.Price memory price = IPyth(pythContract).getPrice(tokenPriceIds[i]);
-            tokenPrices[tokenPriceIds[i]] = price;
+            address currToken = supportedTokens[i];
+            bytes32 currPriceId = tokenPriceIdMapping[currToken];
+            PythStructs.Price memory price = IPyth(pythContract).getPrice(currPriceId);
+            tokenPrices[currPriceId] = price;
         }
         IPositionRouter positionRouter = IPositionRouter(_positionRouter);
 
