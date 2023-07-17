@@ -225,7 +225,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         }
     }
 
-    function getUsdlMinPrice(address _otherToken) public view returns (uint256) {
+    function getUsdlMinPrice(address _otherToken) internal view returns (uint256) {
         uint256 redemptionAmount = IVault(vault).getRedemptionAmount(_otherToken, USDL_PRECISION);
         uint256 otherTokenPrice = IVault(vault).getMinPrice(_otherToken);
 
@@ -617,31 +617,5 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         //IWETH(weth).withdraw(_amountOut);
         (bool success, ) = _receiver.call{value: _amountOut}("");
         require(success, "OrderBook: Failed to transfer out Eth");
-    }
-
-    function getOrdersForUser(address _address) public view returns (IncreaseOrder[] memory, DecreaseOrder[] memory){
-        return (getIncreaseOrdersForUser(_address), getDecreaseOrdersForUser(_address));
-    }
-
-    function getIncreaseOrdersForUser(address _address) public view returns (IncreaseOrder[] memory){
-        uint maxIdx = increaseOrdersIndex[_address];
-        IncreaseOrder[] memory increaseOrdersForUser = new IncreaseOrder[](maxIdx);
-
-        for(uint256 i = 0; i < maxIdx; i++){
-            IncreaseOrder memory order = increaseOrders[_address][i];
-            if(order.account != address(0)) increaseOrdersForUser[i] = increaseOrders[_address][i];
-        }
-        return increaseOrdersForUser;
-    }
-
-    function getDecreaseOrdersForUser(address _address) public view returns (DecreaseOrder[] memory){
-        uint maxIdx = decreaseOrdersIndex[_address];
-        DecreaseOrder[] memory decreaseOrdersForUser = new DecreaseOrder[](maxIdx);
-
-        for(uint256 i = 0; i < maxIdx; i++){
-            DecreaseOrder memory order = decreaseOrders[_address][i];
-            if(order.account != address(0)) decreaseOrdersForUser[i] = decreaseOrders[_address][i];
-        }
-        return decreaseOrdersForUser;
     }
 }
