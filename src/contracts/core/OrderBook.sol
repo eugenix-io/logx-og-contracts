@@ -103,8 +103,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     event CreateDecreaseOrder(
         address indexed account,
         uint256 orderIndex,
-        address collateralToken,
         uint256 collateralDelta,
+        address collateralToken,
         address indexToken,
         uint256 sizeDelta,
         bool isLong,
@@ -504,8 +504,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         emit CreateDecreaseOrder(
             _account,
             _orderIndex,
-            _collateralToken,
             _collateralDelta,
+            _collateralToken,
             _indexToken,
             _sizeDelta,
             _isLong,
