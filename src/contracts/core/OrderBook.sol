@@ -341,7 +341,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         bool _triggerAboveThreshold,
         uint256 _executionFee
     ) private {
-        uint256 _orderIndex = increaseOrdersIndex[msg.sender];
+        uint256 _orderIndex = increaseOrdersIndex[_account];
         IncreaseOrder memory order = IncreaseOrder(
             _account,
             _amountIn,
