@@ -58,7 +58,7 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         address timelock = IVault(_vault).gov();        
 
         ITimelock(timelock).enableLeverage(_vault);
-        IOrderBook(orderBook).executeIncreaseOrder(_account, _orderIndex, _feeReceiver);
+        IOrderBook(orderBook).executeOrder(_account, _orderIndex, _feeReceiver);
         ITimelock(timelock).disableLeverage(_vault);
 
     }
@@ -68,22 +68,23 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         address timelock = IVault(_vault).gov();
 
         ITimelock(timelock).enableLeverage(_vault);
-        IOrderBook(orderBook).executeDecreaseOrder(_account, _orderIndex, _feeReceiver);
+        IOrderBook(orderBook).executeOrder(_account, _orderIndex, _feeReceiver);
         ITimelock(timelock).disableLeverage(_vault);
 
     }
 
     function _validateIncreaseOrder(address _account, uint256 _orderIndex) internal view {
         (
-            uint256 amountIn,
             address _collateralToken,
+            uint256 amountIn,
             address _indexToken,
             uint256 _sizeDelta,
             bool _isLong,
             , // triggerPrice
             , // triggerAboveThreshold
             // executionFee
-        ) = IOrderBook(orderBook).getIncreaseOrder(_account, _orderIndex);
+            , // isIncreaseOrder
+        ) = IOrderBook(orderBook).getOrder(_account, _orderIndex);
 
         _validateMaxGlobalSize(_indexToken, _isLong, _sizeDelta);
 
