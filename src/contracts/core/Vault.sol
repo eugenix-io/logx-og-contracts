@@ -524,8 +524,6 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 tokenAmount = _transferIn(_token);
         _validate(tokenAmount > 0, 17);
 
-        updateCumulativeFundingRate(_token, _token);
-
         uint256 price = getMinPrice(_token);
 
         uint256 usdlAmount = (tokenAmount * (price)) / (PRICE_PRECISION);
@@ -619,8 +617,6 @@ contract Vault is ReentrancyGuard, IVault {
 
         uint256 usdlAmount = _transferIn(usdl);
         _validate(usdlAmount > 0, 20);
-
-        updateCumulativeFundingRate(_token, _token);
 
         uint256 redemptionAmount = getRedemptionAmount(_token, usdlAmount);
         _validate(redemptionAmount > 0, 21);
