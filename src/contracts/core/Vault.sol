@@ -180,6 +180,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 markPrice
     );
     event UpdatePosition(
+        address account,
         bytes32 key,
         uint256 size,
         uint256 collateral,
@@ -1150,7 +1151,7 @@ contract Vault is ReentrancyGuard, IVault {
         );
 
         // reserve tokens to pay profits on the position
-        uint256 reserveDelta = usdToTokenMax(_collateralToken, _sizeDelta);
+        uint256 reserveDelta = usdToTokenMax(_collateralToken, _sizeDelta);//AnirudhTodo: check why collateral and not index token
         position.reserveAmount = position.reserveAmount + (reserveDelta);
         _increaseReservedAmount(_collateralToken, reserveDelta);
 
@@ -1163,12 +1164,11 @@ contract Vault is ReentrancyGuard, IVault {
             _increaseGlobalLongSize(_indexToken, _sizeDelta);
 
         } else {
-            if (globalShortSizes[_indexToken] == 0) {
+            if (globalShortSizes[_indexToken] == 0) {//--etherscan-api-key "abc"
                 globalShortAveragePrices[_indexToken] = price;
             } else {
                 globalShortAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
             }
-
             _increaseGlobalShortSize(_indexToken, _sizeDelta);
         }
 
@@ -1184,6 +1184,7 @@ contract Vault is ReentrancyGuard, IVault {
             fee
         );
         emit UpdatePosition(
+            _account,
             key,
             position.size,
             position.collateral,
@@ -1353,6 +1354,7 @@ contract Vault is ReentrancyGuard, IVault {
                 usdOut - (usdOutAfterFee)
             );
             emit UpdatePosition(
+                _account,
                 key,
                 position.size,
                 position.collateral,
