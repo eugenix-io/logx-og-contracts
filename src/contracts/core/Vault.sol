@@ -181,7 +181,9 @@ contract Vault is ReentrancyGuard, IVault {
     );
     event UpdatePosition(
         address account,
-        bytes32 key,
+        address collateralToken,
+        address indexToken,
+        bool isLong,
         uint256 size,
         uint256 collateral,
         uint256 averagePrice,
@@ -1185,7 +1187,9 @@ contract Vault is ReentrancyGuard, IVault {
         );
         emit UpdatePosition(
             _account,
-            key,
+            _collateralToken,
+            _indexToken,
+            _isLong,
             position.size,
             position.collateral,
             position.averagePrice,
@@ -1355,7 +1359,9 @@ contract Vault is ReentrancyGuard, IVault {
             );
             emit UpdatePosition(
                 _account,
-                key,
+                _collateralToken,
+                _indexToken,
+                _isLong,
                 position.size,
                 position.collateral,
                 position.averagePrice,
