@@ -246,6 +246,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function setVaultUtils(IVaultUtils _vaultUtils) external override {
+        _onlyGov();
         vaultUtils = _vaultUtils;
     }
 
@@ -535,8 +536,8 @@ contract Vault is ReentrancyGuard, IVault {
             _token,
             usdlAmount
         );
-        //AnirudhTodo - confirm whether redemptionAmount matches what _collectSwapFees returns.
-        uint256 amountAfterFees = tokenAmount; //_collectSwapFees(_token, tokenAmount, feeBasisPoints);
+
+        uint256 amountAfterFees = _collectSwapFees(_token, tokenAmount, feeBasisPoints);
         uint256 mintAmount = (amountAfterFees * (price)) / (PRICE_PRECISION);
         mintAmount = adjustForDecimals(mintAmount, _token, usdl);
 
@@ -553,6 +554,14 @@ contract Vault is ReentrancyGuard, IVault {
             feeBasisPoints
         );
         return mintAmount;
+    }
+
+    function _collectSwapFees(address _token, uint256 _amount, uint256 _feeBasisPoints) private returns (uint256) {
+        uint256 afterFeeAmount = _amount*(BASIS_POINTS_DIVISOR-(_feeBasisPoints))/(BASIS_POINTS_DIVISOR);
+        uint256 feeAmount = _amount-(afterFeeAmount);
+        feeReserves[_token] = feeReserves[_token]+(feeAmount);
+        emit CollectSwapFees(_token, tokenToUsdMin(_token, feeAmount), feeAmount);
+        return afterFeeAmount;
     }
 
     function _increasePoolAmount(address _token, uint256 _amount) private {
@@ -631,8 +640,7 @@ contract Vault is ReentrancyGuard, IVault {
             _token,
             usdlAmount
         );
-        //AnirudhTodo - confirm whether redemptionAmount matches what _collectSwapFees returns.
-        uint256 amountOut = redemptionAmount; //_collectSwapFees(_token, redemptionAmount, feeBasisPoints);
+        uint256 amountOut = _collectSwapFees(_token, redemptionAmount, feeBasisPoints);
         _validate(amountOut > 0, 22);
 
         _transferOut(_token, amountOut, _receiver);
