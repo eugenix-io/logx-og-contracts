@@ -214,7 +214,6 @@ contract Timelock is ITimelock {
     function setTokenConfig(
         address _vault,
         address _token,
-        uint256 _tokenWeight,
         uint256 _minProfitBps,
         uint256 _maxUsdlAmount,
         uint256 _bufferAmount,
