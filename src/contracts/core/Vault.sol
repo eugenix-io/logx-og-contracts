@@ -193,7 +193,10 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 markPrice
     );
     event ClosePosition(
-        bytes32 key,
+        address account,
+        address collateralToken,
+        address indexToken,
+        bool isLong,
         uint256 size,
         uint256 collateral,
         uint256 averagePrice,
@@ -1383,7 +1386,10 @@ contract Vault is ReentrancyGuard, IVault {
                 usdOut - (usdOutAfterFee)
             );
             emit ClosePosition(
-                key,
+                _account,
+                _collateralToken,
+                _indexToken,
+                _isLong,
                 position.size,
                 position.collateral,
                 position.averagePrice,
