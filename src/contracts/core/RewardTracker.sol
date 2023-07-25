@@ -23,7 +23,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     string public name;
     string public symbol;
 
-    address public distributor;
     mapping (address => bool) public isDepositToken;
     mapping (address => mapping (address => uint256)) public override depositBalances;
     mapping (address => uint256) public totalDepositSupply;
@@ -39,6 +38,9 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     mapping (address => uint256) public override cumulativeRewards;
     mapping (address => uint256) public override averageStakedAmounts;
     mapping (address => bool) public isHandler;
+    address public rewardToken;
+    uint256 public feeReward;
+    address admin;
 
     event Claim(address receiver, uint256 amount);
 
@@ -49,7 +51,8 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
     function initialize(
         address[] memory _depositTokens,
-        address _distributor
+        address _rewardToken,
+        address _admin
     ) external onlyGov {
         require(!isInitialized, "RewardTracker: already initialized");
         isInitialized = true;
@@ -59,7 +62,12 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
             isDepositToken[depositToken] = true;
         }
 
-        distributor = _distributor;
+        rewardToken = _rewardToken;
+        admin = _admin;
+    }
+
+    function onlyAdmin() internal view {
+        require(msg.sender == admin, "RewardTracker: forbidden");
     }
 
     function setDepositToken(address _depositToken, bool _isDepositToken) external onlyGov {
@@ -123,14 +131,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         return true;
     }
 
-    function tokensPerInterval() external override view returns (uint256) {
-        return IRewardDistributor(distributor).tokensPerInterval();
-    }
-
-    function updateRewards() external override nonReentrant {
-        _updateRewards(address(0));
-    }
-
     function claim(address _receiver) external override nonReentrant returns (uint256) {
         return _claim(msg.sender, _receiver);
     }
@@ -141,19 +141,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function claimable(address _account) public override view returns (uint256) {
-        uint256 stakedAmount = stakedAmounts[_account];
-        if (stakedAmount == 0) {
-            return claimableReward[_account];
-        }
-        uint256 supply = totalSupply;
-        uint256 pendingRewards = IRewardDistributor(distributor).pendingRewards() * PRECISION;
-        uint256 nextCumulativeRewardPerToken = cumulativeRewardPerToken + pendingRewards/supply;
-        return claimableReward[_account] +
-            stakedAmount * (nextCumulativeRewardPerToken - previousCumulatedRewardPerToken[_account])/(PRECISION);
-    }
-
-    function rewardToken() public view returns (address) {
-        return IRewardDistributor(distributor).rewardToken();
+        return claimableReward[_account];
     }
 
     function _claim(address _account, address _receiver) private returns (uint256) {
@@ -163,7 +151,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         claimableReward[_account] = 0;
 
         if (tokenAmount > 0) {
-            IERC20(rewardToken()).safeTransfer(_receiver, tokenAmount);
+            IERC20(rewardToken).safeTransfer(_receiver, tokenAmount);
             emit Claim(_account, tokenAmount);
         }
 
@@ -217,8 +205,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
         IERC20(_depositToken).safeTransferFrom(_fundingAccount, address(this), _amount);
 
-        _updateRewards(_account);
-
         stakedAmounts[_account] = stakedAmounts[_account] + _amount;
         depositBalances[_account][_depositToken] = depositBalances[_account][_depositToken] + _amount;
         totalDepositSupply[_depositToken] = totalDepositSupply[_depositToken] + _amount;
@@ -229,8 +215,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     function _unstake(address _account, address _depositToken, uint256 _amount, address _receiver) private {
         require(_amount > 0, "RewardTracker: invalid _amount");
         require(isDepositToken[_depositToken], "RewardTracker: invalid _depositToken");
-
-        _updateRewards(_account);
 
         uint256 stakedAmount = stakedAmounts[_account];
         require(stakedAmounts[_account] >= _amount, "RewardTracker: _amount exceeds stakedAmount");
@@ -246,38 +230,23 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         IERC20(_depositToken).safeTransfer(_receiver, _amount);
     }
 
+    function setFeeReward(uint256 _feeReward) external {
+        onlyAdmin();
+        feeReward = _feeReward;
+    }
+
+    function updateRewards(address[] memory _accounts, uint256 size) external {
+        onlyAdmin();
+        for(uint256 i = 0; i < size; i++) {
+            _updateRewards(_accounts[i]);
+        }
+    }
+
     function _updateRewards(address _account) private {
-        uint256 blockReward = IRewardDistributor(distributor).distribute();
+        uint256 stakedAmount = stakedAmounts[_account];
+        uint256 accountReward = stakedAmount * feeReward/(totalSupply * PRECISION);
+        uint256 _claimableReward = claimableReward[_account] + accountReward;
 
-        uint256 supply = totalSupply;
-        uint256 _cumulativeRewardPerToken = cumulativeRewardPerToken;
-        if (supply > 0 && blockReward > 0) {
-            _cumulativeRewardPerToken = _cumulativeRewardPerToken + (blockReward * PRECISION/supply);
-            cumulativeRewardPerToken = _cumulativeRewardPerToken;
-        }
-
-        // cumulativeRewardPerToken can only increase
-        // so if cumulativeRewardPerToken is zero, it means there are no rewards yet
-        if (_cumulativeRewardPerToken == 0) {
-            return;
-        }
-
-        if (_account != address(0)) {
-            uint256 stakedAmount = stakedAmounts[_account];
-            uint256 accountReward = stakedAmount * (_cumulativeRewardPerToken - previousCumulatedRewardPerToken[_account])/(PRECISION);
-            uint256 _claimableReward = claimableReward[_account] + accountReward;
-
-            claimableReward[_account] = _claimableReward;
-            previousCumulatedRewardPerToken[_account] = _cumulativeRewardPerToken;
-
-            if (_claimableReward > 0 && stakedAmounts[_account] > 0) {
-                uint256 nextCumulativeReward = cumulativeRewards[_account] + accountReward ;
-
-                averageStakedAmounts[_account] = (averageStakedAmounts[_account]*(cumulativeRewards[_account])/(nextCumulativeReward))
-                     + ((stakedAmount * accountReward)/(nextCumulativeReward));
-
-                cumulativeRewards[_account] = nextCumulativeReward;
-            }
-        }
+        claimableReward[_account] = _claimableReward;
     }
 }

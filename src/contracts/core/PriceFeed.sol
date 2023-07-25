@@ -72,12 +72,10 @@ contract PriceFeed is IPriceFeed, Governable {
     }
 
     function validateData(PythStructs.Price memory _priceData) internal view {
-        console.log(_priceData.publishTime);
-        console.log(maxAllowedDelay);
-        console.log(block.timestamp);
         require(_priceData.publishTime + maxAllowedDelay > block.timestamp , "PriceFeed: current price data not available!");
     }
 
+    //remove: function added for testnet debugging.
     function getPublishTime(address _token) external view returns(uint256){
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
@@ -130,24 +128,11 @@ contract PriceFeed is IPriceFeed, Governable {
         uint256 _endIndexForIncreasePositions,
         uint256 _endIndexForDecreasePositions
     ) external payable onlyUpdater {
-        uint fee = IPyth(pythContract).getUpdateFee(priceUpdateData);
-        IPyth(pythContract).updatePriceFeeds{value: fee}(priceUpdateData);
-        uint numPriceIds = supportedTokens.length;
-        console.log(numPriceIds);
-        for(uint i=0;i<numPriceIds;i++){
-            address currToken = supportedTokens[i];
-            bytes32 currPriceId = tokenPriceIdMapping[currToken];
-            PythStructs.Price memory price = IPyth(pythContract).getPrice(currPriceId);
-            tokenPrices[currPriceId] = price;
-            //console.log(price.price);
-        }
-        IPositionRouter positionRouter = IPositionRouter(_positionRouter);
-
-        positionRouter.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
-        positionRouter.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
+        setPrices(priceUpdateData);
+        executePostions(_positionRouter, _endIndexForIncreasePositions, _endIndexForDecreasePositions);
     }
 
-    function setPrices(bytes[] calldata priceUpdateData) external payable returns(PythStructs.Price memory){
+    function setPrices(bytes[] calldata priceUpdateData) public {
         uint fee = IPyth(pythContract).getUpdateFee(priceUpdateData);
         IPyth(pythContract).updatePriceFeeds{value: fee}(priceUpdateData);
         uint numPriceIds = supportedTokens.length;
@@ -155,10 +140,16 @@ contract PriceFeed is IPriceFeed, Governable {
         for(uint i=0;i<numPriceIds;i++){
             address currToken = supportedTokens[i];
             bytes32 currPriceId = tokenPriceIdMapping[currToken];
-            PythStructs.Price memory price =  IPyth(pythContract).getPrice(currPriceId);
+            PythStructs.Price memory price = IPyth(pythContract).getPriceUnsafe(currPriceId);
+            validateData(price);
             tokenPrices[currPriceId] = price;
         }
-        return PythStructs.Price(1,1,1,1);
+    }
+
+    function executePostions(address _positionRouter,uint _endIndexForIncreasePositions, uint _endIndexForDecreasePositions) public onlyGov{
+        IPositionRouter positionRouter = IPositionRouter(_positionRouter);
+        positionRouter.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
+        positionRouter.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
     }
 
     function tokenLength() external view returns(uint256){
