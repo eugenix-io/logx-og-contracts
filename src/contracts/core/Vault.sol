@@ -256,6 +256,11 @@ contract Vault is ReentrancyGuard, IVault {
         vaultUtils = _vaultUtils;
     }
 
+    function setGov(address newGov) external {
+        _onlyGov();
+        gov = newGov;
+    }
+
     // deposit into the pool without minting USDL tokens
     // useful in allowing the pool to become over-collaterised
     function directPoolDeposit(address _token) external override nonReentrant {

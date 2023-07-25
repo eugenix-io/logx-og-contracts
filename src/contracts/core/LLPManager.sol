@@ -7,15 +7,9 @@ import './interfaces/IMintable.sol';
 import './interfaces/IUSDL.sol';
 import "./interfaces/IVault.sol";
 import "./interfaces/ILlpManager.sol";
-import "./interfaces/IPositionsTracker.sol";
 import "../access/Governable.sol";
 
 pragma solidity 0.8.19;
-
-/* TODO
-    3. Create LLP token
-    7. Why do we need usdl. If valid reason create similar to usdl token else remove it completely
-*/
 
 contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     using SafeERC20 for IERC20;
@@ -27,7 +21,6 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
 
     IVault public override vault;
-    IPositionsTracker public positionsTracker;
     address public override usdl;
     address public override llp;
 
@@ -65,23 +58,17 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         address _vault,
         address _usdl,
         address _llp,
-        address _positionsTracker,
         uint256 _cooldownDuration
     ) {
         gov = msg.sender;
         vault = IVault(_vault);
         usdl = _usdl;
         llp = _llp;
-        positionsTracker = IPositionsTracker(_positionsTracker);
         cooldownDuration = _cooldownDuration;
     }
 
     function setInPrivateMode(bool _inPrivateMode) external onlyGov {
         inPrivateMode = _inPrivateMode;
-    }
-
-    function setpositionsTracker(IPositionsTracker _positionsTracker) external onlyGov {
-        positionsTracker = _positionsTracker;
     }
 
     function setHandler(address _handler, bool _isActive) external onlyGov {
@@ -201,7 +188,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
                 uint256 shortSize = _vault.globalShortSizes(token);
 
                 if (shortSize > 0) {
-                    ( bool hasProfit, uint256 delta) = positionsTracker.getGlobalPositionDelta(token, false);
+                    ( bool hasProfit, uint256 delta) = getGlobalPositionDelta(token, false);
                     if (!hasProfit) {
                         // add losses from shorts
                         aum = aum + (delta);
@@ -213,7 +200,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
                 uint256 longSize = _vault.globalLongSizes(token);
 
                 if (longSize > 0) {
-                    ( bool hasProfit, uint256 delta) = positionsTracker.getGlobalPositionDelta(token, true);
+                    ( bool hasProfit, uint256 delta) = getGlobalPositionDelta(token, true);
                     if (!hasProfit) {
                         // add losses from longs
                         aum = aum + (delta);
@@ -231,7 +218,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     function getGlobalShortAveragePrice(
         address _token
     ) public view returns (uint256) {
-        return positionsTracker.globalShortAveragePrices(_token);
+        return vault.globalShortAveragePrices(_token);
     }
 
     function _addLiquidity(
@@ -326,5 +313,27 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
     function _validateToken(address token) private view {
         require(whiteListedTokens[token], "LlpManager: Token not whiteListed.");
+    }
+
+    function getGlobalPositionDelta(address _token, bool _isLong) public view returns (bool, uint256) {
+        uint256 size = vault.globalShortSizes(_token);
+        if (size == 0) { return (false, 0); }
+
+        uint256 nextPrice = _isLong ? vault.getMinPrice(_token) : vault.getMaxPrice(_token);
+        return getGlobalPositionDeltaWithPrice(_token, nextPrice, size, _isLong);
+    }
+
+    function getGlobalPositionDeltaWithPrice(
+        address _token,
+        uint256 _price,
+        uint256 _size,
+        bool _isLong
+    ) public view returns (bool, uint256) {
+        uint256 averagePrice = _isLong? vault.globalLongAveragePrices(_token) : vault.globalShortAveragePrices(_token);
+        uint256 priceDelta = averagePrice > _price
+            ? averagePrice - (_price)
+            : _price - (averagePrice);
+        uint256 delta = (_size * (priceDelta)) / (averagePrice);
+        return (averagePrice > _price, delta);
     }
 }

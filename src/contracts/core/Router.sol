@@ -12,18 +12,15 @@ import './interfaces/IVault.sol';
  * When ever user wants to open a trade provide token approval to Router and then transfer to PositionRouter.
 */
 contract Router is IRouter, Governable {
-    using SafeERC20 for IERC20;
 
     address vault;
     address usdl;
-    address weth;
     mapping(address => bool) plugins;
     mapping(address => mapping(address => bool)) approvedPlugins;
 
-    constructor(address _vault, address _usdl, address _weth) {
+    constructor(address _vault, address _usdl) {
         vault = _vault;
         usdl = _usdl;
-        weth = _weth;
     }
 
     function addPlugin(address _plugin) external override onlyGov {
@@ -51,7 +48,7 @@ contract Router is IRouter, Governable {
     ) external override {
         //AnirudhTodo - Find the reason for using validate plugin.
         _validatePlugin(_account);
-        IERC20(_token).safeTransferFrom(_account, _receiver, _amount);
+        IERC20(_token).transferFrom(_account, _receiver, _amount);
     }
 
     function pluginIncreasePosition(

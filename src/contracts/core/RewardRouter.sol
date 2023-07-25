@@ -60,6 +60,7 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         return llpAmount;
     }
 
+    //AnirudhInfo: llpAmount is the amount of llp tokens to unstake. Not in usd it is in number of tokens.
     function unstakeAndRedeemLlp(address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) external nonReentrant returns (uint256) {
         require(_llpAmount > 0, "RewardRouter: invalid _llpAmount");
         require(_tokenOut == usdc, "RewardRouter: Only USDC is supported");

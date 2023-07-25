@@ -70,6 +70,7 @@ interface IVault {
 
     function setPriceFeed(address _priceFeed) external;
     function withdrawFees(address _token, address _receiver) external returns (uint256);
+    function setGov(address _gov) external;
 
     function directPoolDeposit(address _token) external;
     function buyUSDL(address _token, address _receiver) external returns (uint256);
