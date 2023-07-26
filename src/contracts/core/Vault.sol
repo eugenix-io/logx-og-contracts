@@ -1549,9 +1549,7 @@ contract Vault is ReentrancyGuard, IVault {
             return 0;
         }
 
-        uint256 intervals = block.timestamp -
-            (lastFundingTimes[_token]) /
-            (fundingInterval);
+        uint256 intervals = (block.timestamp - lastFundingTimes[_token]) / (fundingInterval);
         uint256 poolAmount = poolAmounts[_token];
         if (poolAmount == 0) {
             return 0;

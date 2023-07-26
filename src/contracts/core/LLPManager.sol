@@ -316,7 +316,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     }
 
     function getGlobalPositionDelta(address _token, bool _isLong) public view returns (bool, uint256) {
-        uint256 size = vault.globalShortSizes(_token);
+        uint256 size = _isLong ? vault.globalLongSizes(_token) : vault.globalShortSizes(_token);
         if (size == 0) { return (false, 0); }
 
         uint256 nextPrice = _isLong ? vault.getMinPrice(_token) : vault.getMaxPrice(_token);
