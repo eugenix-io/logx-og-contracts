@@ -411,13 +411,14 @@ contract Vault is ReentrancyGuard, IVault {
         stableFundingRateFactor = _stableFundingRateFactor;
     }
 
+
     function _validateTokens(
         address _collateralToken,
         address _indexToken
     ) private view {
         _validate(_collateralToken == usdc, 42);
         _validate(whitelistedTokens[_indexToken], 43);
-        _validate(shortableTokens[_indexToken], 48);
+        _validate(shortableTokens[_indexToken], 48);//AnirudhTodo-check this only if isShort
     }
 
     function setTokenConfig(

@@ -31,6 +31,7 @@ contract PriceFeed is IPriceFeed, Governable {
     uint256 maxAllowedDelay;
     address updater; 
     address pythContract;
+    uint256 public constant PRICE_PRECISION = 30;
 
     mapping(address => bytes32) public tokenPriceIdMapping;
     mapping(bytes32 => PythStructs.Price) public tokenPrices;
@@ -46,7 +47,7 @@ contract PriceFeed is IPriceFeed, Governable {
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return getFinalPrice(uint64(priceData.price), priceData.expo);
+        return uint64(priceData.price);
     }
 
     function getMaxAllowedDelay() external view returns(uint256){
@@ -61,14 +62,14 @@ contract PriceFeed is IPriceFeed, Governable {
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return getFinalPrice(uint64(priceData.price) + priceData.conf, priceData.expo);
+        return uint64(priceData.price) + priceData.conf;
     }
 
     function getMinPriceOfToken(address _token) external override view returns(uint256){
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return getFinalPrice(uint64(priceData.price) - priceData.conf, priceData.expo); 
+        return uint64(priceData.price) - priceData.conf; 
     }
 
     function validateData(PythStructs.Price memory _priceData) internal view {
@@ -113,15 +114,6 @@ contract PriceFeed is IPriceFeed, Governable {
         _;
     }
 
-    function getFinalPrice(uint64 price, int32 expo) internal pure returns(uint256){
-        if(expo > 0){
-            return price*(10 ** uint32(expo));
-        }
-        else{
-            return price/(10 ** uint32(-1 * expo));
-        }
-    }
-
     function setPricesAndExecute(
         bytes[] calldata priceUpdateData,
         address _positionRouter,
@@ -146,7 +138,7 @@ contract PriceFeed is IPriceFeed, Governable {
         }
     }
 
-    function executePostions(address _positionRouter,uint _endIndexForIncreasePositions, uint _endIndexForDecreasePositions) public onlyGov{
+    function executePostions(address _positionRouter,uint _endIndexForIncreasePositions, uint _endIndexForDecreasePositions) public {
         IPositionRouter positionRouter = IPositionRouter(_positionRouter);
         positionRouter.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
         positionRouter.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
