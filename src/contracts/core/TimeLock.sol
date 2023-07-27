@@ -211,9 +211,7 @@ contract Timelock is ITimelock {
         address _vault,
         address _token,
         uint256 _minProfitBps,
-        uint256 _maxUsdlAmount,
-        uint256 _bufferAmount,
-        uint256 _usdlAmount
+        uint256 _bufferAmount
     ) external onlyKeeperAndAbove {
         require(_minProfitBps <= 500, "Timelock: invalid _minProfitBps");
 
