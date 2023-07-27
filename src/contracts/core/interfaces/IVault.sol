@@ -50,8 +50,6 @@ interface IVault {
         uint256 _taxBasisPoints,
         uint256 _stableTaxBasisPoints,
         uint256 _mintBurnFeeBasisPoints,
-        uint256 _swapFeeBasisPoints,
-        uint256 _stableSwapFeeBasisPoints,
         uint256 _marginFeeBasisPoints,
         uint256 _liquidationFeeUsd,
         uint256 _minProfitTime,
@@ -90,8 +88,6 @@ interface IVault {
     function taxBasisPoints() external view returns (uint256);
     function stableTaxBasisPoints() external view returns (uint256);
     function mintBurnFeeBasisPoints() external view returns (uint256);
-    function swapFeeBasisPoints() external view returns (uint256);
-    function stableSwapFeeBasisPoints() external view returns (uint256);
     function marginFeeBasisPoints() external view returns (uint256);
 
     function allWhitelistedTokensLength() external view returns (uint256);

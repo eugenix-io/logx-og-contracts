@@ -178,8 +178,6 @@ contract Timelock is ITimelock {
             vault.taxBasisPoints(),
             vault.stableTaxBasisPoints(),
             vault.mintBurnFeeBasisPoints(),
-            vault.swapFeeBasisPoints(),
-            vault.stableSwapFeeBasisPoints(),
             marginFeeBasisPoints,
             vault.liquidationFeeUsd(),
             vault.minProfitTime(),
@@ -198,8 +196,6 @@ contract Timelock is ITimelock {
             vault.taxBasisPoints(),
             vault.stableTaxBasisPoints(),
             vault.mintBurnFeeBasisPoints(),
-            vault.swapFeeBasisPoints(),
-            vault.stableSwapFeeBasisPoints(),
             maxMarginFeeBasisPoints, // marginFeeBasisPoints
             vault.liquidationFeeUsd(),
             vault.minProfitTime(),
@@ -232,20 +228,12 @@ contract Timelock is ITimelock {
             _token,
             tokenDecimals,
             _minProfitBps,
-            _maxUsdlAmount,
             isStable,
             isShortable
         );
 
         IVault(_vault).setBufferAmount(_token, _bufferAmount);
 
-        IVault(_vault).setUsdlAmount(_token, _usdlAmount);
-    }
-
-    function setUsdlAmounts(address _vault, address[] memory _tokens, uint256[] memory _usdlAmounts) external onlyKeeperAndAbove {
-        for (uint256 i = 0; i < _tokens.length; i++) {
-            IVault(_vault).setUsdlAmount(_tokens[i], _usdlAmounts[i]);
-        }
     }
 
     function updateUsdlSupply(uint256 usdlAmount) external onlyKeeperAndAbove {
@@ -478,7 +466,6 @@ contract Timelock is ITimelock {
             _token,
             _tokenDecimals,
             _minProfitBps,
-            _maxUsdlAmount,
             _isStable,
             _isShortable
         );

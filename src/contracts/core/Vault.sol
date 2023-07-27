@@ -55,8 +55,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override taxBasisPoints = 50; // 0.5%
     uint256 public override stableTaxBasisPoints = 20; // 0.2%
     uint256 public override mintBurnFeeBasisPoints = 30; // 0.3%
-    uint256 public override swapFeeBasisPoints = 30; // 0.3%
-    uint256 public override stableSwapFeeBasisPoints = 4; // 0.04%
     uint256 public override marginFeeBasisPoints = 10; // 0.1%
 
     uint256 public override minProfitTime;
@@ -363,8 +361,6 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _taxBasisPoints,
         uint256 _stableTaxBasisPoints,
         uint256 _mintBurnFeeBasisPoints,
-        uint256 _swapFeeBasisPoints,
-        uint256 _stableSwapFeeBasisPoints,
         uint256 _marginFeeBasisPoints,
         uint256 _liquidationFeeUsd,
         uint256 _minProfitTime,
@@ -374,15 +370,11 @@ contract Vault is ReentrancyGuard, IVault {
         _validate(_taxBasisPoints <= MAX_FEE_BASIS_POINTS, 3);
         _validate(_stableTaxBasisPoints <= MAX_FEE_BASIS_POINTS, 4);
         _validate(_mintBurnFeeBasisPoints <= MAX_FEE_BASIS_POINTS, 5);
-        _validate(_swapFeeBasisPoints <= MAX_FEE_BASIS_POINTS, 6);
-        _validate(_stableSwapFeeBasisPoints <= MAX_FEE_BASIS_POINTS, 7);
         _validate(_marginFeeBasisPoints <= MAX_FEE_BASIS_POINTS, 8);
         _validate(_liquidationFeeUsd <= MAX_LIQUIDATION_FEE_USD, 9);
         taxBasisPoints = _taxBasisPoints;
         stableTaxBasisPoints = _stableTaxBasisPoints;
         mintBurnFeeBasisPoints = _mintBurnFeeBasisPoints;
-        swapFeeBasisPoints = _swapFeeBasisPoints;
-        stableSwapFeeBasisPoints = _stableSwapFeeBasisPoints;
         marginFeeBasisPoints = _marginFeeBasisPoints;
         liquidationFeeUsd = _liquidationFeeUsd;
         minProfitTime = _minProfitTime;
