@@ -44,8 +44,6 @@ interface IVault {
     function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external;
 
     function setFees(
-        uint256 _taxBasisPoints,
-        uint256 _stableTaxBasisPoints,
         uint256 _mintBurnFeeBasisPoints,
         uint256 _marginFeeBasisPoints,
         uint256 _liquidationFeeUsd,
@@ -82,8 +80,6 @@ interface IVault {
     function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) external view returns (uint256);
 
     function liquidationFeeUsd() external view returns (uint256);
-    function taxBasisPoints() external view returns (uint256);
-    function stableTaxBasisPoints() external view returns (uint256);
     function mintBurnFeeBasisPoints() external view returns (uint256);
     function marginFeeBasisPoints() external view returns (uint256);
 
