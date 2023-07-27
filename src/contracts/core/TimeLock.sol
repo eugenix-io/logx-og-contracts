@@ -32,7 +32,6 @@ contract Timelock is ITimelock {
     uint256 public maxTokenSupply;
 
     uint256 public marginFeeBasisPoints;
-    bool public shouldToggleIsLeverageEnabled;
 
     mapping (bytes32 => uint256) public pendingActions;
 
@@ -155,16 +154,8 @@ contract Timelock is ITimelock {
         IVault(_vault).setFundingRate(_fundingInterval, _fundingRateFactor, _stableFundingRateFactor);
     }
 
-    function setShouldToggleIsLeverageEnabled(bool _shouldToggleIsLeverageEnabled) external onlyHandlerAndAbove {
-        shouldToggleIsLeverageEnabled = _shouldToggleIsLeverageEnabled;
-    }
-
     function setMarginFeeBasisPoints(uint256 _marginFeeBasisPoints) external onlyHandlerAndAbove {
         marginFeeBasisPoints = _marginFeeBasisPoints;
-    }
-
-    function setIsLeverageEnabled(address _vault, bool _isLeverageEnabled) external override onlyHandlerAndAbove {
-        IVault(_vault).setIsLeverageEnabled(_isLeverageEnabled);
     }
 
     function setTokenConfig(

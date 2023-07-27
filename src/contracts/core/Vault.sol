@@ -36,7 +36,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public constant MAX_INT256 = uint256(type(int256).max);
 
     bool public override isInitialized;
-    bool public override isLeverageEnabled = true;
     address public usdc;
 
     IVaultUtils public vaultUtils;
@@ -309,11 +308,6 @@ contract Vault is ReentrancyGuard, IVault {
     ) external override {
         _onlyGov();
         isLiquidator[_liquidator] = _isActive;
-    }
-
-    function setIsLeverageEnabled(bool _isLeverageEnabled) external override {
-        _onlyGov();
-        isLeverageEnabled = _isLeverageEnabled;
     }
 
     //anirudhDoubt: what is the need for maxGasPrice
@@ -1020,7 +1014,6 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _sizeDelta,
         bool _isLong
     ) external override nonReentrant {
-        _validate(isLeverageEnabled, 28);
         _validateGasPrice();
         _validateRouter(_account);//AnirudhInfo - validate whether msg.sender is approved to place order for account
         _validateTokens(_collateralToken, _indexToken);
