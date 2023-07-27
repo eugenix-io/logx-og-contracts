@@ -12,6 +12,5 @@ interface IVaultUtils {
     function getFundingFee(address _account, address _collateralToken, address _indexToken, bool _isLong, uint256 _size, uint256 _entryFundingRate) external view returns (uint256);
     function getBuyUsdlFeeBasisPoints(address _token, uint256 _usdgAmount) external view returns (uint256);
     function getSellUsdlFeeBasisPoints(address _token, uint256 _usdgAmount) external view returns (uint256);
-    function getSwapFeeBasisPoints(address _tokenIn, address _tokenOut, uint256 _usdgAmount) external view returns (uint256);
     function getFeeBasisPoints(address _token, uint256 _usdgDelta, uint256 _feeBasisPoints, bool _increment) external view returns (uint256);
 }

@@ -38,7 +38,6 @@ interface IVault {
     function setManager(address _manager, bool _isManager) external;
     function setIsLeverageEnabled(bool _isLeverageEnabled) external;
     function setMaxGasPrice(uint256 _maxGasPrice) external;
-    function setUsdlAmount(address _token, uint256 _amount) external;
     function setBufferAmount(address _token, uint256 _amount) external;
     function setMaxGlobalShortSize(address _token, uint256 _amount) external;
     function setMaxGlobalLongSize(address _token, uint256 _amount) external;
@@ -63,7 +62,6 @@ interface IVault {
         address _token,
         uint256 _tokenDecimals,
         uint256 _minProfitBps,
-        uint256 _maxUsdlAmount,
         bool _isStable,
         bool _isShortable
     ) external;
@@ -112,8 +110,6 @@ interface IVault {
     function poolAmounts(address _token) external view returns (uint256);
     function bufferAmounts(address _token) external view returns (uint256);
     function reservedAmounts(address _token) external view returns (uint256);
-    function usdlAmounts(address _token) external view returns (uint256);
-    function maxUsdlAmounts(address _token) external view returns (uint256);
     function getRedemptionAmount(address _token, uint256 _usdlAmount) external view returns (uint256);
     function getMaxPrice(address _token) external view returns (uint256);
     function getMinPrice(address _token) external view returns (uint256);

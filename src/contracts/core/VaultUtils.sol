@@ -119,23 +119,9 @@ contract VaultUtils is IVaultUtils, Governable {
         return getFeeBasisPoints(_token, _usdlAmount, vault.mintBurnFeeBasisPoints(), false);
     }
 
-    function getSwapFeeBasisPoints(address _tokenIn, address _tokenOut, uint256 _usdlAmount) public override view returns (uint256) {
-        bool isStableSwap = vault.stableTokens(_tokenIn) && vault.stableTokens(_tokenOut);
-        uint256 baseBps = isStableSwap ? vault.stableSwapFeeBasisPoints() : vault.swapFeeBasisPoints();
-        uint256 feesBasisPoints0 = getFeeBasisPoints(_tokenIn, _usdlAmount, baseBps, true);
-        uint256 feesBasisPoints1 = getFeeBasisPoints(_tokenOut, _usdlAmount, baseBps, false);
-        // use the higher of the two fee basis points
-        return feesBasisPoints0 > feesBasisPoints1 ? feesBasisPoints0 : feesBasisPoints1;
-    }
-
     function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) public override view returns (uint256) {
         if (!vault.hasDynamicFees()) { return _feeBasisPoints; }
-
-        uint256 initialAmount = vault.usdlAmounts(_token);
-        uint256 nextAmount = initialAmount+(_usdlDelta);
-        if (!_increment) {
-            nextAmount = _usdlDelta > initialAmount ? 0 : initialAmount-(_usdlDelta);
-        }
+        //AnirudhTodo - make fees dynamic based on amount of usdlDelta provided.
         return _feeBasisPoints;
     }
 }
