@@ -91,12 +91,7 @@ contract BasePositionManager{
             require(markPrice >= acceptablePrice, "BasePositionManager: markPrice < price");
         }
 
-        address timelock = IVault(vault).gov();
-
-        //AnirudhTodo - why do we need to specifically enable and disable Leverage?
-        ITimelock(timelock).enableLeverage(vault);
         IRouter(router).pluginIncreasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
-        ITimelock(timelock).disableLeverage(vault);
     }
 
     function _decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, uint256 _price) internal returns (uint256) {
@@ -108,12 +103,8 @@ contract BasePositionManager{
         } else {
             require(markPrice <= _price, "BasePositionManager: markPrice > price");
         }
-
-        address timelock = IVault(_vault).gov();
         
-        ITimelock(timelock).enableLeverage(_vault);
         uint256 amountOut = IRouter(router).pluginDecreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
-        ITimelock(timelock).disableLeverage(_vault);
 
         return amountOut;
     }

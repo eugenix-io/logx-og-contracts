@@ -44,32 +44,17 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         address _feeReceiver
     ) external nonReentrant onlyLiquidator {
         address _vault = vault;
-        address timelock = IVault(_vault).gov();
-
-        ITimelock(timelock).enableLeverage(_vault);
         IVault(_vault).liquidatePosition(_account, _collateralToken, _indexToken, _isLong, _feeReceiver);
-        ITimelock(timelock).disableLeverage(_vault);
     }
 
     function executeIncreaseOrder(address _account, uint256 _orderIndex, address payable _feeReceiver) external onlyOrderKeeper {
         _validateIncreaseOrder(_account, _orderIndex);
-
-        address _vault = vault;
-        address timelock = IVault(_vault).gov();        
-
-        ITimelock(timelock).enableLeverage(_vault);
         IOrderBook(orderBook).executeOrder(_account, _orderIndex, _feeReceiver);
-        ITimelock(timelock).disableLeverage(_vault);
 
     }
 
     function executeDecreaseOrder(address _account, uint256 _orderIndex, address payable _feeReceiver) external onlyOrderKeeper {
-        address _vault = vault;
-        address timelock = IVault(_vault).gov();
-
-        ITimelock(timelock).enableLeverage(_vault);
         IOrderBook(orderBook).executeOrder(_account, _orderIndex, _feeReceiver);
-        ITimelock(timelock).disableLeverage(_vault);
 
     }
 

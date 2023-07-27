@@ -32,7 +32,6 @@ contract Timelock is ITimelock {
     uint256 public maxTokenSupply;
 
     uint256 public marginFeeBasisPoints;
-    uint256 public maxMarginFeeBasisPoints;
     bool public shouldToggleIsLeverageEnabled;
 
     mapping (bytes32 => uint256) public pendingActions;
@@ -88,8 +87,7 @@ contract Timelock is ITimelock {
         address _llpManager,
         address _rewardRouter,
         uint256 _maxTokenSupply,
-        uint256 _marginFeeBasisPoints,
-        uint256 _maxMarginFeeBasisPoints
+        uint256 _marginFeeBasisPoints
     ) {
         require(_buffer <= MAX_BUFFER, "Timelock: invalid _buffer");
         admin = _admin;
@@ -101,7 +99,6 @@ contract Timelock is ITimelock {
         maxTokenSupply = _maxTokenSupply;
 
         marginFeeBasisPoints = _marginFeeBasisPoints;
-        maxMarginFeeBasisPoints = _maxMarginFeeBasisPoints;
     }
 
     function setAdmin(address _admin) external override onlyTokenManager {
@@ -162,45 +159,8 @@ contract Timelock is ITimelock {
         shouldToggleIsLeverageEnabled = _shouldToggleIsLeverageEnabled;
     }
 
-    function setMarginFeeBasisPoints(uint256 _marginFeeBasisPoints, uint256 _maxMarginFeeBasisPoints) external onlyHandlerAndAbove {
+    function setMarginFeeBasisPoints(uint256 _marginFeeBasisPoints) external onlyHandlerAndAbove {
         marginFeeBasisPoints = _marginFeeBasisPoints;
-        maxMarginFeeBasisPoints = _maxMarginFeeBasisPoints;
-    }
-
-    function enableLeverage(address _vault) external override onlyHandlerAndAbove {
-        IVault vault = IVault(_vault);
-
-        if (shouldToggleIsLeverageEnabled) {
-            vault.setIsLeverageEnabled(true);
-        }
-
-        vault.setFees(
-            vault.taxBasisPoints(),
-            vault.stableTaxBasisPoints(),
-            vault.mintBurnFeeBasisPoints(),
-            marginFeeBasisPoints,
-            vault.liquidationFeeUsd(),
-            vault.minProfitTime(),
-            vault.hasDynamicFees()
-        );
-    }
-
-    function disableLeverage(address _vault) external override onlyHandlerAndAbove {
-        IVault vault = IVault(_vault);
-
-        if (shouldToggleIsLeverageEnabled) {
-            vault.setIsLeverageEnabled(false);
-        }
-
-        vault.setFees(
-            vault.taxBasisPoints(),
-            vault.stableTaxBasisPoints(),
-            vault.mintBurnFeeBasisPoints(),
-            maxMarginFeeBasisPoints, // marginFeeBasisPoints
-            vault.liquidationFeeUsd(),
-            vault.minProfitTime(),
-            vault.hasDynamicFees()
-        );
     }
 
     function setIsLeverageEnabled(address _vault, bool _isLeverageEnabled) external override onlyHandlerAndAbove {
