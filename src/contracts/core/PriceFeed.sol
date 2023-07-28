@@ -1,20 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.19;
-
-/**AnirudhTodo
- * LogX pool parameters in this file
- * set 1e30 as our price_precision
- * CUMULATIVE_DELTA_PRECISION
- * MAX_PRICE_DURATION
- * minBlockInterval - 0s
- * maxTimeDeviation - 3600s
- * maxPriceUpdateDelay - 3600s
- * spreadBasisPointsIfChainError - 500 => 5%
- * spreadBasisPointsIfInactive - 20 => 0.2%
- * maxDeviationBasisPoints - 1000 => 10%
- * priceDuration - 300
- * priceDataInterval - 60s*/
  
 
 import './interfaces/IPriceFeed.sol';
@@ -47,7 +33,7 @@ contract PriceFeed is IPriceFeed, Governable {
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return uint64(priceData.price);
+        return getFinalPrice(uint64(priceData.price), priceData.expo);
     }
 
     function getMaxAllowedDelay() external view returns(uint256){
@@ -62,14 +48,14 @@ contract PriceFeed is IPriceFeed, Governable {
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return uint64(priceData.price) + priceData.conf;
+        return getFinalPrice(uint64(priceData.price) + priceData.conf, priceData.expo);
     }
 
     function getMinPriceOfToken(address _token) external override view returns(uint256){
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return uint64(priceData.price) - priceData.conf; 
+        return getFinalPrice(uint64(priceData.price) - priceData.conf, priceData.expo); 
     }
 
     function validateData(PythStructs.Price memory _priceData) internal view {
@@ -124,7 +110,7 @@ contract PriceFeed is IPriceFeed, Governable {
         executePostions(_positionRouter, _endIndexForIncreasePositions, _endIndexForDecreasePositions);
     }
 
-    function setPrices(bytes[] calldata priceUpdateData) public {
+    function setPrices(bytes[] calldata priceUpdateData) public  payable onlyUpdater{
         uint fee = IPyth(pythContract).getUpdateFee(priceUpdateData);
         IPyth(pythContract).updatePriceFeeds{value: fee}(priceUpdateData);
         uint numPriceIds = supportedTokens.length;
@@ -144,7 +130,8 @@ contract PriceFeed is IPriceFeed, Governable {
         positionRouter.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
     }
 
-    function tokenLength() external view returns(uint256){
-        return supportedTokens.length;
+    function getFinalPrice(uint256 price, int32 exponent) private pure returns(uint256){
+        uint256 adjustment = PRICE_PRECISION + uint32(-1* exponent);
+        return price * (10 ** adjustment);
     }
 }
