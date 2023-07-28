@@ -121,7 +121,6 @@ contract VaultUtils is IVaultUtils, Governable {
 
     function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) public override view returns (uint256) {
         if (!vault.hasDynamicFees()) { return _feeBasisPoints; }
-        //AnirudhTodo - make fees dynamic based on amount of usdlDelta provided.
         return _feeBasisPoints;
     }
 }

@@ -10,7 +10,6 @@ import './interfaces/IOrderBook.sol';
 
 contract PositionManager is BasePositionManager, ReentrancyGuard {
     address public orderBook;
-    bool public shouldValidateIncreaseOrder;
 
     mapping (address => bool) public isOrderKeeper;
     mapping (address => bool) public isPartner;
@@ -58,8 +57,8 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
 
     function _validateIncreaseOrder(address _account, uint256 _orderIndex) internal view {
         (
-            address _collateralToken,
-            uint256 amountIn,
+            ,//address _collateralToken,
+            ,//amountIn
             address _indexToken,
             uint256 _sizeDelta,
             bool _isLong,
@@ -71,28 +70,5 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
 
         _validateMaxGlobalSize(_indexToken, _isLong, _sizeDelta);
 
-        if (!shouldValidateIncreaseOrder) { return; }
-
-        // shorts are okay
-        //AnirudhTodo - why shorts are okay and not longs
-        if (!_isLong) { return; }
-
-        // if the position size is not increasing, this is a collateral deposit
-        require(_sizeDelta > 0, "PositionManager: long deposit");
-
-        IVault _vault = IVault(vault);
-        (uint256 size, uint256 collateral, , , , , , ) = _vault.getPosition(_account, _collateralToken, _indexToken, _isLong);
-
-        // if there is no existing position, do not charge a fee
-        if (size == 0) { return; }
-
-        uint256 nextSize = size+(_sizeDelta);
-        uint256 collateralDelta = _vault.tokenToUsdMin(_collateralToken, amountIn);
-        uint256 nextCollateral = collateral+(collateralDelta);
-
-        uint256 prevLeverage = size*(BASIS_POINTS_DIVISOR)/(collateral);
-        uint256 nextLeverageWithBuffer = nextSize*(BASIS_POINTS_DIVISOR)/(nextCollateral);
-
-        require(nextLeverageWithBuffer >= prevLeverage, "PositionManager: long leverage decrease");
     }
 }

@@ -152,7 +152,7 @@ contract PositionsTracker is Governable, IPositionsTracker {
         }
 
         IVault _vault = vault;
-        //AnirudhTodo - averagePrice here is not the global one. Its the averageprice of the position.
+        //averagePrice here is not the global one. Its the averageprice of the position.
         (uint256 size, /*uint256 collateral*/, uint256 averagePrice, , , , , uint256 lastIncreasedTime) = _vault.getPosition(_account, _collateralToken, _indexToken, _isLong);
 
         (bool hasProfit, uint256 delta) = _vault.getDelta(_indexToken, size, averagePrice, _isLong, lastIncreasedTime);
@@ -184,7 +184,6 @@ contract PositionsTracker is Governable, IPositionsTracker {
         return nextAveragePrice;
     }
 
-    /*anirudhExp-*/
     function _getNextDelta(
         bool _hasProfit,
         uint256 _delta,

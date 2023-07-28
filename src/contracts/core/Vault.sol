@@ -119,7 +119,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 tokenAmount,
         uint256 feeBasisPoints
     );
-    
+
     event IncreasePosition(
         bytes32 key,
         address account,
@@ -277,7 +277,6 @@ contract Vault is ReentrancyGuard, IVault {
         isLiquidator[_liquidator] = _isActive;
     }
 
-    //anirudhDoubt: what is the need for maxGasPrice
     function setMaxGasPrice(uint256 _maxGasPrice) external override {
         _onlyGov();
         maxGasPrice = _maxGasPrice;
@@ -693,7 +692,6 @@ contract Vault is ReentrancyGuard, IVault {
         }
         if (liquidationState == 2) {
             // max leverage exceeded but there is collateral remaining after deducting losses so decreasePosition instead
-            //anirudhDoubt: what does above comment mean
             _decreasePosition(
                 _account,
                 _collateralToken,
@@ -791,8 +789,6 @@ contract Vault is ReentrancyGuard, IVault {
 
     // for longs: nextAveragePrice = (nextPrice * nextSize)/ (nextSize + delta)
     // for shorts: nextAveragePrice = (nextPrice * nextSize) / (nextSize - delta)
-    //AnirudhTodo - there is a difference in averagePrice calculation in positions tracker
-    //and this function have a look.
     function getNextAveragePrice(
         address _indexToken,
         uint256 _size,
@@ -958,7 +954,7 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong
     ) external override nonReentrant {
         _validateGasPrice();
-        _validateRouter(_account);//AnirudhInfo - validate whether msg.sender is approved to place order for account
+        _validateRouter(_account);
         _validateTokens(_collateralToken, _indexToken);
         vaultUtils.validateIncreasePosition(
             _account,
@@ -966,7 +962,7 @@ contract Vault is ReentrancyGuard, IVault {
             _indexToken,
             _sizeDelta,
             _isLong
-        );// AnirudhTodo - current no validation.
+        );
 
         updateCumulativeFundingRate(_collateralToken, _indexToken);
 
@@ -1034,7 +1030,7 @@ contract Vault is ReentrancyGuard, IVault {
         );
 
         // reserve tokens to pay profits on the position
-        uint256 reserveDelta = usdToTokenMax(_collateralToken, _sizeDelta);//AnirudhTodo: check why collateral and not index token
+        uint256 reserveDelta = usdToTokenMax(_collateralToken, _sizeDelta);
         position.reserveAmount = position.reserveAmount + (reserveDelta);
         _increaseReservedAmount(_collateralToken, reserveDelta);
 
@@ -1162,7 +1158,6 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong,
         address _receiver
     ) private returns (uint256) {
-        //AniurdhTodo - no validations are performed in vaultUtils. See if you can add any.
         vaultUtils.validateDecreasePosition(
             _account,
             _collateralToken,
@@ -1431,8 +1426,6 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _fundingRateFactor = stableTokens[_token]
             ? stableFundingRateFactor
             : fundingRateFactor;
-        //AnirudhTodo - cross-check the understanding below.
-        //looks like the funding rate is dependent on the utilization levels of eacth token in the pool.
         return
             (_fundingRateFactor * (reservedAmounts[_token]) * (intervals)) /
             (poolAmount);
@@ -1490,7 +1483,6 @@ contract Vault is ReentrancyGuard, IVault {
         if (_isIncrease) {
             return 0;
         }
-        //AnirudhTodo - averagePrice here is not the global one. Its the averageprice of the position.
         (uint256 size, /*uint256 collateral*/, uint256 averagePrice, , , , , uint256 lastIncreasedTime) = getPosition(_account, _collateralToken, _indexToken, _isLong);
 
         (bool hasProfit, uint256 delta) = getDelta(_indexToken, size, averagePrice, _isLong, lastIncreasedTime);

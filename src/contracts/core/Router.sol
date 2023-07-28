@@ -31,7 +31,6 @@ contract Router is IRouter, Governable {
         plugins[_plugin] = false;
     }
 
-    //AnirudhInfo - provide plugin approval when the user initially connects with logX LP
     function approvePlugin(address _plugin) external {
         approvedPlugins[msg.sender][_plugin] = true;
     }
@@ -46,7 +45,6 @@ contract Router is IRouter, Governable {
         address _receiver,
         uint256 _amount
     ) external override {
-        //AnirudhTodo - Find the reason for using validate plugin.
         _validatePlugin(_account);
         IERC20(_token).transferFrom(_account, _receiver, _amount);
     }
