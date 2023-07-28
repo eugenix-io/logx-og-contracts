@@ -188,7 +188,6 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
                 if (shortSize > 0) {
                     ( bool hasProfit, uint256 delta) = getGlobalPositionDelta(token, false);
                     if (!hasProfit) {
-                        // add losses from shorts
                         aum = aum + (delta);
                     } else {
                         profits = profits + (delta);
@@ -200,7 +199,6 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
                 if (longSize > 0) {
                     ( bool hasProfit, uint256 delta) = getGlobalPositionDelta(token, true);
                     if (!hasProfit) {
-                        // add losses from longs
                         aum = aum + (delta);
                     } else {
                         profits = profits + (delta);

@@ -171,14 +171,12 @@ contract Timelock is ITimelock {
 
         uint256 tokenDecimals = vault.tokenDecimals(_token);
         bool isStable = vault.stableTokens(_token);
-        bool isShortable = vault.shortableTokens(_token);
 
         IVault(_vault).setTokenConfig(
             _token,
             tokenDecimals,
             _minProfitBps,
-            isStable,
-            isShortable
+            isStable
         );
 
         IVault(_vault).setBufferAmount(_token, _bufferAmount);
@@ -415,8 +413,7 @@ contract Timelock is ITimelock {
             _token,
             _tokenDecimals,
             _minProfitBps,
-            _isStable,
-            _isShortable
+            _isStable
         );
     }
 

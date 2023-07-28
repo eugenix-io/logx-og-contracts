@@ -76,7 +76,6 @@ contract Vault is ReentrancyGuard, IVault {
     mapping(address => uint256) public override tokenDecimals;
     mapping(address => uint256) public override minProfitBasisPoints;
     mapping(address => bool) public override stableTokens;
-    mapping(address => bool) public override shortableTokens;
 
     // tokenBalances is used only to determine _transferIn values
     mapping(address => uint256) public override tokenBalances;
@@ -390,15 +389,13 @@ contract Vault is ReentrancyGuard, IVault {
     ) private view {
         _validate(_collateralToken == usdc, 42);
         _validate(whitelistedTokens[_indexToken], 43);
-        _validate(shortableTokens[_indexToken], 48);//AnirudhTodo-check this only if isShort
     }
 
     function setTokenConfig(
         address _token,
         uint256 _tokenDecimals,
         uint256 _minProfitBps,
-        bool _isStable,
-        bool _isShortable
+        bool _isStable
     ) external override {
         _onlyGov();
         // increment token count for the first time
@@ -410,7 +407,6 @@ contract Vault is ReentrancyGuard, IVault {
         tokenDecimals[_token] = _tokenDecimals;
         minProfitBasisPoints[_token] = _minProfitBps;
         stableTokens[_token] = _isStable;
-        shortableTokens[_token] = _isShortable;
 
         // validate price feed
         getMaxPrice(_token);

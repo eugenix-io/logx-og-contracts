@@ -55,8 +55,7 @@ interface IVault {
         address _token,
         uint256 _tokenDecimals,
         uint256 _minProfitBps,
-        bool _isStable,
-        bool _isShortable
+        bool _isStable
     ) external;
 
     function setPriceFeed(address _priceFeed) external;
@@ -87,7 +86,6 @@ interface IVault {
     function allWhitelistedTokens(uint256) external view returns (address);
     function whitelistedTokens(address _token) external view returns (bool);
     function stableTokens(address _token) external view returns (bool);
-    function shortableTokens(address _token) external view returns (bool);
     function feeReserves(address _token) external view returns (uint256);
     function globalShortSizes(address _token) external view returns (uint256);
     function globalLongSizes(address _token) external view returns (uint256);
