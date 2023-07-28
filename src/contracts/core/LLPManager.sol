@@ -26,10 +26,6 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     mapping(address => uint256) public override lastAddedAt;
     mapping(address => bool) public whiteListedTokens;
 
-    uint256 public aumAddition;
-    uint256 public aumDeduction;
-
-    bool public inPrivateMode;
     mapping(address => bool) public isHandler;
 
     event AddLiquidity(
@@ -65,10 +61,6 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         cooldownDuration = _cooldownDuration;
     }
 
-    function setInPrivateMode(bool _inPrivateMode) external onlyGov {
-        inPrivateMode = _inPrivateMode;
-    }
-
     function setHandler(address _handler, bool _isActive) external onlyGov {
         isHandler[_handler] = _isActive;
     }
@@ -89,14 +81,6 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             "LlpManager: invalid _cooldownDuration"
         );
         cooldownDuration = _cooldownDuration;
-    }
-
-    function setAumAdjustment(
-        uint256 _aumAddition,
-        uint256 _aumDeduction
-    ) external onlyGov {
-        aumAddition = _aumAddition;
-        aumDeduction = _aumDeduction;
     }
 
     function addLiquidityForAccount(
@@ -161,7 +145,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
     function getAum(bool maximise) public view returns (uint256) {
         uint256 length = vault.allWhitelistedTokensLength();
-        uint256 aum = aumAddition;
+        uint256 aum;
         uint256 profits = 0;
         IVault _vault = vault;
 
@@ -208,7 +192,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         }
 
         aum = profits > aum ? 0 : aum - (profits) ;
-        return aumDeduction > aum ? 0 : aum - (aumDeduction);
+        return aum;
     }
 
     function getGlobalShortAveragePrice(
