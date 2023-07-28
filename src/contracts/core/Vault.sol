@@ -3,7 +3,6 @@
 pragma solidity 0.8.19;
 
 import "../libraries/token/IERC20.sol";
-import "../libraries/token/SafeERC20.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IVaultUtils.sol";
@@ -12,7 +11,6 @@ import "./interfaces/IUSDL.sol";
 import "../access/Governable.sol";
 
 contract Vault is ReentrancyGuard, IVault {
-    using SafeERC20 for IERC20;
 
     struct Position {
         uint256 size;
@@ -381,6 +379,10 @@ contract Vault is ReentrancyGuard, IVault {
         stableFundingRateFactor = _stableFundingRateFactor;
     }
 
+    //10000000000000000000 = 10* 1e18
+    //99009900990099009027412911000000 = 99* 1e30
+    //1865430735399000000000000000000000 = 1865 * 1e30
+
 
     function _validateTokens(
         address _collateralToken,
@@ -606,7 +608,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _amount,
         address _receiver
     ) private {
-        IERC20(_token).safeTransfer(_receiver, _amount);
+        IERC20(_token).transfer(_receiver, _amount);
         tokenBalances[_token] = IERC20(_token).balanceOf(address(this));
     }
 
@@ -822,6 +824,9 @@ contract Vault is ReentrancyGuard, IVault {
                 _raise
             );
     }
+
+    //100015345354437731381
+    //210000000000000000000
 
     function _increaseReservedAmount(address _token, uint256 _amount) private {
         reservedAmounts[_token] = reservedAmounts[_token] + (_amount);

@@ -6,13 +6,11 @@ import '../libraries/token/IERC20.sol';
 import './interfaces/IVault.sol';
 import './interfaces/IRouter.sol';
 import './interfaces/ITimeLock.sol';
-import '../libraries/token/SafeERC20.sol';
 import '../access/Governable.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
 
 
 contract BasePositionManager{
-    using SafeERC20 for IERC20;
     address public admin;
     address public vault;
     address public router;

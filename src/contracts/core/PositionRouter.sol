@@ -5,7 +5,6 @@ pragma solidity ^0.8.19;
 import '../libraries/utils/ReentrancyGuard.sol';
 import './interfaces/IRouter.sol';
 import '../libraries/token/IERC20.sol';
-import '../libraries/token/SafeERC20.sol';
 import './BasePositionManager.sol';
 import './interfaces/IPositionRouter.sol';
 
@@ -14,8 +13,6 @@ contract PositionRouter is
     IPositionRouter,
     ReentrancyGuard
 {
-    using SafeERC20 for IERC20;
-
     struct IncreasePositionRequest {
         address account;
         address _collateralToken;
@@ -293,7 +290,7 @@ contract PositionRouter is
         }
 
         delete increasePositionRequests[_key];
-        IERC20(request._collateralToken).safeTransfer(request.account, request.amountIn);
+        IERC20(request._collateralToken).transfer(request.account, request.amountIn);
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
         require(success, "PositionRouter: failed to return execution fee");
 
@@ -630,7 +627,7 @@ contract PositionRouter is
             request.acceptablePrice
         );
 
-        IERC20(request._collateralToken).safeTransfer(
+        IERC20(request._collateralToken).transfer(
             request.receiver,
             amountOut
         );

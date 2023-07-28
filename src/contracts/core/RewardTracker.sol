@@ -3,7 +3,6 @@
 pragma solidity 0.8.19;
 
 import "../libraries/token/IERC20.sol";
-import "../libraries/token/SafeERC20.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
 
 import "./interfaces/IRewardDistributor.sol";
@@ -11,7 +10,6 @@ import "./interfaces/IRewardTracker.sol";
 import "../access/Governable.sol";
 
 contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
-    using SafeERC20 for IERC20;
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     uint256 public constant PRECISION = 1e30;
@@ -80,7 +78,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
     // to help users who accidentally send their tokens to this contract
     function withdrawToken(address _token, address _account, uint256 _amount) external onlyGov {
-        IERC20(_token).safeTransfer(_account, _amount);
+        IERC20(_token).transfer(_account, _amount);
     }
 
     function balanceOf(address _account) external view override returns (uint256) {
@@ -151,7 +149,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         claimableReward[_account] = 0;
 
         if (tokenAmount > 0) {
-            IERC20(rewardToken).safeTransfer(_receiver, tokenAmount);
+            IERC20(rewardToken).transfer(_receiver, tokenAmount);
             emit Claim(_account, tokenAmount);
         }
 
@@ -203,7 +201,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         require(_amount > 0, "RewardTracker: invalid _amount");
         require(isDepositToken[_depositToken], "RewardTracker: invalid _depositToken");
 
-        IERC20(_depositToken).safeTransferFrom(_fundingAccount, address(this), _amount);
+        IERC20(_depositToken).transferFrom(_fundingAccount, address(this), _amount);
 
         stakedAmounts[_account] = stakedAmounts[_account] + _amount;
         depositBalances[_account][_depositToken] = depositBalances[_account][_depositToken] + _amount;
@@ -227,7 +225,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         totalDepositSupply[_depositToken] = totalDepositSupply[_depositToken] - _amount;
 
         _burn(_account, _amount);
-        IERC20(_depositToken).safeTransfer(_receiver, _amount);
+        IERC20(_depositToken).transfer(_receiver, _amount);
     }
 
     function setFeeReward(uint256 _feeReward) external {

@@ -4,11 +4,9 @@ pragma solidity 0.8.19;
 
 import './IERC20.sol';
 import './IBaseToken.sol';
-import "./SafeERC20.sol";
 
 
 contract BaseToken is IERC20, IBaseToken {
-    using SafeERC20 for IERC20;
 
     string public name;
     string public symbol;
@@ -64,7 +62,7 @@ contract BaseToken is IERC20, IBaseToken {
 
     // to help users who accidentally send their tokens to this contract
     function withdrawToken(address _token, address _account, uint256 _amount) external override onlyGov {
-        IERC20(_token).safeTransfer(_account, _amount);
+        IERC20(_token).transfer(_account, _amount);
     }
 
     function setInPrivateTransferMode(bool _inPrivateTransferMode) external override onlyGov {

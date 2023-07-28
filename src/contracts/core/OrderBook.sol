@@ -3,7 +3,6 @@
 pragma solidity ^0.8.19;
 
 import "../libraries/token/IERC20.sol";
-import "../libraries/token/SafeERC20.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
 
 import "./interfaces/IRouter.sol";
@@ -11,7 +10,6 @@ import "./interfaces/IVault.sol";
 import "./interfaces/IOrderBook.sol";
 
 contract OrderBook is ReentrancyGuard, IOrderBook {
-    using SafeERC20 for IERC20;
 
     uint256 public constant PRICE_PRECISION = 1e30;
     uint256 public constant USDL_PRECISION = 1e18;
@@ -319,7 +317,7 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         require(order.account != address(0), "OrderBook: non-existent order");
 
         delete orders[msg.sender][_orderIndex];
-        IERC20(order.collateralToken).safeTransfer(msg.sender, order.collateralDelta);
+        IERC20(order.collateralToken).transfer(msg.sender, order.collateralDelta);
         _transferOutETH(order.executionFee, payable(msg.sender));
         
 
@@ -355,12 +353,12 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         delete orders[_address][_orderIndex];
 
         if(order.isIncreaseOrder){
-            IERC20(order.collateralToken).safeTransfer(vault, order.collateralDelta);
+            IERC20(order.collateralToken).transfer(vault, order.collateralDelta);
             IRouter(router).pluginIncreasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 
         } else{
             uint256 amountOut = IRouter(router).pluginDecreasePosition(order.account, order.collateralToken, order.indexToken, order.collateralDelta, order.sizeDelta, order.isLong, address(this));
-            IERC20(order.collateralToken).safeTransfer(order.account, amountOut);
+            IERC20(order.collateralToken).transfer(order.account, amountOut);
         }
 
         

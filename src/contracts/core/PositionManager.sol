@@ -7,10 +7,8 @@ import './interfaces/IVault.sol';
 import './interfaces/ITimeLock.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
 import './interfaces/IOrderBook.sol';
-import '../libraries/token/SafeERC20.sol';
 
 contract PositionManager is BasePositionManager, ReentrancyGuard {
-    using SafeERC20 for IERC20;
     address public orderBook;
     bool public shouldValidateIncreaseOrder;
 

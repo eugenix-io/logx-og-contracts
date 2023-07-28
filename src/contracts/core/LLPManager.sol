@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 import "../libraries/token/IERC20.sol";
-import "../libraries/token/SafeERC20.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
 import './interfaces/IMintable.sol';
 import './interfaces/IUSDL.sol';
@@ -12,7 +11,6 @@ import "../access/Governable.sol";
 pragma solidity 0.8.19;
 
 contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
-    using SafeERC20 for IERC20;
 
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     uint256 public constant usdl_DECIMALS = 18;
@@ -235,7 +233,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 aumInusdl = getAumInUsdl(true);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
-        IERC20(_token).safeTransferFrom(
+        IERC20(_token).transferFrom(
             _fundingAccount,
             address(vault),
             _amount

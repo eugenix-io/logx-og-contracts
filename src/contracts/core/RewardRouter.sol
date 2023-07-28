@@ -3,7 +3,6 @@
 pragma solidity 0.8.19;
 
 import "../libraries/token/IERC20.sol";
-import "../libraries/token/SafeERC20.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
 import "../libraries/token/Address.sol";
 import "./interfaces/IRewardTracker.sol";
@@ -12,7 +11,6 @@ import "../core/interfaces/ILlpManager.sol";
 import "../access/Governable.sol";
 
 contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
-    using SafeERC20 for IERC20;
     using Address for address payable;
 
     bool public isInitialized;
@@ -44,7 +42,7 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     // to help users who accidentally send their tokens to this contract
     function withdrawToken(address _token, address _account, uint256 _amount) external onlyGov {
-        IERC20(_token).safeTransfer(_account, _amount);
+        IERC20(_token).transfer(_account, _amount);
     }
 
     function mintAndStakeLlp(address _token, uint256 _amount, uint256 _minUsdl, uint256 _minLlp) external nonReentrant returns (uint256) {

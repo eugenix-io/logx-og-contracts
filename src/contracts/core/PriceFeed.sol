@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 /**AnirudhTodo
  * LogX pool parameters in this file
- * what should be our PRICE_PRECISION?
+ * set 1e30 as our price_precision
  * CUMULATIVE_DELTA_PRECISION
  * MAX_PRICE_DURATION
  * minBlockInterval - 0s
