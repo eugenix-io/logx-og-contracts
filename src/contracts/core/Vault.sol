@@ -73,6 +73,8 @@ contract Vault is ReentrancyGuard, IVault {
     address[] public override allWhitelistedTokens;
 
     mapping(address => bool) public override whitelistedTokens;
+    mapping(address => bool) public override canBeIndexToken;
+    mapping(address => bool) public override canBeCollateralToken;
     mapping(address => uint256) public override tokenDecimals;
     mapping(address => uint256) public override minProfitBasisPoints;
     mapping(address => bool) public override stableTokens;
@@ -395,7 +397,9 @@ contract Vault is ReentrancyGuard, IVault {
         address _token,
         uint256 _tokenDecimals,
         uint256 _minProfitBps,
-        bool _isStable
+        bool _isStable, 
+        bool _canBeCollateralToken,
+        bool _canBeIndexToken
     ) external override {
         _onlyGov();
         // increment token count for the first time
@@ -407,6 +411,8 @@ contract Vault is ReentrancyGuard, IVault {
         tokenDecimals[_token] = _tokenDecimals;
         minProfitBasisPoints[_token] = _minProfitBps;
         stableTokens[_token] = _isStable;
+        canBeCollateralToken[_token] = _canBeCollateralToken;
+        canBeIndexToken[_token] = _canBeIndexToken;
 
         // validate price feed
         getMaxPrice(_token);

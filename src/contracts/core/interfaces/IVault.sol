@@ -55,7 +55,9 @@ interface IVault {
         address _token,
         uint256 _tokenDecimals,
         uint256 _minProfitBps,
-        bool _isStable
+        bool _isStable,
+        bool _canBeCollateralToken,
+        bool _canBeIndexToken
     ) external;
 
     function setPriceFeed(address _priceFeed) external;
@@ -94,6 +96,8 @@ interface IVault {
     function maxGlobalShortSizes(address _token) external view returns (uint256);
     function maxGlobalLongSizes(address _token) external view returns (uint256);
     function tokenDecimals(address _token) external view returns (uint256);
+    function canBeIndexToken(address _token) external view returns (bool);
+    function canBeCollateralToken(address _token) external view returns (bool);
     function poolAmounts(address _token) external view returns (uint256);
     function bufferAmounts(address _token) external view returns (uint256);
     function reservedAmounts(address _token) external view returns (uint256);

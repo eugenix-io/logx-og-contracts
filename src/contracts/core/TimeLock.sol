@@ -54,7 +54,8 @@ contract Timelock is ITimelock {
         uint256 minProfitBps,
         uint256 maxUsdlAmount,
         bool isStable,
-        bool isShortable
+        bool canBeCollateralToken,
+        bool canBeIndexToken
     );
     event ClearAction(bytes32 action);
 
@@ -171,12 +172,16 @@ contract Timelock is ITimelock {
 
         uint256 tokenDecimals = vault.tokenDecimals(_token);
         bool isStable = vault.stableTokens(_token);
+        bool canBeCollateralToken = vault.canBeCollateralToken(_token);
+        bool canBeIndexToken = vault.canBeIndexToken(_token);
 
         IVault(_vault).setTokenConfig(
             _token,
             tokenDecimals,
             _minProfitBps,
-            isStable
+            isStable,
+            canBeCollateralToken,
+            canBeIndexToken
         );
 
         IVault(_vault).setBufferAmount(_token, _bufferAmount);
@@ -356,7 +361,8 @@ contract Timelock is ITimelock {
         uint256 _minProfitBps,
         uint256 _maxUsdlAmount,
         bool _isStable,
-        bool _isShortable
+        bool _canBeCollateralToken,
+        bool _canBeIndexToken
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -367,7 +373,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdlAmount,
             _isStable,
-            _isShortable
+            _canBeCollateralToken,
+            _canBeIndexToken
         ));
 
         _setPendingAction(action);
@@ -380,7 +387,8 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _maxUsdlAmount,
             _isStable,
-            _isShortable
+            _canBeCollateralToken,
+            _canBeIndexToken
         );
     }
 
@@ -391,8 +399,9 @@ contract Timelock is ITimelock {
         uint256 _tokenWeight,
         uint256 _minProfitBps,
         uint256 _maxUsdlAmount,
-        bool _isStable,
-        bool _isShortable
+        bool _isStable, 
+        bool canBeCollateralToken,
+        bool canBeIndexToken
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -402,8 +411,7 @@ contract Timelock is ITimelock {
             _tokenWeight,
             _minProfitBps,
             _maxUsdlAmount,
-            _isStable,
-            _isShortable
+            _isStable
         ));
 
         _validateAction(action);
@@ -413,7 +421,9 @@ contract Timelock is ITimelock {
             _token,
             _tokenDecimals,
             _minProfitBps,
-            _isStable
+            _isStable,
+            canBeCollateralToken,
+            canBeIndexToken
         );
     }
 
