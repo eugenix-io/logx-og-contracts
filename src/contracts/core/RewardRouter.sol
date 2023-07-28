@@ -23,8 +23,10 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     address public override feeLlpTracker;
 
-    event Stakellp(address account, uint256 amount);
-    event Unstakellp(address account, uint256 amount);
+    event Stakellp(address indexed account, uint256 amount);
+    event Unstakellp(address indexed account, uint256 amount);
+    event Mintllp(address indexed account, uint256 amount);
+    event Burnllp(address indexed account, uint256 amount);
 
     function initialize(
         address _usdc,
@@ -45,30 +47,36 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         IERC20(_token).transfer(_account, _amount);
     }
 
-    function mintAndStakeLlp(address _token, uint256 _amount, uint256 _minUsdl, uint256 _minLlp) external nonReentrant returns (uint256) {
+    function mintLlp(address _token, uint256 _amount, uint256 _minUsdl, uint256 _minLlp) external nonReentrant returns (uint256) {
         require(_amount > 0, "RewardRouter: invalid _amount");
         require(_token == usdc, "RewardRouter: Only USDC is supported");
 
         address account = msg.sender;
         uint256 llpAmount = ILlpManager(llpManager).addLiquidityForAccount(account, account, _token, _amount, _minUsdl, _minLlp);
-        IRewardTracker(feeLlpTracker).stakeForAccount(account, account, llp, llpAmount);
-
-        emit Stakellp(account, llpAmount);
-
+        emit Mintllp(account, llpAmount);
         return llpAmount;
     }
 
-    //AnirudhInfo: llpAmount is the amount of llp tokens to unstake. Not in usd it is in number of tokens.
-    function unstakeAndRedeemLlp(address _tokenOut, uint256 _llpAmount, uint256 _minOut, address _receiver) external nonReentrant returns (uint256) {
+    function stakeLlp(uint256 llpAmount) external nonReentrant {
+        require(llpAmount > 0, "RewardRouter: llpAmount too low");
+        address account = msg.sender;
+        IRewardTracker(feeLlpTracker).stakeForAccount(account, account, llp, llpAmount);
+        emit Stakellp(account, llpAmount);
+    }
+
+    function burnLlp( uint256 _llpAmount, uint256 _minOut) external nonReentrant returns (uint256) {
         require(_llpAmount > 0, "RewardRouter: invalid _llpAmount");
-        require(_tokenOut == usdc, "RewardRouter: Only USDC is supported");
 
         address account = msg.sender;
-        IRewardTracker(feeLlpTracker).unstakeForAccount(account, llp, _llpAmount, account);
-        uint256 amountOut = ILlpManager(llpManager).removeLiquidityForAccount(account, _tokenOut, _llpAmount, _minOut, _receiver);
-
-        emit Unstakellp(account, _llpAmount);
+        uint256 amountOut = ILlpManager(llpManager).removeLiquidityForAccount(account, usdc, _llpAmount, _minOut, account);
+        emit Burnllp(account, _llpAmount);
 
         return amountOut;
+    }
+
+    function unstakeLlp(uint256 amount) external nonReentrant {
+        address account = msg.sender;
+        IRewardTracker(feeLlpTracker).unstakeForAccount(account, llp, amount, account);
+        emit Unstakellp(account, amount);
     }
 }
