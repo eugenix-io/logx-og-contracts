@@ -119,16 +119,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 tokenAmount,
         uint256 feeBasisPoints
     );
-    event Swap(
-        address account,
-        address tokenIn,
-        address tokenOut,
-        uint256 amountIn,
-        uint256 amountOut,
-        uint256 amountOutAfterFees,
-        uint256 feeBasisPoints
-    );
-
+    
     event IncreasePosition(
         bytes32 key,
         address account,
