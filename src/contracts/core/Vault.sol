@@ -108,7 +108,6 @@ contract Vault is ReentrancyGuard, IVault {
     mapping(address => uint256) public override maxGlobalLongSizes;
     //AnirudhTodo - change erros and error messages according to the updated code.
     mapping(uint256 => string) public errors;
-    mapping(address => uint256) public bufferAmounts;
 
     event BuyUSDL(
         address account,
@@ -322,14 +321,6 @@ contract Vault is ReentrancyGuard, IVault {
         _onlyGov();
         _validate(_maxLeverage > MIN_LEVERAGE, 2);
         maxLeverage = _maxLeverage;
-    }
-
-    function setBufferAmount(
-        address _token,
-        uint256 _amount
-    ) external override {
-        _onlyGov();
-        bufferAmounts[_token] = _amount;
     }
 
     function setMaxGlobalShortSize(

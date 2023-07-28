@@ -35,7 +35,6 @@ interface IVault {
     function setInManagerMode(bool _inManagerMode) external;
     function setManager(address _manager, bool _isManager) external;
     function setMaxGasPrice(uint256 _maxGasPrice) external;
-    function setBufferAmount(address _token, uint256 _amount) external;
     function setMaxGlobalShortSize(address _token, uint256 _amount) external;
     function setMaxGlobalLongSize(address _token, uint256 _amount) external;
     function setInPrivateLiquidationMode(bool _inPrivateLiquidationMode) external;
@@ -99,7 +98,6 @@ interface IVault {
     function canBeIndexToken(address _token) external view returns (bool);
     function canBeCollateralToken(address _token) external view returns (bool);
     function poolAmounts(address _token) external view returns (uint256);
-    function bufferAmounts(address _token) external view returns (uint256);
     function reservedAmounts(address _token) external view returns (uint256);
     function getRedemptionAmount(address _token, uint256 _usdlAmount) external view returns (uint256);
     function getMaxPrice(address _token) external view returns (uint256);

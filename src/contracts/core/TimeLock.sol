@@ -162,8 +162,7 @@ contract Timelock is ITimelock {
     function setTokenConfig(
         address _vault,
         address _token,
-        uint256 _minProfitBps,
-        uint256 _bufferAmount
+        uint256 _minProfitBps
     ) external onlyKeeperAndAbove {
         require(_minProfitBps <= 500, "Timelock: invalid _minProfitBps");
 
@@ -184,7 +183,6 @@ contract Timelock is ITimelock {
             canBeIndexToken
         );
 
-        IVault(_vault).setBufferAmount(_token, _bufferAmount);
 
     }
 
