@@ -706,7 +706,7 @@ contract Vault is ReentrancyGuard, IVault {
         }
         _validate(position.size > 0, 35);
 
-        (uint256 liquidationState, uint256 marginFees) = validateLiquidation(
+        (uint256 liquidationState, uint256 marginFees) = vaultUtils.validateLiquidation(
             _account,
             _collateralToken,
             _indexToken,
@@ -798,24 +798,6 @@ contract Vault is ReentrancyGuard, IVault {
             return 0;
         }
         return usdToToken(_token, _usdAmount, getMaxPrice(_token));
-    }
-
-    // validateLiquidation returns (state, fees)
-    function validateLiquidation(
-        address _account,
-        address _collateralToken,
-        address _indexToken,
-        bool _isLong,
-        bool _raise
-    ) public view override returns (uint256, uint256) {
-        return
-            vaultUtils.validateLiquidation(
-                _account,
-                _collateralToken,
-                _indexToken,
-                _isLong,
-                _raise
-            );
     }
 
     //100015345354437731381
@@ -1072,7 +1054,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         _validate(position.size > 0, 30);
         _validatePosition(position.size, position.collateral);
-        validateLiquidation(
+        vaultUtils.validateLiquidation(
             _account,
             _collateralToken,
             _indexToken,
@@ -1266,7 +1248,7 @@ contract Vault is ReentrancyGuard, IVault {
             position.size = position.size - (_sizeDelta);
 
             _validatePosition(position.size, position.collateral);
-            validateLiquidation(
+            vaultUtils.validateLiquidation(
                 _account,
                 _collateralToken,
                 _indexToken,
