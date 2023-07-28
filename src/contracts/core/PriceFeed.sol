@@ -36,14 +36,6 @@ contract PriceFeed is IPriceFeed, Governable {
         return getFinalPrice(uint64(priceData.price), priceData.expo);
     }
 
-    function getMaxAllowedDelay() external view returns(uint256){
-        return maxAllowedDelay;
-    }
-
-    function getPriceId(address _token) external view returns(bytes32){
-        return tokenPriceIdMapping[_token];
-    }
-
     function getMaxPriceOfToken(address _token) external override view returns(uint256){
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
@@ -60,17 +52,6 @@ contract PriceFeed is IPriceFeed, Governable {
 
     function validateData(PythStructs.Price memory _priceData) internal view {
         require(_priceData.publishTime + maxAllowedDelay > block.timestamp , "PriceFeed: current price data not available!");
-    }
-
-    //remove: function added for testnet debugging.
-    function getPublishTime(address _token) external view returns(uint256){
-        bytes32 priceId = tokenPriceIdMapping[_token];
-        PythStructs.Price memory priceData = tokenPrices[priceId];
-        return priceData.publishTime;
-    }
-
-    function getBlockTime()external view returns(uint256){
-        return block.timestamp;
     }
 
     function setUpdater(address _updater) external onlyGov{
