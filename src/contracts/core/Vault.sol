@@ -38,8 +38,6 @@ contract Vault is ReentrancyGuard, IVault {
 
     IVaultUtils public vaultUtils;
 
-    address public errorController;
-
     address public override router;
     address public override priceFeed;
 
@@ -106,8 +104,6 @@ contract Vault is ReentrancyGuard, IVault {
     mapping(address => uint256) public override globalLongAveragePrices;
     mapping(address => uint256) public override maxGlobalShortSizes;
     mapping(address => uint256) public override maxGlobalLongSizes;
-    //AnirudhTodo - change erros and error messages according to the updated code.
-    mapping(uint256 => string) public errors;
 
     event BuyUSDL(
         address account,
@@ -212,7 +208,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     // we have this validation as a function instead of a modifier to reduce contract size
     function _onlyGov() private view {
-        _validate(msg.sender == gov, 1);
+        _validate(msg.sender == gov, "Vault: forbidden");
     }
 
     function initialize(
@@ -225,7 +221,7 @@ contract Vault is ReentrancyGuard, IVault {
         address _usdc
     ) external {
         _onlyGov();
-        _validate(!isInitialized, 2);
+        _validate(!isInitialized, "Vault: Already Initialized!");
         isInitialized = true;
         router = _router;
         usdl = _usdl;
@@ -249,27 +245,11 @@ contract Vault is ReentrancyGuard, IVault {
     // deposit into the pool without minting USDL tokens
     // useful in allowing the pool to become over-collaterised
     function directPoolDeposit(address _token) external override nonReentrant {
-        _validate(whitelistedTokens[_token], 3);
+        _validate(whitelistedTokens[_token], "Vault: Not a whitelisted token");
         uint256 tokenAmount = _transferIn(_token);
-        _validate(tokenAmount > 0, 4);
+        _validate(tokenAmount > 0, "Vault: Invalid tokenAmount");
         _increasePoolAmount(_token, tokenAmount);
         emit DirectPoolDeposit(_token, tokenAmount);
-    }
-
-    function setErrorController(address _errorController) external {
-        _onlyGov();
-        errorController = _errorController;
-    }
-
-    function setError(
-        uint256 _errorCode,
-        string calldata _error
-    ) external override {
-        require(
-            msg.sender == errorController,
-            "Vault: invalid errorController"
-        );
-        errors[_errorCode] = _error;
     }
 
     function allWhitelistedTokensLength()
@@ -319,7 +299,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     function setMaxLeverage(uint256 _maxLeverage) external override {
         _onlyGov();
-        _validate(_maxLeverage > MIN_LEVERAGE, 5);
+        _validate(_maxLeverage > MIN_LEVERAGE, "Vault: maxLeverage too low");
         maxLeverage = _maxLeverage;
     }
 
@@ -347,9 +327,9 @@ contract Vault is ReentrancyGuard, IVault {
         bool _hasDynamicFees
     ) external override {
         _onlyGov();
-        _validate(_mintBurnFeeBasisPoints <= MAX_FEE_BASIS_POINTS, 6);
-        _validate(_marginFeeBasisPoints <= MAX_FEE_BASIS_POINTS, 7);
-        _validate(_liquidationFeeUsd <= MAX_LIQUIDATION_FEE_USD, 8);
+        _validate(_mintBurnFeeBasisPoints <= MAX_FEE_BASIS_POINTS, "Vault: mintBurnFeeBasisPoints too high");
+        _validate(_marginFeeBasisPoints <= MAX_FEE_BASIS_POINTS, "Vault: marginFeeBasisPoints too high");
+        _validate(_liquidationFeeUsd <= MAX_LIQUIDATION_FEE_USD, "Vault: liquidationFeeUsd too high");
         mintBurnFeeBasisPoints = _mintBurnFeeBasisPoints;
         marginFeeBasisPoints = _marginFeeBasisPoints;
         liquidationFeeUsd = _liquidationFeeUsd;
@@ -363,9 +343,9 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _stableFundingRateFactor
     ) external override {
         _onlyGov();
-        _validate(_fundingInterval >= MIN_FUNDING_RATE_INTERVAL, 9);
-        _validate(_fundingRateFactor <= MAX_FUNDING_RATE_FACTOR, 10);
-        _validate(_stableFundingRateFactor <= MAX_FUNDING_RATE_FACTOR, 11);
+        _validate(_fundingInterval >= MIN_FUNDING_RATE_INTERVAL, "Vault: fundingInterval too low");
+        _validate(_fundingRateFactor <= MAX_FUNDING_RATE_FACTOR, "Vault: fundingRateFactor too high");
+        _validate(_stableFundingRateFactor <= MAX_FUNDING_RATE_FACTOR, "Vault: stableFundingRateFactor too high");
         fundingInterval = _fundingInterval;
         fundingRateFactor = _fundingRateFactor;
         stableFundingRateFactor = _stableFundingRateFactor;
@@ -380,8 +360,8 @@ contract Vault is ReentrancyGuard, IVault {
         address _collateralToken,
         address _indexToken
     ) private view {
-        _validate(_collateralToken == usdc, 12);
-        _validate(whitelistedTokens[_indexToken], 13);
+        _validate(canBeCollateralToken[_collateralToken], "Vault: Invalid collateralToken");
+        _validate(canBeIndexToken[_indexToken], "Vault: Invalid indexToken");
     }
 
     function setTokenConfig(
@@ -495,16 +475,16 @@ contract Vault is ReentrancyGuard, IVault {
         address _receiver
     ) external override nonReentrant returns (uint256) {
         _validateManager();
-        _validate(whitelistedTokens[_token], 14);
+        _validate(whitelistedTokens[_token], "Vault: Not a whitelisted token");
 
         uint256 tokenAmount = _transferIn(_token);
-        _validate(tokenAmount > 0, 15);
+        _validate(tokenAmount > 0, "Vault: tokenAmount too low");
 
         uint256 price = getMinPrice(_token);
 
         uint256 usdlAmount = (tokenAmount * (price)) / (PRICE_PRECISION);
         usdlAmount = adjustForDecimals(usdlAmount, _token, usdl);
-        _validate(usdlAmount > 0, 16);
+        _validate(usdlAmount > 0, "Vault: usdlAmount too low");
 
         uint256 feeBasisPoints = vaultUtils.getBuyUsdlFeeBasisPoints(
             _token,
@@ -539,14 +519,14 @@ contract Vault is ReentrancyGuard, IVault {
     function _increasePoolAmount(address _token, uint256 _amount) private {
         poolAmounts[_token] = poolAmounts[_token] + (_amount);
         uint256 balance = IERC20(_token).balanceOf(address(this));
-        _validate(poolAmounts[_token] <= balance, 17);
+        _validate(poolAmounts[_token] <= balance, "Vault: poolAmount exceedes balance");
         emit IncreasePoolAmount(_token, _amount);
     }
 
     function _decreasePoolAmount(address _token, uint256 _amount) private {
         require(poolAmounts[_token] >= _amount, "Vault: poolAmount exceeded");
         poolAmounts[_token] = poolAmounts[_token] - (_amount);
-        _validate(reservedAmounts[_token] <= poolAmounts[_token], 18);
+        _validate(reservedAmounts[_token] <= poolAmounts[_token], "Vault: reservedAmount exceedes poolAmount");
         emit DecreasePoolAmount(_token, _amount);
     }
 
@@ -564,13 +544,13 @@ contract Vault is ReentrancyGuard, IVault {
         address _receiver
     ) external override nonReentrant returns (uint256) {
         _validateManager();
-        _validate(whitelistedTokens[_token], 19);
+        _validate(whitelistedTokens[_token], "Vault: Not a whitelisted token");
 
         uint256 usdlAmount = _transferIn(usdl);
-        _validate(usdlAmount > 0, 20);
+        _validate(usdlAmount > 0, "Vault: usdlAmount too low");
 
         uint256 redemptionAmount = getRedemptionAmount(_token, usdlAmount);
-        _validate(redemptionAmount > 0, 21);
+        _validate(redemptionAmount > 0, "Vault: redemptionAmount too low");
 
         _decreasePoolAmount(_token, redemptionAmount);
 
@@ -587,7 +567,7 @@ contract Vault is ReentrancyGuard, IVault {
             usdlAmount
         );
         uint256 amountOut = _collectSwapFees(_token, redemptionAmount, feeBasisPoints);
-        _validate(amountOut > 0, 22);
+        _validate(amountOut > 0, "Vault: amountOut too low");
 
         _transferOut(_token, amountOut, _receiver);
 
@@ -689,7 +669,7 @@ contract Vault is ReentrancyGuard, IVault {
         address _feeReceiver
     ) external override nonReentrant {
         if (inPrivateLiquidationMode) {
-            _validate(isLiquidator[msg.sender], 23);
+            _validate(isLiquidator[msg.sender], "Vault: not liquidator");
         }
 
 
@@ -704,7 +684,7 @@ contract Vault is ReentrancyGuard, IVault {
         );
         position = positions[key];
         }
-        _validate(position.size > 0, 24);
+        _validate(position.size > 0, "Vault: no position found");
 
         (uint256 liquidationState, uint256 marginFees) = vaultUtils.validateLiquidation(
             _account,
@@ -713,7 +693,7 @@ contract Vault is ReentrancyGuard, IVault {
             _isLong,
             false
         );
-        _validate(liquidationState != 0, 25);
+        _validate(liquidationState != 0, "Vault: position not liquidatable");
         uint256 markPrice = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
         if (_isLong) {
             globalLongAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, true);
@@ -805,7 +785,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     function _increaseReservedAmount(address _token, uint256 _amount) private {
         reservedAmounts[_token] = reservedAmounts[_token] + (_amount);
-        _validate(reservedAmounts[_token] <= poolAmounts[_token], 26);
+        _validate(reservedAmounts[_token] <= poolAmounts[_token], "Vault: reservedAmount exceedes poolAmount");
         emit IncreaseReservedAmount(_token, _amount);
     }
 
@@ -951,10 +931,10 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _collateral
     ) private view {
         if (_size == 0) {
-            _validate(_collateral == 0, 27);
+            _validate(_collateral == 0, "Vault: collateral should be 0");
             return;
         }
-        _validate(_size >= _collateral, 28);
+        _validate(_size >= _collateral, "Vault: collateral exceeds size");
     }
 
     function usdToTokenMax(
@@ -1041,7 +1021,7 @@ contract Vault is ReentrancyGuard, IVault {
         );
 
         position.collateral = position.collateral + (collateralDeltaUsd);
-        _validate(position.collateral >= fee, 29);
+        _validate(position.collateral >= fee, "Vault: insufficient collateral");
 
         position.collateral = position.collateral - (fee);
         position.entryFundingRate = getEntryFundingRate(
@@ -1052,7 +1032,7 @@ contract Vault is ReentrancyGuard, IVault {
         position.size = position.size + (_sizeDelta);
         position.lastIncreasedTime = block.timestamp;
 
-        _validate(position.size > 0, 30);
+        _validate(position.size > 0, "Vault: size should be > 0");
         _validatePosition(position.size, position.collateral);
         vaultUtils.validateLiquidation(
             _account,
@@ -1210,9 +1190,9 @@ contract Vault is ReentrancyGuard, IVault {
             _isLong
         );
         Position storage position = positions[key];
-        _validate(position.size > 0, 31);
-        _validate(position.size >= _sizeDelta, 32);
-        _validate(position.collateral >= _collateralDelta, 33);
+        _validate(position.size > 0, "Vault: no position found");
+        _validate(position.size >= _sizeDelta, "Vault: decrease position size too large");
+        _validate(position.collateral >= _collateralDelta, "Vault: decrease position collateral too large");
 
         // scrop variables to avoid stack too deep errors
         {
@@ -1333,7 +1313,7 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong,
         uint256 _lastIncreasedTime
     ) public view override returns (bool, uint256) {
-        _validate(_averagePrice > 0, 34);
+        _validate(_averagePrice > 0, "Vault: averagePrice should be > 0");
         uint256 price = _isLong
             ? getMinPrice(_indexToken)
             : getMaxPrice(_indexToken);
@@ -1591,14 +1571,14 @@ contract Vault is ReentrancyGuard, IVault {
         return _delta;
     }
 
-    function _validate(bool _condition, uint256 _errorCode) private view {
-        require(_condition, errors[_errorCode]);
+    function _validate(bool _condition, string memory errorMessage) private pure {
+        require(_condition, errorMessage);
     }
 
     // we have this validation as a function instead of a modifier to reduce contract size
     function _validateManager() private view {
         if (inManagerMode) {
-            _validate(isManager[msg.sender], 35);
+            _validate(isManager[msg.sender], "Vault: not manager");
         }
     }
 
@@ -1607,7 +1587,7 @@ contract Vault is ReentrancyGuard, IVault {
         if (maxGasPrice == 0) {
             return;
         }
-        _validate(tx.gasprice <= maxGasPrice, 36);
+        _validate(tx.gasprice <= maxGasPrice, "Vault: gas price too high");
     }
 
     function _validateRouter(address _account) private view {
@@ -1617,6 +1597,6 @@ contract Vault is ReentrancyGuard, IVault {
         if (msg.sender == router) {
             return;
         }
-        _validate(approvedRouters[_account][msg.sender], 37);
+        _validate(approvedRouters[_account][msg.sender], "Vault: Router not approved");
     }
 }

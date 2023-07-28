@@ -7,7 +7,6 @@ import "./IVaultUtils.sol";
 interface IVault {
     function isInitialized() external view returns (bool);
     function setVaultUtils(IVaultUtils _vaultUtils) external;
-    function setError(uint256 _errorCode, string calldata _error) external;
 
     function router() external view returns (address);
     function usdl() external view returns (address);
