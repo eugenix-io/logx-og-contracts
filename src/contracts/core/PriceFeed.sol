@@ -112,7 +112,7 @@ contract PriceFeed is IPriceFeed, Governable {
     }
 
     function getFinalPrice(uint256 price, int32 exponent) private pure returns(uint256){
-        uint256 adjustment = PRICE_PRECISION + uint32(-1* exponent);
+        uint256 adjustment = PRICE_PRECISION - uint32(-1* exponent);
         return price * (10 ** adjustment);
     }
 }
