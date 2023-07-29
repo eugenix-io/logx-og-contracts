@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 
 import './interfaces/IRouter.sol';
 import '../libraries/token/IERC20.sol';
-import '../libraries/token/SafeERC20.sol';
 import '../access/Governable.sol';
 import './interfaces/IVault.sol';
 
@@ -14,13 +13,11 @@ import './interfaces/IVault.sol';
 contract Router is IRouter, Governable {
 
     address vault;
-    address usdl;
     mapping(address => bool) plugins;
     mapping(address => mapping(address => bool)) approvedPlugins;
 
-    constructor(address _vault, address _usdl) {
+    constructor(address _vault) {
         vault = _vault;
-        usdl = _usdl;
     }
 
     function addPlugin(address _plugin) external override onlyGov {
