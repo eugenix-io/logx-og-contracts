@@ -208,7 +208,6 @@ contract Vault is ReentrancyGuard, IVault {
         address _priceFeed,
         uint256 _liquidationFeeUsd,
         uint256 _fundingRateFactor,
-        uint256 _stableFundingRateFactor,
         address _usdc
     ) external {
         _onlyGov();
@@ -219,7 +218,6 @@ contract Vault is ReentrancyGuard, IVault {
         priceFeed = _priceFeed;
         liquidationFeeUsd = _liquidationFeeUsd;
         fundingRateFactor = _fundingRateFactor;
-        stableFundingRateFactor = _stableFundingRateFactor;
         usdc = _usdc;
     }
 
@@ -329,16 +327,13 @@ contract Vault is ReentrancyGuard, IVault {
 
     function setFundingRate(
         uint256 _fundingInterval,
-        uint256 _fundingRateFactor,
-        uint256 _stableFundingRateFactor
+        uint256 _fundingRateFactor
     ) external override {
         _onlyGov();
         _validate(_fundingInterval >= MIN_FUNDING_RATE_INTERVAL, "Vault: fundingInterval too low");
         _validate(_fundingRateFactor <= MAX_FUNDING_RATE_FACTOR, "Vault: fundingRateFactor too high");
-        _validate(_stableFundingRateFactor <= MAX_FUNDING_RATE_FACTOR, "Vault: stableFundingRateFactor too high");
         fundingInterval = _fundingInterval;
         fundingRateFactor = _fundingRateFactor;
-        stableFundingRateFactor = _stableFundingRateFactor;
     }
 
     //10000000000000000000 = 10* 1e18

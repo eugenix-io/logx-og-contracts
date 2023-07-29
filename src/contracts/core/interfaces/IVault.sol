@@ -39,7 +39,7 @@ interface IVault {
     function setInPrivateLiquidationMode(bool _inPrivateLiquidationMode) external;
     function setLiquidator(address _liquidator, bool _isActive) external;
 
-    function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _stableFundingRateFactor) external;
+    function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor) external;
 
     function setFees(
         uint256 _mintBurnFeeBasisPoints,
