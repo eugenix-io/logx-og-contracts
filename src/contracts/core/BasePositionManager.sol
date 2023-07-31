@@ -56,6 +56,10 @@ contract BasePositionManager{
         router = _router;
     }
 
+    function setVault(address _vault) external onlyAdmin {
+        vault = _vault;
+    }
+
     function setMaxGlobalSizes(
         address[] memory _tokens,
         uint256[] memory _longSizes,

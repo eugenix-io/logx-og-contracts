@@ -19,6 +19,10 @@ contract Router is IRouter, Governable {
     constructor(address _vault) {
         vault = _vault;
     }
+    
+    function setVault(address _vault) external onlyGov {
+        vault = _vault;
+    }
 
     function addPlugin(address _plugin) external override onlyGov {
         plugins[_plugin] = true;

@@ -83,6 +83,19 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         cooldownDuration = _cooldownDuration;
     }
 
+
+    function setVault(address _vault) external onlyGov {
+        vault = IVault(_vault);
+    }
+
+    function setUsdl(address _usdl) external onlyGov {
+        usdl = _usdl;
+    }
+
+    function setLlp(address _llp) external onlyGov {
+        llp = _llp;
+    }
+
     function addLiquidityForAccount(
         address _fundingAccount,
         address _account,
