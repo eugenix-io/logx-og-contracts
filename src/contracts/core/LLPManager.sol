@@ -206,8 +206,8 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         address _account,
         address _token,
         uint256 _amount,
-        uint256 _minusdl,
-        uint256 _minllp
+        uint256 _minusdl,//amount in usdl token order of 18
+        uint256 _minllp//amount in llp token order of 18
     ) private returns (uint256) {
         require(_amount > 0, "LlpManager: invalid _amount");
 
