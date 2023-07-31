@@ -18,11 +18,20 @@ contract BasePositionManager{
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     mapping (address => uint256) public maxGlobalLongSizes;
     mapping (address => uint256) public maxGlobalShortSizes;
+    uint256 public increasePositionBufferBps = 100;
+    mapping (address => uint256) public feeReserves;
+    uint public depositFee;
 
     event SetMaxGlobalSizes(
         address[] tokens,
         uint256[] longSizes,
         uint256[] shortSizes
+    );
+
+    event LeverageDecreased(
+        uint256 collateralDelta,
+        uint256 prevLeverage,
+        uint256 nextLeverage
     );
 
     modifier onlyAdmin() {
@@ -105,5 +114,65 @@ contract BasePositionManager{
         uint256 amountOut = IRouter(router).pluginDecreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
 
         return amountOut;
+    }
+
+    function shouldDeductFee(
+        address _account,
+        address collateralToken,
+        uint256 _amountIn,
+        address _indexToken,
+        bool _isLong,
+        uint256 _sizeDelta,
+        uint256 _increasePositionBufferBps
+    ) private returns (bool) {
+
+        // if the position size is not increasing, this is a collateral deposit
+        if (_sizeDelta == 0) { return true; }
+
+        (uint256 size, uint256 collateral, , , , , , ) = IVault(vault).getPosition(_account, collateralToken, _indexToken, _isLong);
+
+        // if there is no existing position, do not charge a fee
+        if (size == 0) { return false; }
+
+        uint256 nextSize = size+(_sizeDelta);
+        uint256 collateralDelta = IVault(vault).tokenToUsdMin(collateralToken, _amountIn);
+        uint256 nextCollateral = collateral+(collateralDelta);
+
+        uint256 prevLeverage = size*(BASIS_POINTS_DIVISOR)/(collateral);
+        // allow for a maximum of a increasePositionBufferBps decrease since there might be some swap fees taken from the collateral
+        uint256 nextLeverage = nextSize*(BASIS_POINTS_DIVISOR + _increasePositionBufferBps)/(nextCollateral);
+
+        emit LeverageDecreased(collateralDelta, prevLeverage, nextLeverage);
+
+        // deduct a fee if the leverage is decreased
+        return nextLeverage < prevLeverage;
+    }
+
+    function _collectFees(
+        address _account,
+        address collateralToken,
+        uint256 _amountIn,
+        address _indexToken,
+        bool _isLong,
+        uint256 _sizeDelta
+    ) internal returns (uint256) {
+        bool shouldDeduct = shouldDeductFee(
+            _account,
+            collateralToken,
+            _amountIn,
+            _indexToken,
+            _isLong,
+            _sizeDelta,
+            increasePositionBufferBps
+        );
+
+        if (shouldDeduct) {
+            uint256 afterFeeAmount = _amountIn*(BASIS_POINTS_DIVISOR - (depositFee))/(BASIS_POINTS_DIVISOR);
+            uint256 feeAmount = _amountIn-(afterFeeAmount);
+            feeReserves[collateralToken] = feeReserves[collateralToken]+(feeAmount);
+            return afterFeeAmount;
+        }
+
+        return _amountIn;
     }
 }

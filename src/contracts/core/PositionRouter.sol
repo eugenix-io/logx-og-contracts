@@ -378,6 +378,9 @@ contract PositionRouter is
 
         delete increasePositionRequests[_key];
 
+        uint256 afterFeeAmount = _collectFees(request.account, request._collateralToken, request.amountIn, request.indexToken, request.isLong, request.sizeDelta);
+        IERC20(request._collateralToken).transfer(vault, afterFeeAmount);
+
         _increasePosition(
             request.account,
             request._collateralToken,
