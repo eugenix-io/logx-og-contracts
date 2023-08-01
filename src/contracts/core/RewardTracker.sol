@@ -143,7 +143,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function _claim(address _account, address _receiver) private returns (uint256) {
-        _updateRewards(_account);
 
         uint256 tokenAmount = claimableReward[_account];
         claimableReward[_account] = 0;
