@@ -128,7 +128,7 @@ contract Deployment is Script {
         Vault vault = deployVault();
         PriceFeed priceFeed  = deployAndInitializePriceFeed();
         Router router = deployRouter(vault);
-        PositionRouter positionRouter =  deployPositionRouter(priceFeed, vault, router);
+        deployPositionRouter(priceFeed, vault, router);
         USDL usdl = deployUSDL(vault);
         RewardRouter rewardRouter = deployRewardRouter();
         LlpManager llpManager = deployLlpManager(vault, usdl, rewardRouter);
@@ -137,11 +137,11 @@ contract Deployment is Script {
         initializeVault(vault, router, priceFeed, usdl, vaultUtils);
         RewardTracker rewardTracker = deployRewardTracker();
         initializeRewardRouter(rewardRouter, vm.envAddress("USDC"), vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
-        OrderBook orderBook = deployAndInitializeOrderBook(vault, router, positionRouter, usdl, vaultUtils);
-        PositionManager positionManager = deployPositionManager(vault, router, orderBook);
+        OrderBook orderBook = deployAndInitializeOrderBook(vault, router, usdl);
+        deployPositionManager(vault, router, orderBook);
     }
 
-    function deployAndInitializeOrderBook(Vault vault, Router router, PositionRouter positionRouter, USDL usdl, VaultUtils vaultUtils) public returns (OrderBook){
+    function deployAndInitializeOrderBook(Vault vault, Router router, USDL usdl) public returns (OrderBook){
         OrderBook orderBook = new OrderBook();
         console.log("OrderBook deployed at address: ", address(orderBook));
         orderBook.initialize( address(router), address(vault), address(usdl), minExecutionFeeLimitOrder, minPurchaseTokenAmountUsd);
@@ -155,8 +155,8 @@ contract Deployment is Script {
     }
 
     function initializeRewardRouter(RewardRouter rewardRouter, address usdc, address llp, address llpManager, address rewardTracker) public {
-        RewardRouter rewardRouter = RewardRouter(rewardRouter);
         rewardRouter.initialize(usdc, llp, llpManager, rewardTracker);
+        RewardTracker(rewardTracker).setHandler(address(rewardRouter), true);
     }
 
     function deployRewardTracker() public returns (RewardTracker){
@@ -218,6 +218,7 @@ contract Deployment is Script {
         console.log("PositionRouter deployed at address: ", address(positionRouter));
         positionRouter.setPositionKeeper(address(priceFeed), true);
         router.addPlugin(address(positionRouter));
+        return positionRouter;
     }
 
     function deployVault() public returns (Vault){
