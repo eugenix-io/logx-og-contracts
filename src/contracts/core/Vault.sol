@@ -716,6 +716,20 @@ contract Vault is ReentrancyGuard, IVault {
             markPrice
         );
 
+        emit UpdatePosition(
+            _account,
+            _collateralToken,
+            _indexToken,
+            _isLong,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        );
+
         if (marginFees < position.collateral) {
             uint256 remainingCollateral = position.collateral - (marginFees);
             _increasePoolAmount(
@@ -1266,6 +1280,19 @@ contract Vault is ReentrancyGuard, IVault {
                 _isLong,
                 price,
                 usdOut - (usdOutAfterFee)
+            );
+            emit UpdatePosition(
+                _account,
+                _collateralToken,
+                _indexToken,
+                _isLong,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                price
             );
             emit ClosePosition(
                 _account,

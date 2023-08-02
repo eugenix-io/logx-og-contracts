@@ -77,18 +77,18 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         bool isLong,
         bool triggerAboveThreshold,
         bool indexed isIncreaseOrder
-        
     );
     event UpdateOrder(
         address indexed account,
         address collateralToken,
         address indexToken,
         uint256 orderIndex,
-        uint256 sizeDelta,
         uint256 collateralDelta,
+        uint256 sizeDelta,
         uint256 triggerPrice,
         bool isLong,
-        bool triggerAboveThreshold
+        bool triggerAboveThreshold,
+        bool indexed isIncreaseOrder
     );
 
     event Initialize(
@@ -280,6 +280,18 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             order.triggerAboveThreshold,
             order.isIncreaseOrder
         );
+        emit UpdateOrder(
+            _account,
+            order.collateralToken,
+            order.indexToken,
+            idx,
+            order.collateralDelta,
+            order.sizeDelta,
+            order.triggerPrice,
+            order.isLong,
+            order.triggerAboveThreshold,
+            order.isIncreaseOrder
+        );
     }
 
     function updateOrder(uint256 _orderIndex, uint256 _sizeDelta, uint256 _collateralDelta,  uint256 _triggerPrice, bool _triggerAboveThreshold) external nonReentrant {
@@ -296,11 +308,12 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             order.collateralToken,
             order.indexToken,
             _orderIndex,
-            _sizeDelta,
             _collateralDelta,
+            _sizeDelta,
             _triggerPrice,
             order.isLong,
-            _triggerAboveThreshold
+            _triggerAboveThreshold,
+            order.isIncreaseOrder
         );
     }
 
@@ -318,14 +331,27 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             order.account,
             order.collateralToken,
             order.indexToken,
-            order.collateralDelta,
             _orderIndex,
+            order.collateralDelta,
             order.sizeDelta,
             order.executionFee,
             order.triggerPrice,
             order.isLong,
             order.triggerAboveThreshold,
             order.isIncreaseOrder
+        );
+
+        emit UpdateOrder(
+            order.account,
+            order.collateralToken,
+            order.indexToken,
+            _orderIndex,
+            0,
+            0,
+            0,
+            false,
+            false,
+            false
         );
     }
 
@@ -370,6 +396,18 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             order.isLong,
             order.triggerAboveThreshold,
             order.isIncreaseOrder
+        );
+        emit UpdateOrder(
+            order.account,
+            order.collateralToken,
+            order.indexToken,
+            _orderIndex,
+            0,
+            0,
+            0,
+            false,
+            false,
+            false
         );
     }
 }
