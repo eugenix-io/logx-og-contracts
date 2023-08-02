@@ -37,8 +37,8 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     mapping (address => uint256) public override averageStakedAmounts;
     mapping (address => bool) public isHandler;
     address public rewardToken;
-    uint256 public feeReward;
     address admin;
+    address[] public stakers;
 
     event Claim(address receiver, uint256 amount);
 
@@ -65,7 +65,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function onlyAdmin() internal view {
-        require(msg.sender == admin, "RewardTracker: forbidden");
+        require(msg.sender == admin, "RewardTracker: forbidden incorrect admin");
     }
 
     function setDepositToken(address _depositToken, bool _isDepositToken) external onlyGov {
@@ -143,7 +143,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function _claim(address _account, address _receiver) private returns (uint256) {
-        _updateRewards(_account);
 
         uint256 tokenAmount = claimableReward[_account];
         claimableReward[_account] = 0;
@@ -203,6 +202,11 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
         IERC20(_depositToken).transferFrom(_fundingAccount, address(this), _amount);
 
+        // store _account in stakers[] only if stakedAmounts[_account] = 0, else it will already be there;
+        if (stakedAmounts[_account] == 0) {
+            stakers.push(_account);
+        }
+
         stakedAmounts[_account] = stakedAmounts[_account] + _amount;
         depositBalances[_account][_depositToken] = depositBalances[_account][_depositToken] + _amount;
         totalDepositSupply[_depositToken] = totalDepositSupply[_depositToken] + _amount;
@@ -218,6 +222,10 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         require(stakedAmounts[_account] >= _amount, "RewardTracker: _amount exceeds stakedAmount");
 
         stakedAmounts[_account] = stakedAmount - _amount;
+        // remove _account from [] if stakedAmounts[_account] == 0
+        if (stakedAmounts[_account] == 0) {
+            _removeStaker(_account);
+        }
 
         uint256 depositBalance = depositBalances[_account][_depositToken];
         require(depositBalance >= _amount, "RewardTracker: _amount exceeds depositBalance");
@@ -230,21 +238,44 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
     function setFeeReward(uint256 _feeReward) external {
         onlyAdmin();
-        feeReward = _feeReward;
+        require(_feeReward > 0, "Reward tracker Error: _feeReward too low");
+        
+        uint256 prevBalance = IERC20(rewardToken).balanceOf(address(this));
+        IERC20(rewardToken).transferFrom(msg.sender, address(this), _feeReward);
+        uint256 currentBalance = IERC20(rewardToken).balanceOf(address(this));
+        require(
+            currentBalance - prevBalance >= _feeReward,
+            "Reward Tracker Error: transfered funds insufficient for fee Rewards amount"
+        );
+        updateRewards(_feeReward);
     }
 
-    function updateRewards(address[] memory _accounts, uint256 size) external {
-        onlyAdmin();
-        for(uint256 i = 0; i < size; i++) {
-            _updateRewards(_accounts[i]);
+    function updateRewards(uint256 _feeReward) private {
+        // 3. Just loop over stakers,
+        // no need to check for stakedAmounts[_account] == 0, why?
+        // THINK!! its not that tough XD
+        //
+        for (uint256 i = 0; i < stakers.length; i++) {
+            _updateRewards(stakers[i], _feeReward);
         }
     }
 
-    function _updateRewards(address _account) private {
+    function _updateRewards(address _account, uint256 _feeReward) private {
         uint256 stakedAmount = stakedAmounts[_account];
-        uint256 accountReward = stakedAmount * feeReward/(totalSupply * PRECISION);
+        uint256 accountReward = (_feeReward * stakedAmount) / (totalSupply); // ASK: balance of feerewardtoken and stakedAmount[_account] redundant?
         uint256 _claimableReward = claimableReward[_account] + accountReward;
-
         claimableReward[_account] = _claimableReward;
+    }
+    //helper functions
+    function _removeStaker(address _staker) private {
+        uint256 index;
+        for (uint256 i = 0; i < stakers.length; i++) {
+            if (stakers[i] == _staker) {
+                index = i;
+                break;
+            }
+        }
+        stakers[index] = stakers[stakers.length - 1];
+        stakers.pop();
     }
 }
