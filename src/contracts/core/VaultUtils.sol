@@ -33,10 +33,6 @@ contract VaultUtils is IVaultUtils, Governable {
         vault = _vault;
     }
 
-    function updateCumulativeFundingRate(address /* _collateralToken */, address /* _indexToken */) public override returns (bool) {
-        return true;
-    }
-
     function validateIncreasePosition(address /* _account */, address /* _collateralToken */, address /* _indexToken */, uint256 /* _sizeDelta */, bool /* _isLong */) external override view {
         // no additional validations
     }

@@ -407,16 +407,8 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function updateCumulativeFundingRate(
-        address _collateralToken,
-        address _indexToken
+        address _collateralToken
     ) public {
-        bool shouldUpdate = vaultUtils.updateCumulativeFundingRate(
-            _collateralToken,
-            _indexToken
-        );
-        if (!shouldUpdate) {
-            return;
-        }
 
         if (lastFundingTimes[_collateralToken] == 0) {
             lastFundingTimes[_collateralToken] =
@@ -663,7 +655,7 @@ contract Vault is ReentrancyGuard, IVault {
         }
 
 
-        updateCumulativeFundingRate(_collateralToken, _indexToken);
+        updateCumulativeFundingRate(_collateralToken);
         Position memory position;
         {
         bytes32 key = getPositionKey(
@@ -976,7 +968,7 @@ contract Vault is ReentrancyGuard, IVault {
             _isLong
         );
 
-        updateCumulativeFundingRate(_collateralToken, _indexToken);
+        updateCumulativeFundingRate(_collateralToken);
 
         bytes32 key = getPositionKey(
             _account,
@@ -1184,7 +1176,7 @@ contract Vault is ReentrancyGuard, IVault {
             _isLong,
             _receiver
         );
-        updateCumulativeFundingRate(_collateralToken, _indexToken);
+        updateCumulativeFundingRate(_collateralToken);
 
         bytes32 key = getPositionKey(
             _account,
