@@ -42,6 +42,22 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         feeLlpTracker = _feeLlpTracker;
     }
 
+    function setFeeLlpTracker(address _feeLlpTracker) external onlyGov {
+        feeLlpTracker = _feeLlpTracker;
+    }
+
+    function setLlpManager(address _llpManager) external onlyGov {
+        llpManager = _llpManager;
+    }
+
+    function setLlp(address _llp) external onlyGov {
+        llp = _llp;
+    }
+
+    function setUsdc(address _usdc) external onlyGov {
+        usdc = _usdc;
+    }
+
     // to help users who accidentally send their tokens to this contract
     function withdrawToken(address _token, address _account, uint256 _amount) external onlyGov {
         IERC20(_token).transfer(_account, _amount);

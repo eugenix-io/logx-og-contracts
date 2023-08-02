@@ -31,7 +31,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     mapping (address => uint256) public ordersIndex;
 
     address public gov;
-    address public weth;
     address public usdl;
     address public router;
     address public vault;
@@ -95,7 +94,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     event Initialize(
         address router,
         address vault,
-        address weth,
         address usdl,
         uint256 minExecutionFee,
         uint256 minPurchaseTokenAmountUsd
@@ -116,7 +114,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     function initialize(
         address _router,
         address _vault,
-        address _weth,
         address _usdl,
         uint256 _minExecutionFee,
         uint256 _minPurchaseTokenAmountUsd
@@ -126,16 +123,11 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
         router = _router;
         vault = _vault;
-        weth = _weth;
         usdl = _usdl;
         minExecutionFee = _minExecutionFee;
         minPurchaseTokenAmountUsd = _minPurchaseTokenAmountUsd;
 
-        emit Initialize(_router, _vault, _weth, _usdl, _minExecutionFee, _minPurchaseTokenAmountUsd);
-    }
-
-    receive() external payable {
-        require(msg.sender == weth, "OrderBook: invalid sender");
+        emit Initialize(_router, _vault, _usdl, _minExecutionFee, _minPurchaseTokenAmountUsd);
     }
 
     function setMinExecutionFee(uint256 _minExecutionFee) external onlyGov {
@@ -318,7 +310,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
         delete orders[msg.sender][_orderIndex];
         IERC20(order.collateralToken).transfer(msg.sender, order.collateralDelta);
-        _transferOutETH(order.executionFee, payable(msg.sender));
+        (bool success,  ) = (msg.sender).call{value: order.executionFee}("");
+
         
 
         emit CancelOrder(
@@ -361,10 +354,8 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             IERC20(order.collateralToken).transfer(order.account, amountOut);
         }
 
-        
-
         // pay executor
-        _transferOutETH(order.executionFee, _feeReceiver);
+        (bool success,  ) = _feeReceiver.call{value: order.executionFee}("");
 
         emit ExecuteOrder(
             order.account,
@@ -380,11 +371,5 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
             order.triggerAboveThreshold,
             order.isIncreaseOrder
         );
-    }
-
-    function _transferOutETH(uint256 _amountOut, address payable _receiver) private {
-        //IWETH(weth).withdraw(_amountOut);
-        (bool success, ) = _receiver.call{value: _amountOut}("");
-        require(success, "OrderBook: Failed to transfer out Eth");
     }
 }

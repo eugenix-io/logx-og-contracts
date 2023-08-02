@@ -13,6 +13,10 @@ import "../access/Governable.sol";
 contract Vault is ReentrancyGuard, IVault {
 
     struct Position {
+        address user;
+        address collateralToken;
+        address indexToken;
+        bool isLong;
         uint256 size;
         uint256 collateral;
         uint256 averagePrice;
@@ -94,6 +98,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     // positions tracks all open positions
     mapping(bytes32 => Position) public positions;
+    bytes32[] public positionKeys;
 
     // feeReserves tracks the amount of fees per token
     mapping(address => uint256) public override feeReserves;
@@ -733,12 +738,12 @@ contract Vault is ReentrancyGuard, IVault {
             _decreaseGlobalLongSize(_indexToken, position.size);
         }
 
-        delete positions[getPositionKey(
+        deletePositionKey(getPositionKey(
             _account,
             _collateralToken,
             _indexToken,
             _isLong
-        )];
+        ));
 
         // pay the fee receiver using the pool, we assume that in general the liquidated amount should be sufficient to cover
         // the liquidation fees
@@ -941,6 +946,18 @@ contract Vault is ReentrancyGuard, IVault {
         return (_usdAmount * (10 ** decimals)) / (_price);
     }
 
+    function getPositionKeysList() public view returns(bytes32[] memory){
+        return positionKeys;
+    }
+
+    function getAllOpenPositions() public view returns(Position[] memory){
+        Position[] memory _positions = new Position[](positionKeys.length);
+        for(uint256 i = 0; i < positionKeys.length; i++) {
+            _positions[i] = positions[positionKeys[i]];
+        }
+        return _positions;
+    }
+
     function increasePosition(
         address _account,
         address _collateralToken,
@@ -973,6 +990,11 @@ contract Vault is ReentrancyGuard, IVault {
 
         if (position.size == 0) {
             position.averagePrice = price;
+            position.user = _account;
+            position.collateralToken = _collateralToken;
+            position.indexToken = _indexToken;
+            position.isLong = _isLong;
+            positionKeys.push(key);
         }
 
         if (position.size > 0 && _sizeDelta > 0) {
@@ -1266,7 +1288,7 @@ contract Vault is ReentrancyGuard, IVault {
                 position.realisedPnl
             );
 
-            delete positions[key];
+            deletePositionKey(key);
         }
 
         if (!_isLong) {
@@ -1285,6 +1307,18 @@ contract Vault is ReentrancyGuard, IVault {
         }
 
         return 0;
+    }
+
+    function deletePositionKey(bytes32 _key) private {
+        uint size = positionKeys.length;
+        for(uint i=0;i<size;i++){
+            if(positionKeys[i] == _key){
+                positionKeys[i] = positionKeys[positionKeys.length-1];
+                positionKeys.pop();
+                break;
+            }
+        }
+        delete positions[_key];
     }
 
     function getDelta(

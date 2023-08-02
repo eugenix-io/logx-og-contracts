@@ -29,6 +29,10 @@ contract VaultUtils is IVaultUtils, Governable {
         vault = _vault;
     }
 
+    function setVault(IVault _vault) external onlyGov {
+        vault = _vault;
+    }
+
     function updateCumulativeFundingRate(address /* _collateralToken */, address /* _indexToken */) public override returns (bool) {
         return true;
     }
