@@ -73,13 +73,6 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         return llpAmount;
     }
 
-    function stakeLlp(uint256 llpAmount) external nonReentrant {
-        require(llpAmount > 0, "RewardRouter: llpAmount too low");
-        address account = msg.sender;
-        IRewardTracker(feeLlpTracker).stakeForAccount(account, account, llp, llpAmount);
-        emit Stakellp(account, llpAmount);
-    }
-
     function burnLlp( uint256 _llpAmount, uint256 _minOut) external nonReentrant returns (uint256) {
         require(_llpAmount > 0, "RewardRouter: invalid _llpAmount");
 
@@ -90,9 +83,18 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         return amountOut;
     }
 
+    function stakeLlp(uint256 llpAmount) external nonReentrant {
+        require(llpAmount > 0, "RewardRouter: llpAmount too low");
+        address account = msg.sender;
+        IRewardTracker(feeLlpTracker).stakeForAccount(account, account, llp, llpAmount);
+        emit Stakellp(account, llpAmount);
+    }
+
     function unstakeLlp(uint256 amount) external nonReentrant {
         address account = msg.sender;
         IRewardTracker(feeLlpTracker).unstakeForAccount(account, llp, amount, account);
+        // claim the reward for the user claimForAccount
+        IRewardTracker(feeLlpTracker).claimForAccount(account, account);
         emit Unstakellp(account, amount);
     }
 }

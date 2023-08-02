@@ -5,7 +5,6 @@ pragma solidity 0.8.19;
 interface IRewardTracker {
     function depositBalances(address _account, address _depositToken) external view returns (uint256);
     function stakedAmounts(address _account) external view returns (uint256);
-    function updateRewards(address[] memory _accounts, uint256 size) external ;
     function stake(address _depositToken, uint256 _amount) external;
     function stakeForAccount(address _fundingAccount, address _account, address _depositToken, uint256 _amount) external;
     function unstake(address _depositToken, uint256 _amount) external;
