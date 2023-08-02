@@ -726,7 +726,7 @@ contract Vault is ReentrancyGuard, IVault {
             0,
             0,
             0,
-            0,
+            position.realisedPnl,
             0
         );
 
