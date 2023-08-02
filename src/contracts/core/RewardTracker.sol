@@ -10,7 +10,6 @@ import "./interfaces/IRewardTracker.sol";
 import "../access/Governable.sol";
 
 contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
-
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     uint256 public constant PRECISION = 1e30;
 
@@ -21,21 +20,23 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     string public name;
     string public symbol;
 
-    mapping (address => bool) public isDepositToken;
-    mapping (address => mapping (address => uint256)) public override depositBalances;
-    mapping (address => uint256) public totalDepositSupply;
+    mapping(address => bool) public isDepositToken;
+    mapping(address => mapping(address => uint256))
+        public
+        override depositBalances;
+    mapping(address => uint256) public totalDepositSupply;
 
     uint256 public override totalSupply;
-    mapping (address => uint256) public balances;
-    mapping (address => mapping (address => uint256)) public allowances;
+    mapping(address => uint256) public balances;
+    mapping(address => mapping(address => uint256)) public allowances;
 
     uint256 public cumulativeRewardPerToken;
-    mapping (address => uint256) public override stakedAmounts;
-    mapping (address => uint256) public claimableReward;
-    mapping (address => uint256) public previousCumulatedRewardPerToken;
-    mapping (address => uint256) public override cumulativeRewards;
-    mapping (address => uint256) public override averageStakedAmounts;
-    mapping (address => bool) public isHandler;
+    mapping(address => uint256) public override stakedAmounts;
+    mapping(address => uint256) public claimableReward;
+    mapping(address => uint256) public previousCumulatedRewardPerToken;
+    mapping(address => uint256) public override cumulativeRewards;
+    mapping(address => uint256) public override averageStakedAmounts;
+    mapping(address => bool) public isHandler;
     address public rewardToken;
     address admin;
     address[] public stakers;
@@ -65,10 +66,16 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function onlyAdmin() internal view {
-        require(msg.sender == admin, "RewardTracker: forbidden incorrect admin");
+        require(
+            msg.sender == admin,
+            "RewardTracker: forbidden incorrect admin"
+        );
     }
 
-    function setDepositToken(address _depositToken, bool _isDepositToken) external onlyGov {
+    function setDepositToken(
+        address _depositToken,
+        bool _isDepositToken
+    ) external onlyGov {
         isDepositToken[_depositToken] = _isDepositToken;
     }
 
@@ -76,48 +83,82 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         isHandler[_handler] = _isActive;
     }
 
-    // to help users who accidentally send their tokens to this contract
-    function withdrawToken(address _token, address _account, uint256 _amount) external onlyGov {
+    function withdrawToken(
+        address _token,
+        address _account,
+        uint256 _amount
+    ) external onlyGov {
         IERC20(_token).transfer(_account, _amount);
     }
 
-    function balanceOf(address _account) external view override returns (uint256) {
+    function balanceOf(
+        address _account
+    ) external view override returns (uint256) {
         return balances[_account];
     }
 
-    function stake(address _depositToken, uint256 _amount) external override nonReentrant {
+    function stake(
+        address _depositToken,
+        uint256 _amount
+    ) external override nonReentrant {
         _stake(msg.sender, msg.sender, _depositToken, _amount);
     }
 
-    function stakeForAccount(address _fundingAccount, address _account, address _depositToken, uint256 _amount) external override nonReentrant {
+    function stakeForAccount(
+        address _fundingAccount,
+        address _account,
+        address _depositToken,
+        uint256 _amount
+    ) external override nonReentrant {
         _validateHandler();
         _stake(_fundingAccount, _account, _depositToken, _amount);
     }
 
-    function unstake(address _depositToken, uint256 _amount) external override nonReentrant {
+    function unstake(
+        address _depositToken,
+        uint256 _amount
+    ) external override nonReentrant {
         _unstake(msg.sender, _depositToken, _amount, msg.sender);
     }
 
-    function unstakeForAccount(address _account, address _depositToken, uint256 _amount, address _receiver) external override nonReentrant {
+    function unstakeForAccount(
+        address _account,
+        address _depositToken,
+        uint256 _amount,
+        address _receiver
+    ) external override nonReentrant {
         _validateHandler();
         _unstake(_account, _depositToken, _amount, _receiver);
     }
 
-    function transfer(address _recipient, uint256 _amount) external override returns (bool) {
+    function transfer(
+        address _recipient,
+        uint256 _amount
+    ) external override returns (bool) {
         _transfer(msg.sender, _recipient, _amount);
         return true;
     }
 
-    function allowance(address _owner, address _spender) external view override returns (uint256) {
+    function allowance(
+        address _owner,
+        address _spender
+    ) external view override returns (uint256) {
         return allowances[_owner][_spender];
     }
 
-    function approve(address _spender, uint256 _amount) external override returns (bool) {
+    function approve(
+        address _spender,
+        uint256 _amount
+    ) external override returns (bool) {
         _approve(msg.sender, _spender, _amount);
         return true;
     }
 
-    function transferFrom(address _sender, address _recipient, uint256 _amount) external override returns (bool) {
+    function transferFrom(
+        address _sender,
+        address _recipient,
+        uint256 _amount
+    ) external override returns (bool) {
         if (isHandler[msg.sender]) {
             _transfer(_sender, _recipient, _amount);
             return true;
@@ -129,21 +170,30 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         return true;
     }
 
-    function claim(address _receiver) external override nonReentrant returns (uint256) {
+    function claim(
+        address _receiver
+    ) external override nonReentrant returns (uint256) {
         return _claim(msg.sender, _receiver);
     }
 
-    function claimForAccount(address _account, address _receiver) external override nonReentrant returns (uint256) {
+    function claimForAccount(
+        address _account,
+        address _receiver
+    ) external override nonReentrant returns (uint256) {
         _validateHandler();
         return _claim(_account, _receiver);
     }
 
-    function claimable(address _account) public override view returns (uint256) {
+    function claimable(
+        address _account
+    ) public view override returns (uint256) {
         return claimableReward[_account];
     }
 
-    function _claim(address _account, address _receiver) private returns (uint256) {
-
+    function _claim(
+        address _account,
+        address _receiver
+    ) private returns (uint256) {
         uint256 tokenAmount = claimableReward[_account];
         claimableReward[_account] = 0;
 
@@ -156,16 +206,22 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function _mint(address _account, uint256 _amount) internal {
-        require(_account != address(0), "RewardTracker: mint to the zero address");
+        require(
+            _account != address(0),
+            "RewardTracker: mint to the zero address"
+        );
 
-        totalSupply = totalSupply +_amount;
+        totalSupply = totalSupply + _amount;
         balances[_account] = balances[_account] + _amount;
 
         emit Transfer(address(0), _account, _amount);
     }
 
     function _burn(address _account, uint256 _amount) internal {
-        require(_account != address(0), "RewardTracker: burn from the zero address");
+        require(
+            _account != address(0),
+            "RewardTracker: burn from the zero address"
+        );
 
         balances[_account] = balances[_account] - _amount;
         totalSupply = totalSupply - _amount;
@@ -173,19 +229,39 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         emit Transfer(_account, address(0), _amount);
     }
 
-    function _transfer(address _sender, address _recipient, uint256 _amount) private {
-        require(_sender != address(0), "RewardTracker: transfer from the zero address");
-        require(_recipient != address(0), "RewardTracker: transfer to the zero address");
+    function _transfer(
+        address _sender,
+        address _recipient,
+        uint256 _amount
+    ) private {
+        require(
+            _sender != address(0),
+            "RewardTracker: transfer from the zero address"
+        );
+        require(
+            _recipient != address(0),
+            "RewardTracker: transfer to the zero address"
+        );
 
         balances[_sender] = balances[_sender] - _amount;
         balances[_recipient] = balances[_recipient] + _amount;
 
-        emit Transfer(_sender, _recipient,_amount);
+        emit Transfer(_sender, _recipient, _amount);
     }
 
-    function _approve(address _owner, address _spender, uint256 _amount) private {
-        require(_owner != address(0), "RewardTracker: approve from the zero address");
-        require(_spender != address(0), "RewardTracker: approve to the zero address");
+    function _approve(
+        address _owner,
+        address _spender,
+        uint256 _amount
+    ) private {
+        require(
+            _owner != address(0),
+            "RewardTracker: approve from the zero address"
+        );
+        require(
+            _spender != address(0),
+            "RewardTracker: approve to the zero address"
+        );
 
         allowances[_owner][_spender] = _amount;
 
@@ -196,41 +272,71 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         require(isHandler[msg.sender], "RewardTracker: forbidden");
     }
 
-    function _stake(address _fundingAccount, address _account, address _depositToken, uint256 _amount) private {
+    function _stake(
+        address _fundingAccount,
+        address _account,
+        address _depositToken,
+        uint256 _amount
+    ) private {
         require(_amount > 0, "RewardTracker: invalid _amount");
-        require(isDepositToken[_depositToken], "RewardTracker: invalid _depositToken");
+        require(
+            isDepositToken[_depositToken],
+            "RewardTracker: invalid _depositToken"
+        );
 
-        IERC20(_depositToken).transferFrom(_fundingAccount, address(this), _amount);
+        IERC20(_depositToken).transferFrom(
+            _fundingAccount,
+            address(this),
+            _amount
+        );
 
-        // store _account in stakers[] only if stakedAmounts[_account] = 0, else it will already be there;
         if (stakedAmounts[_account] == 0) {
             stakers.push(_account);
         }
 
         stakedAmounts[_account] = stakedAmounts[_account] + _amount;
-        depositBalances[_account][_depositToken] = depositBalances[_account][_depositToken] + _amount;
-        totalDepositSupply[_depositToken] = totalDepositSupply[_depositToken] + _amount;
+        depositBalances[_account][_depositToken] =
+            depositBalances[_account][_depositToken] +
+            _amount;
+        totalDepositSupply[_depositToken] =
+            totalDepositSupply[_depositToken] +
+            _amount;
 
         _mint(_account, _amount);
     }
 
-    function _unstake(address _account, address _depositToken, uint256 _amount, address _receiver) private {
+    function _unstake(
+        address _account,
+        address _depositToken,
+        uint256 _amount,
+        address _receiver
+    ) private {
         require(_amount > 0, "RewardTracker: invalid _amount");
-        require(isDepositToken[_depositToken], "RewardTracker: invalid _depositToken");
+        require(
+            isDepositToken[_depositToken],
+            "RewardTracker: invalid _depositToken"
+        );
 
         uint256 stakedAmount = stakedAmounts[_account];
-        require(stakedAmounts[_account] >= _amount, "RewardTracker: _amount exceeds stakedAmount");
+        require(
+            stakedAmounts[_account] >= _amount,
+            "RewardTracker: _amount exceeds stakedAmount"
+        );
 
         stakedAmounts[_account] = stakedAmount - _amount;
-        // remove _account from [] if stakedAmounts[_account] == 0
         if (stakedAmounts[_account] == 0) {
             _removeStaker(_account);
         }
 
         uint256 depositBalance = depositBalances[_account][_depositToken];
-        require(depositBalance >= _amount, "RewardTracker: _amount exceeds depositBalance");
+        require(
+            depositBalance >= _amount,
+            "RewardTracker: _amount exceeds depositBalance"
+        );
         depositBalances[_account][_depositToken] = depositBalance - _amount;
-        totalDepositSupply[_depositToken] = totalDepositSupply[_depositToken] - _amount;
+        totalDepositSupply[_depositToken] =
+            totalDepositSupply[_depositToken] -
+            _amount;
 
         _burn(_account, _amount);
         IERC20(_depositToken).transfer(_receiver, _amount);
@@ -239,7 +345,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     function setFeeReward(uint256 _feeReward) external {
         onlyAdmin();
         require(_feeReward > 0, "Reward tracker Error: _feeReward too low");
-        
+
         uint256 prevBalance = IERC20(rewardToken).balanceOf(address(this));
         IERC20(rewardToken).transferFrom(msg.sender, address(this), _feeReward);
         uint256 currentBalance = IERC20(rewardToken).balanceOf(address(this));
@@ -251,10 +357,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     }
 
     function updateRewards(uint256 _feeReward) private {
-        // 3. Just loop over stakers,
-        // no need to check for stakedAmounts[_account] == 0, why?
-        // THINK!! its not that tough XD
-        //
         for (uint256 i = 0; i < stakers.length; i++) {
             _updateRewards(stakers[i], _feeReward);
         }
@@ -262,20 +364,18 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
     function _updateRewards(address _account, uint256 _feeReward) private {
         uint256 stakedAmount = stakedAmounts[_account];
-        uint256 accountReward = (_feeReward * stakedAmount) / (totalSupply); // ASK: balance of feerewardtoken and stakedAmount[_account] redundant?
+        uint256 accountReward = (_feeReward * stakedAmount) / (totalSupply);
         uint256 _claimableReward = claimableReward[_account] + accountReward;
         claimableReward[_account] = _claimableReward;
     }
-    //helper functions
+
     function _removeStaker(address _staker) private {
-        uint256 index;
         for (uint256 i = 0; i < stakers.length; i++) {
             if (stakers[i] == _staker) {
-                index = i;
+                stakers[i] = stakers[stakers.length - 1];
+                stakers.pop();
                 break;
             }
         }
-        stakers[index] = stakers[stakers.length - 1];
-        stakers.pop();
     }
 }
