@@ -13,7 +13,7 @@ import "../access/Governable.sol";
 contract Vault is ReentrancyGuard, IVault {
 
     struct Position {
-        address user;
+        address account;
         address collateralToken;
         address indexToken;
         bool isLong;
@@ -990,7 +990,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         if (position.size == 0) {
             position.averagePrice = price;
-            position.user = _account;
+            position.account = _account;
             position.collateralToken = _collateralToken;
             position.indexToken = _indexToken;
             position.isLong = _isLong;

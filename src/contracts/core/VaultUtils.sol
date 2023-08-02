@@ -87,7 +87,7 @@ contract VaultUtils is IVaultUtils, Governable {
             if (_raise) { revert("Vault: liquidation fees exceed collateral"); }
             return (1, marginFees);
         }
-
+        //AnirudhTodo - we need to cut fees from remaining collateral and them compare right?
         if (remainingCollateral*(_vault.maxLeverage()) < position.size*(BASIS_POINTS_DIVISOR)) {
             if (_raise) { revert("Vault: maxLeverage exceeded"); }
             return (2, marginFees);
