@@ -1496,7 +1496,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 delta;
         // avoid stack to deep
         {
-            uint256 size = _isLong ? globalLongSizes[_indexToken]: globalLongSizes[_indexToken];
+            uint256 size = _isLong ? globalLongSizes[_indexToken]: globalShortSizes[_indexToken];
             nextSize = _isIncrease ? size+(_sizeDelta) : size-(_sizeDelta);
 
             if (nextSize == 0) {
