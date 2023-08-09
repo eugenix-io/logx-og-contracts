@@ -32,95 +32,30 @@ contract Deployment is Script {
 
     function run() external{  
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); 
-        uint nonce = vm.getNonce(0x143328D5d7C84515b3c8b3f8891471ff872C0015);
-        console.log("Nonce: ", nonce);
         vm.startBroadcast(deployerPrivateKey);
-        // IERC20 llp = IERC20(vm.envAddress("LLP"));
-        // uint256 balance = llp.balanceOf(0x143328D5d7C84515b3c8b3f8891471ff872C0015);
-        // console.log(balance);
-        // RewardRouter rewardRouter = RewardRouter(vm.envAddress("REWARD_ROUTER"));
-        // rewardRouter.burnLlp(balance, 0);
-        // PositionRouter positionRouter  = PositionRouter(vm.envAddress("POSITION_ROUTER"));
-        // IERC20 usdc = IERC20(vm.envAddress("USDC"));
-        // positionRouter.createDecreasePosition{value:37*10**16}(address(usdc), vm.envAddress("ETH"), 10 **19, 10 **31, false, 
-        // payable(0x143328D5d7C84515b3c8b3f8891471ff872C0015), 1900*10**31,37*10**16);
-        // positionRouter.executeDecreasePositions(4, payable(0x143328D5d7C84515b3c8b3f8891471ff872C0015));
-        // PositionRouter positionRouter = PositionRouter(vm.envAddress("POSITION_ROUTER"));
-        // IERC20 usdc = IERC20(vm.envAddress("USDC"));
-        // positionRouter.createDecreasePosition{value:37*10**16}(address(usdc), vm.envAddress("ETH"), 10 **19, 10 **31, false, 
-        // payable(0x143328D5d7C84515b3c8b3f8891471ff872C0015), 1900*10**29,37*10**16);
 
-        // PositionRouter positionRouter = new PositionRouter(vm.envAddress("VAULT"), vm.envAddress("ROUTER"), 37*10**16);
-        // positionRouter.setPositionKeeper(0x143328D5d7C84515b3c8b3f8891471ff872C0015, true);
-        // Router router = Router(vm.envAddress("ROUTER"));
-        // router.addPlugin(address(positionRouter));
-        // router.approvePlugin(address(positionRouter));
-        // IERC20 usdc = IERC20(vm.envAddress("USDC"));
-        // usdc.approve(address(router), 10**21);
-        // positionRouter.createIncreasePosition{value:37*10**16}(address(usdc), vm.envAddress("ETH"), 10**19, 10 **31, true, 1900*10**30,37*10**16);
-        // positionRouter.createIncreasePosition{value:37*10**16}(address(usdc), vm.envAddress("ETH"), 10 **19, 10 **31, false, 1900*10**29,37*10**16);
-        // //set global size
-        // Vault vault = Vault(vm.envAddress("VAULT"));
-        // vault.setMaxGlobalLongSize(address(usdc), 10**21);
-        // positionRouter.setPositionKeeper(0x143328D5d7C84515b3c8b3f8891471ff872C0015, true);
-        // console.log( "idx");
-        // console.log( positionRouter.increasePositionRequestKeysStart());
-        // console.log(positionRouter.decreasePositionRequestKeysStart());
-        // positionRouter.setDelayValues(0,0,1000000);
-        // positionRouter.executeIncreasePositions(2, payable(0x0a6BF6d0d650807BFC0754764cF7ADCc4DeE0A20));
-        // positionRouter.createDecreasePosition{value:37*10**16}(address(usdc), vm.envAddress("ETH"), 10 **19, 10 **31, false, payable(0x143328D5d7C84515b3c8b3f8891471ff872C0015), 1900*10**29,37*10**16);
-        // positionRouter.executeDecreasePositions(1, payable(0x0a6BF6d0d650807BFC0754764cF7ADCc4DeE0A20));
-        // console.log( "idx");
-        // console.log(positionRouter.increasePositionRequestKeysStart());
-        // console.log(positionRouter.decreasePositionRequestKeysStart());
-        // RewardTracker usdc = RewardTracker(vm.envAddress("USDC"));
-        // console.log(usdc.decimals());
-        // console.log(usdc.balanceOf(vm.envAddress("VAULT")));
-        // usdc.approve(vm.envAddress("LLP_MANAGER"), 10**20);
-        //console.log(usdc.allowance(vm.envAddress("VAULT"), vm.envAddress("LLP_MANAGER")));
-        // VaultUtils vaultUtils = new VaultUtils(Vault(vm.envAddress("VAULT")));
-        // Vault(vm.envAddress("VAULT")).setVaultUtils(vaultUtils);
-        // PriceFeed priceFeed = PriceFeed(vm.envAddress("PRICE_FEED"));
-        // 
-        // console.log("PriceFeed deployed at address: ", address(priceFeed));
-        // Vault vault = Vault(vm.envAddress("VAULT"));
-        // vault.setPriceFeed(address(priceFeed));
-        //set manager in vault
-
-        Vault vault = new Vault(); 
-        console.log("Vault deployed at address: ", address(vault));
-        USDL usdl = USDL(vm.envAddress("USDL"));
-        usdl.removeVault(vm.envAddress("VAULT"));
-        usdl.addVault(address(vault));
-        //USDL usdl = new USDL(address(vault));
-        // console.log("USDL deployed at address: ", address(usdl));
-        Router router = new Router(address(vault));
-        console.log("Router deployed at address: ", address(router));
-        PriceFeed priceFeed = PriceFeed(vm.envAddress("PRICE_FEED"));
-        vault.initialize(address(router), address(usdl), address(priceFeed),liquidationFeeUsd, fundingRateFactor, vm.envAddress("USDC"));
-        vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
-        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("BTC"), 18, 0, false, false, true);
-        vault.setMaxGlobalLongSize(vm.envAddress("USDC"), 10**24);
-        VaultUtils vaultUtils = new VaultUtils(vault);
-        console.log("VaultUtils deployed at address: ", address(vaultUtils));
-        vault.setVaultUtils(vaultUtils);
+        OrderBook orderBook = OrderBook(vm.envAddress("ORDER_BOOK"));
+        orderBook.createOrder{value: 37*10**16}(0*10**18,vm.envAddress("ETH"), 10*10**30,vm.envAddress("USDC"),
+        true, 1900*10**30, false, 37*10**16, true);
+        orderBook.createOrder{value: 37*10**16}(0*10**18,vm.envAddress("ETH"), 10*10**30,vm.envAddress("USDC"),
+        false, 1900*10**30, false, 37*10**16, true);
         
-        // //console.log("Vault initialized");
-        PositionRouter positionRouter = new PositionRouter(address(vault), address(router), minExecutionFeeMarketOrder);
-        positionRouter.setPositionKeeper(vm.envAddress("PRICE_FEED"), true);
-        console.log("PositionRouter deployed at address: ", address(positionRouter));
-        // //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>LIQUIDITY POOL<<<<<<<<<
-        // set minter in llp token to LLPManager
-        //Llp llp = new Llp("LogX LP", "LLP");
-        LlpManager llpManager = new LlpManager(address(vault), address(usdl), vm.envAddress("LLP"), llpCooldownDuration);
-        console.log("LlpManager deployed at address: ", address(llpManager));
-        // RewardTracker rewardTracker = new RewardTracker("fee LLP", "fLlp");
-        // console.log("RewardTracker deployed at address: ", address(rewardTracker));
-        RewardRouter rewardRouter = new RewardRouter();
-        console.log("RewardRouter deployed at address: ", address(rewardRouter));
-        rewardRouter.initialize(vm.envAddress("USDC"), vm.envAddress("LLP"), address(llpManager), address(vm.envAddress("REWARD_TRACKER")));
-        //console.log("RewardRouter initialized");
+        // PositionRouter positionRouter = PositionRouter(vm.envAddress("POSITION_ROUTER"));
+        // positionRouter.createIncreasePosition{value: 37*10**16}(vm.envAddress("USDC"), vm.envAddress("ETH"), 10*10**18, 10*10**30,
+        // true, 1900*10**30, 37*10**16);
+        // positionRouter.createIncreasePosition{value: 37*10**16}(vm.envAddress("USDC"), vm.envAddress("ETH"), 10*10**18, 10*10**30,
+        // true, 1900*10**28, 37*10**16);
+        // PositionRouter positionRouter = PositionRouter(vm.envAddress("POSITION_ROUTER"));
+        // positionRouter.setPositionKeeper(vm.envAddress("ADMIN"), true);
+        // positionRouter.setDelayValues(0,0,3600);
+        // Router router = Router(vm.envAddress("ROUTER"));
+        // router.addPlugin(vm.envAddress("POSITION_ROUTER"));
+        // router.approvePlugin(vm.envAddress("POSITION_ROUTER"));
+        // IERC20 usdc = IERC20(vm.envAddress("USDC"));
+        // usdc.approve(address(router), 10000*10**18);
+        // positionRouter.createIncreasePosition{value: 37*10**16}(vm.envAddress("USDC"), vm.envAddress("ETH"), 10*10**18, 10*10**30,
+        // true, 1900*10**30, 37*10**16);
+        // positionRouter.executeIncreasePositions(2, payable(vm.envAddress("ADMIN")));
         vm.stopBroadcast();
     }
 
