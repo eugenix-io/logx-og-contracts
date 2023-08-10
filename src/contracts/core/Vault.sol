@@ -66,9 +66,6 @@ contract Vault is ReentrancyGuard, IVault {
 
     uint256 public override maxGasPrice;
 
-    mapping(address => mapping(address => bool))
-        public
-        override approvedRouters;
     mapping(address => bool) public override isLiquidator;
     mapping(address => bool) public override isManager;
 
@@ -236,8 +233,16 @@ contract Vault is ReentrancyGuard, IVault {
         gov = newGov;
     }
 
-    // deposit into the pool without minting USDL tokens
-    // useful in allowing the pool to become over-collaterised
+    function setRouter(address newRouter) external {
+        _onlyGov();
+        router = newRouter;
+    }
+
+    function setUsdl(address newUsdl) external {
+        _onlyGov();
+        usdl = newUsdl;
+    }   
+
     function directPoolDeposit(address _token) external override nonReentrant {
         _validate(whitelistedTokens[_token], "Vault: Not a whitelisted token");
         uint256 tokenAmount = _transferIn(_token);
@@ -1625,9 +1630,6 @@ contract Vault is ReentrancyGuard, IVault {
         if (msg.sender == _account) {
             return;
         }
-        if (msg.sender == router) {
-            return;
-        }
-        _validate(approvedRouters[_account][msg.sender], "Vault: Router not approved");
+        _validate(msg.sender == router, "Vault: Router not approved");
     }
 }

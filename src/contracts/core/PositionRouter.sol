@@ -192,6 +192,14 @@ contract PositionRouter is
         );
     }
 
+    function setRouter(address _router) external override onlyAdmin {
+        router = _router;
+    }
+
+    function setVault(address _vault) external override onlyAdmin {
+        vault = _vault;
+    }
+
     function createIncreasePosition(
         address _collateralToken,
         address _indexToken,

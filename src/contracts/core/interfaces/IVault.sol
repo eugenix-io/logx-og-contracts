@@ -22,7 +22,6 @@ interface IVault {
 
     function maxGasPrice() external view returns (uint256);
 
-    function approvedRouters(address _account, address _router) external view returns (bool);
     function isLiquidator(address _account) external view returns (bool);
     function isManager(address _account) external view returns (bool);
 
