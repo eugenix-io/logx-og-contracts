@@ -33,29 +33,7 @@ contract Deployment is Script {
     function run() external{  
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); 
         vm.startBroadcast(deployerPrivateKey);
-
-        OrderBook orderBook = OrderBook(vm.envAddress("ORDER_BOOK"));
-        orderBook.createOrder{value: 37*10**16}(0*10**18,vm.envAddress("ETH"), 10*10**30,vm.envAddress("USDC"),
-        true, 1900*10**30, false, 37*10**16, true);
-        orderBook.createOrder{value: 37*10**16}(0*10**18,vm.envAddress("ETH"), 10*10**30,vm.envAddress("USDC"),
-        false, 1900*10**30, false, 37*10**16, true);
-        
-        // PositionRouter positionRouter = PositionRouter(vm.envAddress("POSITION_ROUTER"));
-        // positionRouter.createIncreasePosition{value: 37*10**16}(vm.envAddress("USDC"), vm.envAddress("ETH"), 10*10**18, 10*10**30,
-        // true, 1900*10**30, 37*10**16);
-        // positionRouter.createIncreasePosition{value: 37*10**16}(vm.envAddress("USDC"), vm.envAddress("ETH"), 10*10**18, 10*10**30,
-        // true, 1900*10**28, 37*10**16);
-        // PositionRouter positionRouter = PositionRouter(vm.envAddress("POSITION_ROUTER"));
-        // positionRouter.setPositionKeeper(vm.envAddress("ADMIN"), true);
-        // positionRouter.setDelayValues(0,0,3600);
-        // Router router = Router(vm.envAddress("ROUTER"));
-        // router.addPlugin(vm.envAddress("POSITION_ROUTER"));
-        // router.approvePlugin(vm.envAddress("POSITION_ROUTER"));
-        // IERC20 usdc = IERC20(vm.envAddress("USDC"));
-        // usdc.approve(address(router), 10000*10**18);
-        // positionRouter.createIncreasePosition{value: 37*10**16}(vm.envAddress("USDC"), vm.envAddress("ETH"), 10*10**18, 10*10**30,
-        // true, 1900*10**30, 37*10**16);
-        // positionRouter.executeIncreasePositions(2, payable(vm.envAddress("ADMIN")));
+        allContractDeployments();
         vm.stopBroadcast();
     }
 
@@ -63,7 +41,7 @@ contract Deployment is Script {
         Vault vault = deployVault();
         PriceFeed priceFeed  = deployAndInitializePriceFeed();
         Router router = deployRouter(vault);
-        deployPositionRouter(priceFeed, vault, router);
+        PositionRouter positionRouter = deployPositionRouter(priceFeed, vault, router);
         USDL usdl = deployUSDL(vault);
         RewardRouter rewardRouter = deployRewardRouter();
         LlpManager llpManager = deployLlpManager(vault, usdl, rewardRouter);
@@ -74,6 +52,9 @@ contract Deployment is Script {
         initializeRewardRouter(rewardRouter, vm.envAddress("USDC"), vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
         OrderBook orderBook = deployAndInitializeOrderBook(vault, router, usdl);
         deployPositionManager(vault, router, orderBook);
+        //setters
+        router.addPlugin(address(orderBook));
+        router.addPlugin(address(positionRouter));
     }
 
     function deployAndInitializeOrderBook(Vault vault, Router router, USDL usdl) public returns (OrderBook){
