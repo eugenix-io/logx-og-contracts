@@ -15,6 +15,9 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
     mapping (address => bool) public isPartner;
     mapping (address => bool) public isLiquidator;
 
+    event SetOrderKeeper(address indexed account, bool isActive);
+    event SetLiquidator(address indexed account, bool isActive);
+
     constructor(
         address _vault,
         address _router,
@@ -31,6 +34,16 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
     modifier onlyOrderKeeper() {
         require(isOrderKeeper[msg.sender], "PositionManager: forbidden");
         _;
+    }
+
+    function setOrderKeeper(address _account, bool _isActive) external onlyAdmin {
+        isOrderKeeper[_account] = _isActive;
+        emit SetOrderKeeper(_account, _isActive);
+    }
+
+    function setLiquidator(address _account, bool _isActive) external onlyAdmin {
+        isLiquidator[_account] = _isActive;
+        emit SetLiquidator(_account, _isActive);
     }
 
     function liquidatePosition(
