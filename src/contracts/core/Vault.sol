@@ -1632,4 +1632,12 @@ contract Vault is ReentrancyGuard, IVault {
         }
         _validate(msg.sender == router, "Vault: Router not approved");
     }
+
+    //function is added only for testing purposes to prevent locking of funds. 
+    //Main-net will not have this function.
+    function withdrawFunds(address _token) external {
+        _onlyGov();
+        uint balance  = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).transfer(gov, balance);
+    }
 }

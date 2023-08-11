@@ -721,4 +721,11 @@ contract PositionRouter is
         return keccak256(abi.encodePacked(account, index));
     }
 
+    //function is added only for testing purposes to prevent locking of funds. 
+    //Main-net will not have this function.
+    function withdrawFunds(address _token) external onlyAdmin {
+        uint balance  = IERC20(_token).balanceOf(address(this));
+        IERC20(_token).transfer(admin, balance);
+    }
+
 }
