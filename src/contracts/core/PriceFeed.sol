@@ -40,14 +40,14 @@ contract PriceFeed is IPriceFeed, Governable {
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return getFinalPrice(uint64(priceData.price) + priceData.conf, priceData.expo);
+        return getFinalPrice(uint64(priceData.price), priceData.expo);
     }
 
     function getMinPriceOfToken(address _token) external override view returns(uint256){
         bytes32 priceId = tokenPriceIdMapping[_token];
         PythStructs.Price memory priceData = tokenPrices[priceId];
         validateData(priceData);
-        return getFinalPrice(uint64(priceData.price) - priceData.conf, priceData.expo); 
+        return getFinalPrice(uint64(priceData.price), priceData.expo); 
     }
 
     function validateData(PythStructs.Price memory _priceData) internal view {
