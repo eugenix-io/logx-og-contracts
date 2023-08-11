@@ -142,6 +142,18 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         emit UpdateMinPurchaseTokenAmountUsd(_minPurchaseTokenAmountUsd);
     }
 
+    function setRouter(address _router) external onlyGov {
+        router = _router;
+    }
+
+    function setVault(address _vault) external onlyGov {
+        vault = _vault;
+    }
+
+    function setUsdl(address _usdl) external onlyGov {
+        usdl = _usdl;
+    }
+
     function setGov(address _gov) external onlyGov {
         gov = _gov;
 

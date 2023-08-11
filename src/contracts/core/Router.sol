@@ -40,8 +40,8 @@ contract Router is IRouter, Governable {
         approvedPlugins[msg.sender][_plugin] = false;
     }
 
-    function isPluginApproved(address _plugin) external view returns (bool) {
-        return approvedPlugins[msg.sender][_plugin];
+    function isPluginApproved(address _plugin, address account) external view returns (bool) {
+        return approvedPlugins[account][_plugin];
     }
 
     function pluginTransfer(

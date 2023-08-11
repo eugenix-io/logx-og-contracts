@@ -46,6 +46,10 @@ contract PositionManager is BasePositionManager, ReentrancyGuard {
         emit SetLiquidator(_account, _isActive);
     }
 
+    function setOrderBook(address _orderBook) external onlyAdmin {
+        orderBook = _orderBook;
+    }
+
     function liquidatePosition(
         address _account,
         address _collateralToken,
