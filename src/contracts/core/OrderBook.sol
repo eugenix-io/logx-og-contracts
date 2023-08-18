@@ -12,7 +12,6 @@ import "./interfaces/IOrderBook.sol";
 contract OrderBook is ReentrancyGuard, IOrderBook {
 
     uint256 public constant PRICE_PRECISION = 1e30;
-    uint256 public constant USDL_PRECISION = 1e18;
 
     struct Order {
         address account;
@@ -31,7 +30,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     mapping (address => uint256) public ordersIndex;
 
     address public gov;
-    address public usdl;
     address public router;
     address public vault;
     uint256 public minExecutionFee;
@@ -94,7 +92,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     event Initialize(
         address router,
         address vault,
-        address usdl,
         uint256 minExecutionFee,
         uint256 minPurchaseTokenAmountUsd
     );
@@ -114,7 +111,6 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
     function initialize(
         address _router,
         address _vault,
-        address _usdl,
         uint256 _minExecutionFee,
         uint256 _minPurchaseTokenAmountUsd
     ) external onlyGov {
@@ -123,11 +119,10 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
         router = _router;
         vault = _vault;
-        usdl = _usdl;
         minExecutionFee = _minExecutionFee;
         minPurchaseTokenAmountUsd = _minPurchaseTokenAmountUsd;
 
-        emit Initialize(_router, _vault, _usdl, _minExecutionFee, _minPurchaseTokenAmountUsd);
+        emit Initialize(_router, _vault, _minExecutionFee, _minPurchaseTokenAmountUsd);
     }
 
     function setMinExecutionFee(uint256 _minExecutionFee) external onlyGov {
@@ -150,22 +145,10 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
         vault = _vault;
     }
 
-    function setUsdl(address _usdl) external onlyGov {
-        usdl = _usdl;
-    }
-
     function setGov(address _gov) external onlyGov {
         gov = _gov;
 
         emit UpdateGov(_gov);
-    }
-
-    function getUsdlMinPrice(address _otherToken) internal view returns (uint256) {
-        uint256 redemptionAmount = IVault(vault).getRedemptionAmount(_otherToken, USDL_PRECISION);
-        uint256 otherTokenPrice = IVault(vault).getMinPrice(_otherToken);
-
-        uint256 otherTokenDecimals = IVault(vault).tokenDecimals(_otherToken);
-        return redemptionAmount*(otherTokenPrice)/(10 ** otherTokenDecimals);
     }
 
     function validatePositionOrderPrice(
@@ -225,7 +208,9 @@ contract OrderBook is ReentrancyGuard, IOrderBook {
 
         require(_executionFee >= minExecutionFee, "OrderBook: insufficient execution fee");
         require(msg.value == _executionFee, "OrderBook: incorrect execution fee transferred");
-        IRouter(router).pluginTransfer(_collateralToken, msg.sender, address(this), _collateralDelta);
+        if(isIncreaseOrder){
+            IRouter(router).pluginTransfer(_collateralToken, msg.sender, address(this), _collateralDelta);
+        }
 
         {
             uint256 _collateralAmountUsd = IVault(vault).tokenToUsdMin(_collateralToken, _collateralDelta);

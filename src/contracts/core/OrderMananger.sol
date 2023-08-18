@@ -5,12 +5,12 @@ pragma solidity ^0.8.19;
 import '../libraries/utils/ReentrancyGuard.sol';
 import './interfaces/IRouter.sol';
 import '../libraries/token/IERC20.sol';
-import './BasePositionManager.sol';
-import './interfaces/IPositionRouter.sol';
+import './BaseOrderManager.sol';
+import './interfaces/IOrderManager.sol';
 
-contract PositionRouter is
-    BasePositionManager,
-    IPositionRouter,
+contract OrderManager is
+    BaseOrderManager,
+    IOrderManager,
     ReentrancyGuard
 {
     struct IncreasePositionRequest {
@@ -39,6 +39,19 @@ contract PositionRouter is
         uint256 blockTime;
     }
 
+    struct Order {
+        address account;
+        address collateralToken;
+        address indexToken;
+        uint256 collateralDelta;
+        uint256 sizeDelta;
+        uint256 triggerPrice;
+        uint256 executionFee;
+        bool isLong;
+        bool triggerAboveThreshold;
+        bool isIncreaseOrder;
+    }
+
     uint256 public minExecutionFee;
     //mapping from user address to number of increase position requests sent from that address
     mapping(address => uint256) increasePositionsIndex;
@@ -55,6 +68,11 @@ contract PositionRouter is
     uint256 public maxTimeDelay;
     uint256 public increasePositionRequestKeysStart;
     uint256 public decreasePositionRequestKeysStart;
+
+    mapping (address => mapping(uint256 => Order)) public orders;
+    mapping (address => uint256) public ordersIndex;
+
+    uint256 public minPurchaseTokenAmountUsd;
 
     event CreateIncreasePosition(
         address indexed account,
@@ -142,6 +160,33 @@ contract PositionRouter is
         uint256 timeGap
     );
 
+    event CreateOrder(
+        address indexed account,
+        address collateralToken,
+        address indexToken,
+        uint256 orderIndex,
+        uint256 collateralDelta,
+        uint256 sizeDelta,
+        uint256 triggerPrice,
+        uint256 executionFee,
+        bool isLong,
+        bool triggerAboveThreshold,
+        bool indexed isIncreaseOrder
+    );
+
+    event UpdateOrder(
+        address indexed account,
+        address collateralToken,
+        address indexToken,
+        uint256 orderIndex,
+        uint256 collateralDelta,
+        uint256 sizeDelta,
+        uint256 triggerPrice,
+        bool isLong,
+        bool triggerAboveThreshold,
+        bool indexed isIncreaseOrder
+    );
+
     event SetPositionKeeper(address indexed account, bool isActive);
     event SetDelayValues(
         uint256 minBlockDelayKeeper,
@@ -155,7 +200,7 @@ contract PositionRouter is
         address _vault,
         address _router,
         uint256 _minExecutionFee
-    ) BasePositionManager(_vault, _router) {
+    ) BaseOrderManager(_vault, _router) {
         minExecutionFee = _minExecutionFee;
     }
 
@@ -718,6 +763,105 @@ contract PositionRouter is
     function withdrawFunds(address _token) external onlyAdmin {
         uint balance  = IERC20(_token).balanceOf(address(this));
         IERC20(_token).transfer(admin, balance);
+    }
+
+        function createOrder(
+        uint256 _collateralDelta,
+        address _indexToken,
+        uint256 _sizeDelta,
+        address _collateralToken,
+        bool _isLong,
+        uint256 _triggerPrice,
+        bool _triggerAboveThreshold,
+        uint256 _executionFee,
+        bool isIncreaseOrder
+    ) external payable nonReentrant returns(address, uint256) {
+        // always need this call because of mandatory executionFee user has to transfer in ETH
+        //_transferInETH();
+
+        require(_executionFee >= minExecutionFee, "OrderBook: insufficient execution fee");
+        require(msg.value == _executionFee, "OrderBook: incorrect execution fee transferred");
+        if(isIncreaseOrder){
+            IRouter(router).pluginTransfer(_collateralToken, msg.sender, address(this), _collateralDelta);
+        }
+
+        {
+            uint256 _collateralAmountUsd = IVault(vault).tokenToUsdMin(_collateralToken, _collateralDelta);
+            require(_collateralAmountUsd >= minPurchaseTokenAmountUsd, "OrderBook: too less collateral");
+        }
+
+        return _createOrder(
+            msg.sender,
+            _collateralDelta,
+            _collateralToken,
+            _indexToken,
+            _sizeDelta,
+            _isLong,
+            _triggerPrice,
+            _triggerAboveThreshold,
+            _executionFee,
+            isIncreaseOrder
+        );
+    }
+
+    function _createOrder(
+        address _account,
+        uint256 _collateralDelta,
+        address _collateralToken,
+        address _indexToken,
+        uint256 _sizeDelta,
+        bool _isLong,
+        uint256 _triggerPrice,
+        bool _triggerAboveThreshold,
+        uint256 _executionFee,
+        bool isIncreaseOrder
+    ) private returns(address, uint256){
+        uint256 _orderIndex = ordersIndex[_account];
+        ordersIndex[_account] = _orderIndex+(1);
+        orders[_account][_orderIndex] = Order(
+            _account,
+            _collateralToken,
+            _indexToken,
+            _collateralDelta,
+            _sizeDelta,
+            _triggerPrice,
+            _executionFee,
+            _isLong,
+            _triggerAboveThreshold,
+            isIncreaseOrder
+        );
+
+        emitOrderCreateEvent(_account, _orderIndex);
+        return(msg.sender, _orderIndex);
+    }
+
+    function emitOrderCreateEvent(address _account, uint256 idx) internal{
+        Order memory order = orders[_account][idx];
+        emit CreateOrder(
+            _account,
+            order.collateralToken,
+            order.indexToken,
+            idx,
+            order.collateralDelta,
+            order.sizeDelta,
+            order.triggerPrice,
+            order.executionFee,
+            order.isLong,
+            order.triggerAboveThreshold,
+            order.isIncreaseOrder
+        );
+        emit UpdateOrder(
+            _account,
+            order.collateralToken,
+            order.indexToken,
+            idx,
+            order.collateralDelta,
+            order.sizeDelta,
+            order.triggerPrice,
+            order.isLong,
+            order.triggerAboveThreshold,
+            order.isIncreaseOrder
+        );
     }
 
 }

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.19;
 
-interface IPositionRouter{
+interface IOrderManager{
     function increasePositionRequestKeysStart() external returns (uint256);
     function decreasePositionRequestKeysStart() external returns (uint256);
     function executeIncreasePositions(uint256 _count, address payable _executionFeeReceiver) external;

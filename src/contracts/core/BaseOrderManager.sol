@@ -10,7 +10,7 @@ import '../access/Governable.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
 
 
-contract BasePositionManager{
+contract BaseOrderManager{
     address public admin;
     address public vault;
     address public router;
