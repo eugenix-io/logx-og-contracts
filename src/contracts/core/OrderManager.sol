@@ -52,17 +52,15 @@ contract OrderManager is
         bool isIncreaseOrder;
     }
 
-    uint256 public minExecutionFee;
-    //mapping from user address to number of increase position requests sent from that address
+    uint256 public minExecutionFeeMarketOrder;
+    uint256 public minExecutionFeeLimitOrder;
     mapping(address => uint256) increasePositionsIndex;
-    //mapping with key = keccak256(userAddress, index) and value = increase position request
     mapping(bytes32 => IncreasePositionRequest) increasePositionRequests;
-    //array of increase position request keys
     bytes32[] increasePositionRequestKeys;
     mapping(address => uint256) decreasePositionsIndex;
     mapping(bytes32 => DecreasePositionRequest) decreasePositionRequests;
     bytes32[] decreasePositionRequestKeys;
-    mapping(address => bool) public isPositionKeeper;//address of priceFeed contract needs to be added to this mapping
+    mapping(address => bool) public isPositionKeeper;
     uint256 public minBlockDelayKeeper;
     uint256 public minTimeDelayPublic;
     uint256 public maxTimeDelay;
@@ -71,6 +69,8 @@ contract OrderManager is
 
     mapping (address => mapping(uint256 => Order)) public orders;
     mapping (address => uint256) public ordersIndex;
+    mapping (address => bool) public isOrderKeeper;
+    mapping (address => bool) public isLiquidator;
 
     uint256 public minPurchaseTokenAmountUsd;
 
@@ -187,25 +187,66 @@ contract OrderManager is
         bool indexed isIncreaseOrder
     );
 
+    event CancelOrder(
+        address indexed account,
+        address collateralToken,
+        address indexToken,
+        uint256 orderIndex,
+        uint256 collateralDelta,
+        uint256 sizeDelta,
+        uint256 triggerPrice,
+        uint256 executionFee,
+        bool isLong,
+        bool triggerAboveThreshold,
+        bool indexed isIncreaseOrder
+    );
+    event ExecuteOrder(
+        address indexed account,
+        address collateralToken,
+        address indexToken,
+        uint256 orderIndex,
+        uint256 collateralDelta,
+        uint256 sizeDelta,
+        uint256 triggerPrice,
+        uint256 executionFee,
+        uint256 executionPrice,
+        bool isLong,
+        bool triggerAboveThreshold,
+        bool indexed isIncreaseOrder
+    );
+
     event SetPositionKeeper(address indexed account, bool isActive);
+    event SetOrderKeeper(address indexed account, bool isActive);
+    event SetLiquidator(address indexed account, bool isActive);
+
     event SetDelayValues(
         uint256 minBlockDelayKeeper,
         uint256 minTimeDelayPublic,
         uint256 maxTimeDelay
     );
 
-    event SetMinExecutionFee(uint256 minExecutionFee);
-
     constructor(
         address _vault,
         address _router,
-        uint256 _minExecutionFee
+        uint256 _minExecutionFeeMarketOrder, 
+        uint256 _minExecutionFeeLimitOrder
     ) BaseOrderManager(_vault, _router) {
-        minExecutionFee = _minExecutionFee;
+        minExecutionFeeMarketOrder = _minExecutionFeeMarketOrder;
+        minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
     }
 
     modifier onlyPositionKeeper() {
         require(isPositionKeeper[msg.sender], "PositionRouter: 403");
+        _;
+    }
+
+    modifier onlyLiquidator() {
+        require(isLiquidator[msg.sender], "PositionManager: forbidden");
+        _;
+    }
+
+    modifier onlyOrderKeeper() {
+        require(isOrderKeeper[msg.sender], "PositionManager: forbidden");
         _;
     }
 
@@ -217,9 +258,12 @@ contract OrderManager is
         emit SetPositionKeeper(_account, _isActive);
     }
 
-    function setMinExecutionFee(uint256 _minExecutionFee) external onlyAdmin {
-        minExecutionFee = _minExecutionFee;
-        emit SetMinExecutionFee(_minExecutionFee);
+    function setMinExecutionFeeMarketOrder(uint256 _minExecutionFeeMarketOrder) external {
+        minExecutionFeeMarketOrder = _minExecutionFeeMarketOrder;
+    }
+
+    function setMinExecutionFeeLimitOrder(uint256 _minExecutionFeeLimitOrder) external {
+        minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
     }
 
     function setDelayValues(
@@ -237,6 +281,16 @@ contract OrderManager is
         );
     }
 
+    function setOrderKeeper(address _account, bool _isActive) external onlyAdmin {
+        isOrderKeeper[_account] = _isActive;
+        emit SetOrderKeeper(_account, _isActive);
+    }
+
+    function setLiquidator(address _account, bool _isActive) external onlyAdmin {
+        isLiquidator[_account] = _isActive;
+        emit SetLiquidator(_account, _isActive);
+    }
+
     function createIncreasePosition(
         address _collateralToken,
         address _indexToken,
@@ -246,7 +300,7 @@ contract OrderManager is
         uint256 _acceptablePrice,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
-        require(_executionFee >= minExecutionFee, "PositionRouter: execution fee less than min execution fee");
+        require(_executionFee >= minExecutionFeeMarketOrder, "PositionRouter: execution fee less than min execution fee");
         require(_executionFee == msg.value, "PositionRouter: execution fee not equal to value in msg.value");
 
         if (_amountIn > 0) {
@@ -478,7 +532,7 @@ contract OrderManager is
         uint256 _acceptablePrice,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
-        require(_executionFee >= minExecutionFee, "PositionRouter: fee");
+        require(_executionFee >= minExecutionFeeMarketOrder, "PositionRouter: fee");
         require(_executionFee == msg.value, "PositionRouter: value sent is not equal to execution fee");
 
         return
@@ -765,7 +819,48 @@ contract OrderManager is
         IERC20(_token).transfer(admin, balance);
     }
 
-        function createOrder(
+    function validatePositionOrderPrice(
+        bool _triggerAboveThreshold,
+        uint256 _triggerPrice,
+        address _indexToken,
+        bool _maximizePrice,
+        bool _raise
+    ) public view returns (uint256, bool) {
+        uint256 currentPrice = _maximizePrice
+            ? IVault(vault).getMaxPrice(_indexToken) : IVault(vault).getMinPrice(_indexToken);
+        bool isPriceValid = _triggerAboveThreshold ? currentPrice > _triggerPrice : currentPrice < _triggerPrice;
+        if (_raise) {
+            require(isPriceValid, "OrderBook: invalid price for execution");
+        }
+        return (currentPrice, isPriceValid);
+    }
+
+    function getOrder(address _account, uint256 _orderIndex) override public view returns (
+        address collateralToken,
+        uint256 collateralDelta,
+        address indexToken,
+        uint256 sizeDelta,
+        bool isLong,
+        uint256 triggerPrice,
+        bool triggerAboveThreshold,
+        uint256 executionFee,
+        bool isIncreaseOrder
+    ) {
+        Order memory order = orders[_account][_orderIndex];
+        return (
+            order.collateralToken,
+            order.collateralDelta,
+            order.indexToken,
+            order.sizeDelta,
+            order.isLong,
+            order.triggerPrice,
+            order.triggerAboveThreshold,
+            order.executionFee,
+            order.isIncreaseOrder
+        );
+    }
+
+    function createOrder(
         uint256 _collateralDelta,
         address _indexToken,
         uint256 _sizeDelta,
@@ -779,7 +874,7 @@ contract OrderManager is
         // always need this call because of mandatory executionFee user has to transfer in ETH
         //_transferInETH();
 
-        require(_executionFee >= minExecutionFee, "OrderBook: insufficient execution fee");
+        require(_executionFee >= minExecutionFeeLimitOrder, "OrderBook: insufficient execution fee");
         require(msg.value == _executionFee, "OrderBook: incorrect execution fee transferred");
         if(isIncreaseOrder){
             IRouter(router).pluginTransfer(_collateralToken, msg.sender, address(this), _collateralDelta);
@@ -803,6 +898,7 @@ contract OrderManager is
             isIncreaseOrder
         );
     }
+
 
     function _createOrder(
         address _account,
@@ -863,5 +959,153 @@ contract OrderManager is
             order.isIncreaseOrder
         );
     }
+
+    function updateOrder(uint256 _orderIndex, uint256 _sizeDelta, uint256 _collateralDelta,  uint256 _triggerPrice, bool _triggerAboveThreshold) external nonReentrant {
+        Order storage order = orders[msg.sender][_orderIndex];
+        require(order.account != address(0), "OrderBook: non-existent order");
+
+        order.triggerPrice = _triggerPrice;
+        order.triggerAboveThreshold = _triggerAboveThreshold;
+        order.sizeDelta = _sizeDelta;
+        order.collateralDelta = _collateralDelta;
+
+        emit UpdateOrder(
+            msg.sender,
+            order.collateralToken,
+            order.indexToken,
+            _orderIndex,
+            _collateralDelta,
+            _sizeDelta,
+            _triggerPrice,
+            order.isLong,
+            _triggerAboveThreshold,
+            order.isIncreaseOrder
+        );
+    }
+
+    function cancelOrder(uint256 _orderIndex) public nonReentrant {
+        Order memory order = orders[msg.sender][_orderIndex];
+        require(order.account != address(0), "OrderBook: non-existent order");
+
+        delete orders[msg.sender][_orderIndex];
+        IERC20(order.collateralToken).transfer(msg.sender, order.collateralDelta);
+        (bool success,  ) = (msg.sender).call{value: order.executionFee}("");
+
+        
+
+        emit CancelOrder(
+            order.account,
+            order.collateralToken,
+            order.indexToken,
+            _orderIndex,
+            order.collateralDelta,
+            order.sizeDelta,
+            order.executionFee,
+            order.triggerPrice,
+            order.isLong,
+            order.triggerAboveThreshold,
+            order.isIncreaseOrder
+        );
+
+        emit UpdateOrder(
+            order.account,
+            order.collateralToken,
+            order.indexToken,
+            _orderIndex,
+            0,
+            0,
+            0,
+            false,
+            false,
+            false
+        );
+    }
+
+    function _validateIncreaseOrder(address _account, uint256 _orderIndex) internal view {
+        (
+            ,//address _collateralToken,
+            ,//amountIn
+            address _indexToken,
+            uint256 _sizeDelta,
+            bool _isLong,
+            , // triggerPrice
+            , // triggerAboveThreshold
+            // executionFee
+            , // isIncreaseOrder
+        ) = getOrder(_account, _orderIndex);
+
+        _validateMaxGlobalSize(_indexToken, _isLong, _sizeDelta);
+
+    }
+
+    function executeOrder(address _address, uint256 _orderIndex, address payable _feeReceiver) override external nonReentrant onlyOrderKeeper {
+        Order memory order = orders[_address][_orderIndex];
+        require(order.account != address(0), "OrderBook: non-existent order");
+
+        // increase long should use max price
+        // increase short should use min price
+        (uint256 currentPrice, ) = validatePositionOrderPrice(
+            order.triggerAboveThreshold,
+            order.triggerPrice,
+            order.indexToken,
+            order.isLong,
+            true
+        );
+
+
+        if(order.isIncreaseOrder){
+            _validateIncreaseOrder(_address, _orderIndex);
+            IERC20(order.collateralToken).transfer(vault, order.collateralDelta);
+            IRouter(router).pluginIncreasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
+
+        } else{
+            uint256 amountOut = IRouter(router).pluginDecreasePosition(order.account, order.collateralToken, order.indexToken, order.collateralDelta, order.sizeDelta, order.isLong, address(this));
+            IERC20(order.collateralToken).transfer(order.account, amountOut);
+        }
+
+        delete orders[_address][_orderIndex];
+
+        // pay executor
+        (bool success,  ) = _feeReceiver.call{value: order.executionFee}("");
+
+        emit ExecuteOrder(
+            order.account,
+            order.collateralToken,
+            order.indexToken,
+            _orderIndex,
+            order.collateralDelta,
+            order.sizeDelta,
+            order.triggerPrice,
+            order.executionFee,
+            currentPrice,
+            order.isLong,
+            order.triggerAboveThreshold,
+            order.isIncreaseOrder
+        );
+        emit UpdateOrder(
+            order.account,
+            order.collateralToken,
+            order.indexToken,
+            _orderIndex,
+            0,
+            0,
+            0,
+            false,
+            false,
+            false
+        );
+    }
+
+    function liquidatePosition(
+        address _account,
+        address _collateralToken,
+        address _indexToken,
+        bool _isLong,
+        address _feeReceiver
+    ) external nonReentrant onlyLiquidator {
+        IVault(vault).liquidatePosition(_account, _collateralToken, _indexToken, _isLong, _feeReceiver);
+    }
+
+
 
 }

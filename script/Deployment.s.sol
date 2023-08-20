@@ -6,10 +6,8 @@ import '../src/contracts/core/PriceFeed.sol';
 import "forge-std/Script.sol";
 import '../src/contracts/core/Vault.sol';
 import '../src/contracts/core/Router.sol';
-import '../src/contracts/core/PositionManager.sol';
-import '../src/contracts/core/OrderBook.sol';
+import '../src/contracts/core/OrderManager.sol';
 import '../src/contracts/core/USDL.sol';
-import '../src/contracts/core/PositionRouter.sol';
 import '../src/contracts/core/LlpManager.sol';
 import '../src/contracts/core/RewardRouter.sol';
 import '../src/contracts/core/RewardTracker.sol';
@@ -29,6 +27,7 @@ contract Deployment is Script {
     uint constant maxGlobalLongSize = 10**24;
     uint constant maxGlobalShortSize = 10**24;
     uint constant minPurchaseTokenAmountUsd = 0;
+    address constant executor = 0x143328D5d7C84515b3c8b3f8891471ff872C0015;
 
     function run() external{  
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); 
@@ -41,7 +40,6 @@ contract Deployment is Script {
         Vault vault = deployVault();
         PriceFeed priceFeed  = deployAndInitializePriceFeed();
         Router router = deployRouter(vault);
-        PositionRouter positionRouter = deployPositionRouter(priceFeed, vault, router);
         USDL usdl = deployUSDL(vault);
         RewardRouter rewardRouter = deployRewardRouter();
         LlpManager llpManager = deployLlpManager(vault, usdl, rewardRouter);
@@ -50,24 +48,19 @@ contract Deployment is Script {
         initializeVault(vault, router, priceFeed, usdl, vaultUtils);
         RewardTracker rewardTracker = deployRewardTracker();
         initializeRewardRouter(rewardRouter, vm.envAddress("USDC"), vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
-        OrderBook orderBook = deployAndInitializeOrderBook(vault, router, usdl);
-        deployPositionManager(vault, router, orderBook);
-        //setters
-        router.addPlugin(address(orderBook));
-        router.addPlugin(address(positionRouter));
+        deployOrderManager(vault, router, priceFeed);
     }
 
-    function deployAndInitializeOrderBook(Vault vault, Router router, USDL usdl) public returns (OrderBook){
-        OrderBook orderBook = new OrderBook();
-        console.log("OrderBook deployed at address: ", address(orderBook));
-        orderBook.initialize( address(router), address(vault), address(usdl), minExecutionFeeLimitOrder, minPurchaseTokenAmountUsd);
-        return orderBook;
-    }
-
-    function deployPositionManager(Vault vault, Router router, OrderBook orderBook) public returns (PositionManager){
-        PositionManager positionManager = new PositionManager(address(vault), address(router), address(orderBook));
-        console.log("PositionManager deployed at address: ", address(positionManager));
-        return positionManager;
+    function deployOrderManager(Vault vault, Router router, PriceFeed priceFeed) public returns (OrderManager){
+        OrderManager orderManager = new OrderManager(address(vault), address(router), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder);
+        console.log("OrderManager deployed at address: ", address(orderManager));
+        orderManager.setPositionKeeper(address(priceFeed), true);
+        orderManager.setMinExecutionFeeLimitOrder(minExecutionFeeLimitOrder);
+        orderManager.setMinExecutionFeeMarketOrder(minExecutionFeeMarketOrder);
+        orderManager.setLiquidator(0x143328D5d7C84515b3c8b3f8891471ff872C0015, true);
+        orderManager.setOrderKeeper(0x143328D5d7C84515b3c8b3f8891471ff872C0015, true);
+        orderManager.setDelayValues(0, 0, 3600);
+        return orderManager;
     }
 
     function initializeRewardRouter(RewardRouter rewardRouter, address usdc, address llp, address llpManager, address rewardTracker) public {
@@ -127,14 +120,6 @@ contract Deployment is Script {
         priceFeed.updateTokenIdMapping(vm.envAddress("BTC"), vm.envBytes32("BTC_PYTH_FEED"));
         console.log("PriceFeed initialized");
         return priceFeed;
-    }
-
-    function deployPositionRouter(PriceFeed priceFeed, Vault vault, Router router) public returns (PositionRouter){
-        PositionRouter positionRouter = new PositionRouter(address(vault), address(router), minExecutionFeeMarketOrder);
-        console.log("PositionRouter deployed at address: ", address(positionRouter));
-        positionRouter.setPositionKeeper(address(priceFeed), true);
-        router.addPlugin(address(positionRouter));
-        return positionRouter;
     }
 
     function deployVault() public returns (Vault){
