@@ -3,7 +3,6 @@
 pragma solidity ^0.8.19;
 
 import '../libraries/utils/ReentrancyGuard.sol';
-import './interfaces/IRouter.sol';
 import '../libraries/token/IERC20.sol';
 import './BaseOrderManager.sol';
 import './interfaces/IOrderManager.sol';
@@ -227,10 +226,9 @@ contract OrderManager is
 
     constructor(
         address _vault,
-        address _router,
         uint256 _minExecutionFeeMarketOrder, 
         uint256 _minExecutionFeeLimitOrder
-    ) BaseOrderManager(_vault, _router) {
+    ) BaseOrderManager(_vault) {
         minExecutionFeeMarketOrder = _minExecutionFeeMarketOrder;
         minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
     }
@@ -304,8 +302,7 @@ contract OrderManager is
         require(_executionFee == msg.value, "PositionRouter: execution fee not equal to value in msg.value");
 
         if (_amountIn > 0) {
-            IRouter(router).pluginTransfer(
-                _collateralToken,
+            IERC20(_collateralToken).transferFrom(
                 msg.sender,
                 address(this),
                 _amountIn
@@ -877,7 +874,7 @@ contract OrderManager is
         require(_executionFee >= minExecutionFeeLimitOrder, "OrderBook: insufficient execution fee");
         require(msg.value == _executionFee, "OrderBook: incorrect execution fee transferred");
         if(isIncreaseOrder){
-            IRouter(router).pluginTransfer(_collateralToken, msg.sender, address(this), _collateralDelta);
+            IERC20(_collateralToken).transferFrom(msg.sender, address(this), _collateralDelta);
         }
 
         {
@@ -1056,10 +1053,10 @@ contract OrderManager is
         if(order.isIncreaseOrder){
             _validateIncreaseOrder(_address, _orderIndex);
             IERC20(order.collateralToken).transfer(vault, order.collateralDelta);
-            IRouter(router).pluginIncreasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
+            IVault(vault).increasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 
         } else{
-            uint256 amountOut = IRouter(router).pluginDecreasePosition(order.account, order.collateralToken, order.indexToken, order.collateralDelta, order.sizeDelta, order.isLong, address(this));
+            uint256 amountOut = IVault(vault).decreasePosition(order.account, order.collateralToken, order.indexToken, order.collateralDelta, order.sizeDelta, order.isLong, address(this));
             IERC20(order.collateralToken).transfer(order.account, amountOut);
         }
 

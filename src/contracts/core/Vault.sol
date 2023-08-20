@@ -42,7 +42,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     IVaultUtils public vaultUtils;
 
-    address public override router;
+    address public override orderManager;
     address public override priceFeed;
 
     address public override usdl;
@@ -205,7 +205,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function initialize(
-        address _router,
+        address orderManager,
         address _usdl,
         address _priceFeed,
         uint256 _liquidationFeeUsd,
@@ -215,7 +215,7 @@ contract Vault is ReentrancyGuard, IVault {
         _onlyGov();
         _validate(!isInitialized, "Vault: Already Initialized!");
         isInitialized = true;
-        router = _router;
+        orderManager = orderManager;
         usdl = _usdl;
         priceFeed = _priceFeed;
         liquidationFeeUsd = _liquidationFeeUsd;
@@ -233,9 +233,9 @@ contract Vault is ReentrancyGuard, IVault {
         gov = newGov;
     }
 
-    function setRouter(address newRouter) external {
+    function setOrderManager(address newOrderManager) external {
         _onlyGov();
-        router = newRouter;
+        orderManager = newOrderManager;
     }
 
     function setUsdl(address newUsdl) external {
@@ -977,7 +977,7 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong
     ) external override nonReentrant {
         _validateGasPrice();
-        _validateRouter(_account);
+        _validateOrderManager(_account);
         _validateTokens(_collateralToken, _indexToken);
         vaultUtils.validateIncreasePosition(
             _account,
@@ -1115,7 +1115,7 @@ contract Vault is ReentrancyGuard, IVault {
         address _receiver
     ) external override nonReentrant returns (uint256) {
         _validateGasPrice();
-        _validateRouter(_account);
+        _validateOrderManager(_account);
         return
             _decreasePosition(
                 _account,
@@ -1626,11 +1626,11 @@ contract Vault is ReentrancyGuard, IVault {
         _validate(tx.gasprice <= maxGasPrice, "Vault: gas price too high");
     }
 
-    function _validateRouter(address _account) private view {
+    function _validateOrderManager(address _account) private view {
         if (msg.sender == _account) {
             return;
         }
-        _validate(msg.sender == router, "Vault: Router not approved");
+        _validate(msg.sender == orderManager, "Vault: OrderManager not approved");
     }
 
     //function is added only for testing purposes to prevent locking of funds. 

@@ -5,7 +5,6 @@ pragma solidity ^0.8.19;
 import '../src/contracts/core/PriceFeed.sol';
 import "forge-std/Script.sol";
 import '../src/contracts/core/Vault.sol';
-import '../src/contracts/core/Router.sol';
 import '../src/contracts/core/OrderManager.sol';
 import '../src/contracts/core/USDL.sol';
 import '../src/contracts/core/LlpManager.sol';
@@ -39,20 +38,20 @@ contract Deployment is Script {
     function allContractDeployments() public {
         Vault vault = deployVault();
         PriceFeed priceFeed  = deployAndInitializePriceFeed();
-        Router router = deployRouter(vault);
         USDL usdl = deployUSDL(vault);
         RewardRouter rewardRouter = deployRewardRouter();
         LlpManager llpManager = deployLlpManager(vault, usdl, rewardRouter);
         initializeLLP(llpManager);
         VaultUtils vaultUtils = deployVaultUtils(vault);
-        initializeVault(vault, router, priceFeed, usdl, vaultUtils);
+        OrderManager orderManager = deployOrderManager(vault, priceFeed);
+        initializeVault(vault, orderManager, priceFeed, usdl, vaultUtils);
         RewardTracker rewardTracker = deployRewardTracker();
         initializeRewardRouter(rewardRouter, vm.envAddress("USDC"), vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
-        deployOrderManager(vault, router, priceFeed);
+        
     }
 
-    function deployOrderManager(Vault vault, Router router, PriceFeed priceFeed) public returns (OrderManager){
-        OrderManager orderManager = new OrderManager(address(vault), address(router), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder);
+    function deployOrderManager(Vault vault, PriceFeed priceFeed) public returns (OrderManager){
+        OrderManager orderManager = new OrderManager(address(vault), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder);
         console.log("OrderManager deployed at address: ", address(orderManager));
         orderManager.setPositionKeeper(address(priceFeed), true);
         orderManager.setMinExecutionFeeLimitOrder(minExecutionFeeLimitOrder);
@@ -98,12 +97,6 @@ contract Deployment is Script {
         llp.setMinter(address(llpManager), true);
     }
 
-    function deployRouter(Vault vault) public returns (Router){
-        Router router = new Router(address(vault));
-        console.log("Router deployed at address: ", address(router));
-        return router;
-    }
-
     function deployLlpManager(Vault vault, USDL usdl, RewardRouter rewardRouter) public returns (LlpManager){
         LlpManager llpManager = new LlpManager(address(vault), address(usdl), vm.envAddress("LLP"), llpCooldownDuration);
         llpManager.setHandler(address(rewardRouter), true);
@@ -128,9 +121,9 @@ contract Deployment is Script {
         return vault;
     }
 
-    function initializeVault(Vault vault, Router router, PriceFeed priceFeed, USDL usdl, VaultUtils vaultUtils) public {
+    function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, VaultUtils vaultUtils) public {
         usdl.addVault(address(vault));
-        vault.initialize(address(router), address(usdl), address(priceFeed),liquidationFeeUsd, fundingRateFactor, vm.envAddress("USDC"));
+        vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd, fundingRateFactor, vm.envAddress("USDC"));
         vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("BTC"), 18, 0, false, false, true);

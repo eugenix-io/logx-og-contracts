@@ -8,7 +8,7 @@ interface IVault {
     function isInitialized() external view returns (bool);
     function setVaultUtils(IVaultUtils _vaultUtils) external;
 
-    function router() external view returns (address);
+    function orderManager() external view returns (address);
     function usdl() external view returns (address);
     function maxLeverage() external view returns (uint256);
     function gov() external view returns (address);
