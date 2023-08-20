@@ -205,7 +205,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function initialize(
-        address orderManager,
+        address _orderManager,
         address _usdl,
         address _priceFeed,
         uint256 _liquidationFeeUsd,
@@ -215,7 +215,7 @@ contract Vault is ReentrancyGuard, IVault {
         _onlyGov();
         _validate(!isInitialized, "Vault: Already Initialized!");
         isInitialized = true;
-        orderManager = orderManager;
+        orderManager = _orderManager;
         usdl = _usdl;
         priceFeed = _priceFeed;
         liquidationFeeUsd = _liquidationFeeUsd;

@@ -987,6 +987,7 @@ contract OrderManager is
         delete orders[msg.sender][_orderIndex];
         IERC20(order.collateralToken).transfer(msg.sender, order.collateralDelta);
         (bool success,  ) = (msg.sender).call{value: order.executionFee}("");
+        require(success, "OrderManager: Exectuion Fee transfer failed");
 
         
 
@@ -1064,6 +1065,7 @@ contract OrderManager is
 
         // pay executor
         (bool success,  ) = _feeReceiver.call{value: order.executionFee}("");
+        require(success, "OrderManager: Exectuion Fee transfer failed");
 
         emit ExecuteOrder(
             order.account,
