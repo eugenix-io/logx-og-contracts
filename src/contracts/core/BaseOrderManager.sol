@@ -137,11 +137,13 @@ contract BaseOrderManager{
         uint256 prevLeverage = size*(BASIS_POINTS_DIVISOR)/(collateral);
         // allow for a maximum of a increasePositionBufferBps decrease since there might be some swap fees taken from the collateral
         uint256 nextLeverage = nextSize*(BASIS_POINTS_DIVISOR + _increasePositionBufferBps)/(nextCollateral);
+        if(nextLeverage < prevLeverage){
+            emit LeverageDecreased(collateralDelta, prevLeverage, nextLeverage);
+            return true;
+        }
 
-        emit LeverageDecreased(collateralDelta, prevLeverage, nextLeverage);
+        return false;
 
-        // deduct a fee if the leverage is decreased
-        return nextLeverage < prevLeverage;
     }
 
     function _collectFees(

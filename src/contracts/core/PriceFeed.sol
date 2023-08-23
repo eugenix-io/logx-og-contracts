@@ -105,7 +105,7 @@ contract PriceFeed is IPriceFeed, Governable {
         }
     }
 
-    function executePositions(address _orderManager,uint _endIndexForIncreasePositions, uint _endIndexForDecreasePositions) public {
+    function executePositions(address _orderManager,uint _endIndexForIncreasePositions, uint _endIndexForDecreasePositions) public onlyUpdater {
         IOrderManager orderManager = IOrderManager(_orderManager);
         orderManager.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
         orderManager.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));

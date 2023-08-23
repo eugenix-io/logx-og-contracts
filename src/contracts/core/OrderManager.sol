@@ -256,11 +256,11 @@ contract OrderManager is
         emit SetPositionKeeper(_account, _isActive);
     }
 
-    function setMinExecutionFeeMarketOrder(uint256 _minExecutionFeeMarketOrder) external {
+    function setMinExecutionFeeMarketOrder(uint256 _minExecutionFeeMarketOrder) external onlyAdmin {
         minExecutionFeeMarketOrder = _minExecutionFeeMarketOrder;
     }
 
-    function setMinExecutionFeeLimitOrder(uint256 _minExecutionFeeLimitOrder) external {
+    function setMinExecutionFeeLimitOrder(uint256 _minExecutionFeeLimitOrder) external onlyAdmin {
         minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
     }
 
