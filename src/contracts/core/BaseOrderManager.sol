@@ -4,16 +4,14 @@ pragma solidity ^0.8.19;
 
 import '../libraries/token/IERC20.sol';
 import './interfaces/IVault.sol';
-import './interfaces/IRouter.sol';
 import './interfaces/ITimeLock.sol';
 import '../access/Governable.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
 
 
-contract BasePositionManager{
+contract BaseOrderManager{
     address public admin;
     address public vault;
-    address public router;
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     mapping (address => uint256) public maxGlobalLongSizes;
@@ -40,20 +38,14 @@ contract BasePositionManager{
     }
 
     constructor(
-        address _vault,
-        address _router
+        address _vault
     ) {
         vault = _vault;
-        router = _router;
         admin = msg.sender;
     }
 
     function setAdmin(address _admin) external onlyAdmin {
         admin = _admin;
-    }
-
-    function setRouter(address _router) external onlyAdmin {
-        router = _router;
     }
 
     function setVault(address _vault) external onlyAdmin {
@@ -102,7 +94,7 @@ contract BasePositionManager{
             require(markPrice >= acceptablePrice, "BasePositionManager: markPrice < price");
         }
 
-        IRouter(router).pluginIncreasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
+        IVault(vault).increasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
     }
 
     function _decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, uint256 _price) internal returns (uint256) {
@@ -115,7 +107,7 @@ contract BasePositionManager{
             require(markPrice <= _price, "BasePositionManager: markPrice > price");
         }
         
-        uint256 amountOut = IRouter(router).pluginDecreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
+        uint256 amountOut = IVault(vault).decreasePosition(_account, _collateralToken, _indexToken, _collateralDelta, _sizeDelta, _isLong, _receiver);
 
         return amountOut;
     }
@@ -145,11 +137,13 @@ contract BasePositionManager{
         uint256 prevLeverage = size*(BASIS_POINTS_DIVISOR)/(collateral);
         // allow for a maximum of a increasePositionBufferBps decrease since there might be some swap fees taken from the collateral
         uint256 nextLeverage = nextSize*(BASIS_POINTS_DIVISOR + _increasePositionBufferBps)/(nextCollateral);
+        if(nextLeverage < prevLeverage){
+            emit LeverageDecreased(collateralDelta, prevLeverage, nextLeverage);
+            return true;
+        }
 
-        emit LeverageDecreased(collateralDelta, prevLeverage, nextLeverage);
+        return false;
 
-        // deduct a fee if the leverage is decreased
-        return nextLeverage < prevLeverage;
     }
 
     function _collectFees(

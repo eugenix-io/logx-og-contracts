@@ -2,8 +2,11 @@
 
 pragma solidity 0.8.19;
 
-interface IOrderBook {
-
+interface IOrderManager{
+    function increasePositionRequestKeysStart() external returns (uint256);
+    function decreasePositionRequestKeysStart() external returns (uint256);
+    function executeIncreasePositions(uint256 _count, address payable _executionFeeReceiver) external;
+    function executeDecreasePositions(uint256 _count, address payable _executionFeeReceiver) external;
     function getOrder(address _account, uint256 _orderIndex) external view returns (
         address collateralToken,
         uint256 amountIn,
@@ -17,5 +20,4 @@ interface IOrderBook {
     );
 
     function executeOrder(address, uint256, address payable) external;
-
 }

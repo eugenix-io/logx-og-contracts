@@ -5,11 +5,8 @@ pragma solidity ^0.8.19;
 import '../src/contracts/core/PriceFeed.sol';
 import "forge-std/Script.sol";
 import '../src/contracts/core/Vault.sol';
-import '../src/contracts/core/Router.sol';
-import '../src/contracts/core/PositionManager.sol';
-import '../src/contracts/core/OrderBook.sol';
+import '../src/contracts/core/OrderManager.sol';
 import '../src/contracts/core/USDL.sol';
-import '../src/contracts/core/PositionRouter.sol';
 import '../src/contracts/core/LlpManager.sol';
 import '../src/contracts/core/RewardRouter.sol';
 import '../src/contracts/core/RewardTracker.sol';
@@ -29,6 +26,7 @@ contract Deployment is Script {
     uint constant maxGlobalLongSize = 10**24;
     uint constant maxGlobalShortSize = 10**24;
     uint constant minPurchaseTokenAmountUsd = 0;
+    address constant executor = 0x143328D5d7C84515b3c8b3f8891471ff872C0015;
 
     function run() external{  
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); 
@@ -40,34 +38,28 @@ contract Deployment is Script {
     function allContractDeployments() public {
         Vault vault = deployVault();
         PriceFeed priceFeed  = deployAndInitializePriceFeed();
-        Router router = deployRouter(vault);
-        PositionRouter positionRouter = deployPositionRouter(priceFeed, vault, router);
         USDL usdl = deployUSDL(vault);
         RewardRouter rewardRouter = deployRewardRouter();
         LlpManager llpManager = deployLlpManager(vault, usdl, rewardRouter);
         initializeLLP(llpManager);
         VaultUtils vaultUtils = deployVaultUtils(vault);
-        initializeVault(vault, router, priceFeed, usdl, vaultUtils);
+        OrderManager orderManager = deployOrderManager(vault, priceFeed);
+        initializeVault(vault, orderManager, priceFeed, usdl, vaultUtils);
         RewardTracker rewardTracker = deployRewardTracker();
         initializeRewardRouter(rewardRouter, vm.envAddress("USDC"), vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
-        OrderBook orderBook = deployAndInitializeOrderBook(vault, router, usdl);
-        deployPositionManager(vault, router, orderBook);
-        //setters
-        router.addPlugin(address(orderBook));
-        router.addPlugin(address(positionRouter));
+        
     }
 
-    function deployAndInitializeOrderBook(Vault vault, Router router, USDL usdl) public returns (OrderBook){
-        OrderBook orderBook = new OrderBook();
-        console.log("OrderBook deployed at address: ", address(orderBook));
-        orderBook.initialize( address(router), address(vault), address(usdl), minExecutionFeeLimitOrder, minPurchaseTokenAmountUsd);
-        return orderBook;
-    }
-
-    function deployPositionManager(Vault vault, Router router, OrderBook orderBook) public returns (PositionManager){
-        PositionManager positionManager = new PositionManager(address(vault), address(router), address(orderBook));
-        console.log("PositionManager deployed at address: ", address(positionManager));
-        return positionManager;
+    function deployOrderManager(Vault vault, PriceFeed priceFeed) public returns (OrderManager){
+        OrderManager orderManager = new OrderManager(address(vault), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder);
+        console.log("OrderManager deployed at address: ", address(orderManager));
+        orderManager.setPositionKeeper(address(priceFeed), true);
+        orderManager.setMinExecutionFeeLimitOrder(minExecutionFeeLimitOrder);
+        orderManager.setMinExecutionFeeMarketOrder(minExecutionFeeMarketOrder);
+        orderManager.setLiquidator(0x143328D5d7C84515b3c8b3f8891471ff872C0015, true);
+        orderManager.setOrderKeeper(0x143328D5d7C84515b3c8b3f8891471ff872C0015, true);
+        orderManager.setDelayValues(0, 0, 3600);
+        return orderManager;
     }
 
     function initializeRewardRouter(RewardRouter rewardRouter, address usdc, address llp, address llpManager, address rewardTracker) public {
@@ -105,12 +97,6 @@ contract Deployment is Script {
         llp.setMinter(address(llpManager), true);
     }
 
-    function deployRouter(Vault vault) public returns (Router){
-        Router router = new Router(address(vault));
-        console.log("Router deployed at address: ", address(router));
-        return router;
-    }
-
     function deployLlpManager(Vault vault, USDL usdl, RewardRouter rewardRouter) public returns (LlpManager){
         LlpManager llpManager = new LlpManager(address(vault), address(usdl), vm.envAddress("LLP"), llpCooldownDuration);
         llpManager.setHandler(address(rewardRouter), true);
@@ -129,23 +115,15 @@ contract Deployment is Script {
         return priceFeed;
     }
 
-    function deployPositionRouter(PriceFeed priceFeed, Vault vault, Router router) public returns (PositionRouter){
-        PositionRouter positionRouter = new PositionRouter(address(vault), address(router), minExecutionFeeMarketOrder);
-        console.log("PositionRouter deployed at address: ", address(positionRouter));
-        positionRouter.setPositionKeeper(address(priceFeed), true);
-        router.addPlugin(address(positionRouter));
-        return positionRouter;
-    }
-
     function deployVault() public returns (Vault){
         Vault vault = new Vault(); 
         console.log("Vault deployed at address: ", address(vault));
         return vault;
     }
 
-    function initializeVault(Vault vault, Router router, PriceFeed priceFeed, USDL usdl, VaultUtils vaultUtils) public {
+    function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, VaultUtils vaultUtils) public {
         usdl.addVault(address(vault));
-        vault.initialize(address(router), address(usdl), address(priceFeed),liquidationFeeUsd, fundingRateFactor, vm.envAddress("USDC"));
+        vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd, fundingRateFactor, vm.envAddress("USDC"));
         vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("BTC"), 18, 0, false, false, true);

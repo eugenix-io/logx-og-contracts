@@ -5,7 +5,7 @@ pragma solidity 0.8.19;
 
 import './interfaces/IPriceFeed.sol';
 import '../access/Governable.sol';
-import './interfaces/IPositionRouter.sol';
+import './interfaces/IOrderManager.sol';
 import './interfaces/IPriceEvents.sol';
 import 'pyth-sdk-solidity/IPyth.sol';
 import 'pyth-sdk-solidity/PythStructs.sol';
@@ -83,12 +83,12 @@ contract PriceFeed is IPriceFeed, Governable {
 
     function setPricesAndExecute(
         bytes[] calldata priceUpdateData,
-        address _positionRouter,
+        address _orderManager,
         uint256 _endIndexForIncreasePositions,
         uint256 _endIndexForDecreasePositions
     ) external payable onlyUpdater {
         setPrices(priceUpdateData);
-        executePostions(_positionRouter, _endIndexForIncreasePositions, _endIndexForDecreasePositions);
+        executePositions(_orderManager, _endIndexForIncreasePositions, _endIndexForDecreasePositions);
     }
 
     function setPrices(bytes[] calldata priceUpdateData) public  payable onlyUpdater{
@@ -105,10 +105,10 @@ contract PriceFeed is IPriceFeed, Governable {
         }
     }
 
-    function executePostions(address _positionRouter,uint _endIndexForIncreasePositions, uint _endIndexForDecreasePositions) public {
-        IPositionRouter positionRouter = IPositionRouter(_positionRouter);
-        positionRouter.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
-        positionRouter.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
+    function executePositions(address _orderManager,uint _endIndexForIncreasePositions, uint _endIndexForDecreasePositions) public onlyUpdater {
+        IOrderManager orderManager = IOrderManager(_orderManager);
+        orderManager.executeIncreasePositions(_endIndexForIncreasePositions, payable(msg.sender));
+        orderManager.executeDecreasePositions(_endIndexForDecreasePositions, payable(msg.sender));
     }
 
     function getFinalPrice(uint256 price, int32 exponent) private pure returns(uint256){
