@@ -35,7 +35,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public constant MAX_LIQUIDATION_FEE_USD = 100 * PRICE_PRECISION; // 100 USD
     uint256 public constant MIN_FUNDING_RATE_INTERVAL = 1 hours;
     uint256 public constant MAX_FUNDING_RATE_FACTOR = 10000; // 1%
-    uint256 public constant MAX_INT256 = uint256(type(int256).max);
 
     bool public override isInitialized;
     address public usdc;
@@ -683,9 +682,9 @@ contract Vault is ReentrancyGuard, IVault {
         _validate(liquidationState != 0, "Vault: position not liquidatable");
         uint256 markPrice = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
         if (_isLong) {
-            globalLongAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, true);
+            globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, true);
         } else {
-            globalShortAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, false, true);
+            globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, false, true);
         }
         if (liquidationState == 2) {
             // max leverage exceeded but there is collateral remaining after deducting losses so decreasePosition instead
@@ -800,31 +799,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     // for longs: nextAveragePrice = (nextPrice * nextSize)/ (nextSize + delta)
     // for shorts: nextAveragePrice = (nextPrice * nextSize) / (nextSize - delta)
-    function getNextAveragePrice(
-        address _indexToken,
-        uint256 _size,
-        uint256 _averagePrice,
-        bool _isLong,
-        uint256 _nextPrice,
-        uint256 _sizeDelta,
-        uint256 _lastIncreasedTime
-    ) public view returns (uint256) {
-        (bool hasProfit, uint256 delta) = getDelta(
-            _indexToken,
-            _size,
-            _averagePrice,
-            _isLong,
-            _lastIncreasedTime
-        );
-        uint256 nextSize = _size + (_sizeDelta);
-        uint256 divisor;
-        if (_isLong) {
-            divisor = hasProfit ? nextSize + (delta) : nextSize - (delta);
-        } else {
-            divisor = hasProfit ? nextSize - (delta) : nextSize + (delta);
-        }
-        return (_nextPrice * (nextSize)) / (divisor);
-    }
+    
 
     function withdrawFees(address _token, address _receiver) external override returns (uint256) {
         _onlyGov();
@@ -1009,7 +984,7 @@ contract Vault is ReentrancyGuard, IVault {
         }
 
         if (position.size > 0 && _sizeDelta > 0) {
-            position.averagePrice = getNextAveragePrice(
+            position.averagePrice = vaultUtils.getNextAveragePrice(
                 _indexToken,
                 position.size,
                 position.averagePrice,
@@ -1066,7 +1041,7 @@ contract Vault is ReentrancyGuard, IVault {
             if(globalLongSizes[_indexToken] ==0){
                 globalLongAveragePrices[_indexToken] = price;
             } else {
-                globalLongAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
+                globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
             }
             _increaseGlobalLongSize(_indexToken, _sizeDelta);
 
@@ -1074,7 +1049,7 @@ contract Vault is ReentrancyGuard, IVault {
             if (globalShortSizes[_indexToken] == 0) {//--etherscan-api-key "abc"
                 globalShortAveragePrices[_indexToken] = price;
             } else {
-                globalShortAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
+                globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
             }
             _increaseGlobalShortSize(_indexToken, _sizeDelta);
         }
@@ -1228,9 +1203,9 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 price = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
 
         if (_isLong) {
-            globalLongAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
+            globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
         } else {
-            globalShortAveragePrices[_indexToken] = getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
+            globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
         }
 
         if (position.size != _sizeDelta) {
@@ -1345,39 +1320,6 @@ contract Vault is ReentrancyGuard, IVault {
         delete positions[_key];
     }
 
-    function getDelta(
-        address _indexToken,
-        uint256 _size,
-        uint256 _averagePrice,
-        bool _isLong,
-        uint256 _lastIncreasedTime
-    ) public view override returns (bool, uint256) {
-        _validate(_averagePrice > 0, "Vault: averagePrice should be > 0");
-        uint256 price = _isLong
-            ? getMinPrice(_indexToken)
-            : getMaxPrice(_indexToken);
-        uint256 priceDelta = _averagePrice > price
-            ? _averagePrice - (price)
-            : price - (_averagePrice);
-        uint256 delta = (_size * (priceDelta)) / (_averagePrice);
-
-        bool hasProfit;
-        if (_isLong) {
-            hasProfit = price > _averagePrice;
-        } else {
-            hasProfit = _averagePrice > price;
-        }
-
-        // if the minProfitTime has passed then there will be no min profit threshold
-        // the min profit threshold helps to prevent front-running issues
-        uint256 minBps = block.timestamp > _lastIncreasedTime + (minProfitTime) ? 0 : minProfitBasisPoints[_indexToken];
-        if (hasProfit && delta * (BASIS_POINTS_DIVISOR) <= _size * (minBps)) {
-            delta = 0;
-        }
-
-        return (hasProfit, delta);
-    }
-
     function _reduceCollateral(
         address _account,
         address _collateralToken,
@@ -1408,7 +1350,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         // scope variables to avoid stack too deep errors
         {
-            (bool _hasProfit, uint256 delta) = getDelta(
+            (bool _hasProfit, uint256 delta) = vaultUtils.getDelta(
                 _indexToken,
                 position.size,
                 position.averagePrice,
@@ -1484,128 +1426,7 @@ contract Vault is ReentrancyGuard, IVault {
             (poolAmount);
     }
 
-    function getNextGlobalAveragePrice(
-        address _account,
-        address _collateralToken,
-        address _indexToken,
-        uint256 _nextPrice,
-        uint256 _sizeDelta,
-        bool _isLong,
-        bool _isIncrease
-    ) public view returns (uint256) {
-        int256 realisedPnl = getRealisedPnl(_account,_collateralToken, _indexToken, _sizeDelta, _isIncrease, _isLong);
-        uint256 averagePrice = _isLong? globalLongAveragePrices[_indexToken] : globalShortAveragePrices[_indexToken];
-        uint256 priceDelta = averagePrice > _nextPrice ? averagePrice-(_nextPrice) : _nextPrice-(averagePrice);
-
-        uint256 nextSize;
-        uint256 delta;
-        // avoid stack to deep
-        {
-            uint256 size = _isLong ? globalLongSizes[_indexToken]: globalShortSizes[_indexToken];
-            nextSize = _isIncrease ? size+(_sizeDelta) : size-(_sizeDelta);
-
-            if (nextSize == 0) {
-                return 0;
-            }
-
-            if (averagePrice == 0) {
-                return _nextPrice;
-            }
-            delta = size*(priceDelta)/(averagePrice);
-        }
-
-        return _getNextGlobalPositionAveragePrice(
-            averagePrice,
-            _nextPrice,
-            nextSize,
-            delta,
-            realisedPnl,
-            _isLong
-        );
-
-    }
-
-    function getRealisedPnl(
-        address _account,
-        address _collateralToken,
-        address _indexToken,
-        uint256 _sizeDelta,
-        bool _isIncrease, 
-        bool _isLong
-    ) public view returns (int256) {
-        if (_isIncrease) {
-            return 0;
-        }
-        (uint256 size, /*uint256 collateral*/, uint256 averagePrice, , , , , uint256 lastIncreasedTime) = getPosition(_account, _collateralToken, _indexToken, _isLong);
-
-        (bool hasProfit, uint256 delta) = getDelta(_indexToken, size, averagePrice, _isLong, lastIncreasedTime);
-        // get the proportional change in pnl
-        uint256 adjustedDelta = _sizeDelta*(delta)/(size);
-        require(adjustedDelta < MAX_INT256, "Vault: overflow");
-        return hasProfit ? int256(adjustedDelta) : -int256(adjustedDelta);
-    }
-
-    function _getNextGlobalPositionAveragePrice(
-        uint256 _averagePrice,
-        uint256 _nextPrice,
-        uint256 _nextSize,
-        uint256 _delta,
-        int256 _realisedPnl,
-        bool _isLong
-    ) internal pure returns (uint256) {
-        bool hasProfit = _isLong ? _nextPrice > _averagePrice : _nextPrice < _averagePrice;
-        uint256 nextDelta = _getNextDelta(hasProfit, _delta, _realisedPnl);
-        uint256 divisor;
-        if(_isLong){
-            divisor = hasProfit ? _nextSize+(nextDelta): _nextSize-(nextDelta);
-        }else{
-            divisor = hasProfit ? _nextSize-(nextDelta) : _nextSize+(nextDelta);
-        }
-
-        uint256 nextAveragePrice = _nextPrice*(_nextSize)/divisor;
-
-        return nextAveragePrice;
-    }
-
-    function _getNextDelta(
-        bool _hasProfit,
-        uint256 _delta,
-        int256 _realisedPnl
-    ) internal pure returns (uint256) {
-        // global delta 10000, realised pnl 1000 => new pnl 9000
-        // global delta 10000, realised pnl -1000 => new pnl 11000
-        // global delta -10000, realised pnl 1000 => new pnl -11000
-        // global delta -10000, realised pnl -1000 => new pnl -9000
-        // global delta 10000, realised pnl 11000 => new pnl -1000 (flips sign)
-        // global delta -10000, realised pnl -11000 => new pnl 1000 (flips sign)
-        
-        if (_hasProfit) {
-            // global shorts pnl is positive
-            if (_realisedPnl > 0) {
-                if (uint256(_realisedPnl) > _delta) {
-                    _delta = uint256(_realisedPnl)-(_delta);
-                    _hasProfit = false;
-                } else {
-                    _delta = _delta-(uint256(_realisedPnl));
-                }
-            } else {
-                _delta = _delta+(uint256(-_realisedPnl));
-            }
-            return _delta;
-        }
-
-        if (_realisedPnl > 0) {
-            _delta = _delta+(uint256(_realisedPnl));
-        } else {
-            if (uint256(-_realisedPnl) > _delta) {
-                _delta = uint256(-_realisedPnl)-(_delta);
-                _hasProfit = true;
-            } else {
-                _delta = _delta-(uint256(-_realisedPnl));
-            }
-        }
-        return _delta;
-    }
+    
 
     function _validate(bool _condition, string memory errorMessage) private pure {
         require(_condition, errorMessage);
