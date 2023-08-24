@@ -24,6 +24,8 @@ contract VaultUtils is IVaultUtils, Governable {
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     uint256 public constant FUNDING_RATE_PRECISION = 1000000;
+    uint256 public constant USDL_DECIMALS = 18;
+
 
     constructor(IVault _vault) {
         vault = _vault;
@@ -477,5 +479,19 @@ contract VaultUtils is IVaultUtils, Governable {
             }
         }
         return _delta;
+    }
+
+    function adjustForDecimals(
+        uint256 _amount,
+        address _tokenDiv,
+        address _tokenMul
+    ) public view returns (uint256) {
+        uint256 decimalsDiv = _tokenDiv == vault.usdl()
+            ? USDL_DECIMALS
+            : vault.tokenDecimals(_tokenDiv);
+        uint256 decimalsMul = _tokenMul == vault.usdl()
+            ? USDL_DECIMALS
+            : vault.tokenDecimals(_tokenMul);
+        return (_amount * (10 ** decimalsMul)) / (10 ** decimalsDiv);
     }
 }

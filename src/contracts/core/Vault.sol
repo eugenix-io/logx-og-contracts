@@ -80,11 +80,14 @@ contract Vault is ReentrancyGuard, IVault {
     // tokenBalances is used only to determine _transferIn values
     mapping(address => uint256) public override tokenBalances;
 
-    // poolAmounts tracks the number of received tokens that can be used for leverage
-    // this is tracked separately from tokenBalances to exclude funds that are deposited as margin collateral
+    // poolAmounts tracks the number of tokens received.
+    // Lets say 10^18 USDC is added to pool 1 will added to the 
+    // pool amount instead of 10^18
     mapping(address => uint256) public override poolAmounts;
 
     // reservedAmounts tracks the number of tokens reserved for open leverage positions
+    // Lets say 10^18 USDC is reserved for a leveraged position
+    // 1 will added to the reservedAmount instead of 10^18
     mapping(address => uint256) public override reservedAmounts;
 
     // cumulativeFundingRates tracks the funding rates based on utilization
@@ -345,10 +348,6 @@ contract Vault is ReentrancyGuard, IVault {
         fundingRateFactor = _fundingRateFactor;
     }
 
-    //10000000000000000000 = 10* 1e18
-    //99009900990099009027412911000000 = 99* 1e30
-    //1865430735399000000000000000000000 = 1865 * 1e30
-
 
     function _validateTokens(
         address _collateralToken,
@@ -400,7 +399,6 @@ contract Vault is ReentrancyGuard, IVault {
                 _token
             );
     }
-    //210
 
     function _transferIn(address _token) private returns (uint256) {
         uint256 prevBalance = tokenBalances[_token];
@@ -442,18 +440,25 @@ contract Vault is ReentrancyGuard, IVault {
         );
     }
 
-    function adjustForDecimals(
-        uint256 _amount,
-        address _tokenDiv,
-        address _tokenMul
-    ) public view returns (uint256) {
-        uint256 decimalsDiv = _tokenDiv == usdl
-            ? USDL_DECIMALS
-            : tokenDecimals[_tokenDiv];
-        uint256 decimalsMul = _tokenMul == usdl
-            ? USDL_DECIMALS
-            : tokenDecimals[_tokenMul];
-        return (_amount * (10 ** decimalsMul)) / (10 ** decimalsDiv);
+    function getNextFundingRate(
+        address _token
+    ) public view override returns (uint256) {
+        if (lastFundingTimes[_token] + (fundingInterval) > block.timestamp) {
+            return 0;
+        }
+
+        uint256 intervals = (block.timestamp - lastFundingTimes[_token]) / (fundingInterval);
+        uint256 poolAmount = poolAmounts[_token];
+        if (poolAmount == 0) {
+            return 0;
+        }
+
+        uint256 _fundingRateFactor = stableTokens[_token]
+            ? stableFundingRateFactor
+            : fundingRateFactor;
+        return
+            (_fundingRateFactor * (reservedAmounts[_token]) * (intervals)) /
+            (poolAmount);
     }
 
     function buyUSDL(
@@ -469,7 +474,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 price = getMinPrice(_token);
 
         uint256 usdlAmount = (tokenAmount * (price)) / (PRICE_PRECISION);
-        usdlAmount = adjustForDecimals(usdlAmount, _token, usdl);
+        usdlAmount = vaultUtils.adjustForDecimals(usdlAmount, _token, usdl);
         _validate(usdlAmount > 0, "Vault: usdlAmount too low");
 
         uint256 feeBasisPoints = vaultUtils.getBuyUsdlFeeBasisPoints(
@@ -479,7 +484,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         uint256 amountAfterFees = _collectSwapFees(_token, tokenAmount, feeBasisPoints);
         uint256 mintAmount = (amountAfterFees * (price)) / (PRICE_PRECISION);
-        mintAmount = adjustForDecimals(mintAmount, _token, usdl);
+        mintAmount = vaultUtils.adjustForDecimals(mintAmount, _token, usdl);
         _increasePoolAmount(_token, amountAfterFees);
 
         IUSDL(usdl).mint(_receiver, mintAmount);
@@ -522,7 +527,7 @@ contract Vault is ReentrancyGuard, IVault {
     ) public view override returns (uint256) {
         uint256 price = getMaxPrice(_token);
         uint256 redemptionAmount = (_usdlAmount * (PRICE_PRECISION)) / (price);
-        return adjustForDecimals(redemptionAmount, usdl, _token);
+        return vaultUtils.adjustForDecimals(redemptionAmount, usdl, _token);
     }
 
     function sellUSDL(
@@ -542,10 +547,6 @@ contract Vault is ReentrancyGuard, IVault {
 
         IUSDL(usdl).burn(address(this), usdlAmount);
 
-        // the _transferIn call increased the value of tokenBalances[usdl]
-        // usually decreases in token balances are synced by calling _transferOut
-        // however, for usdl, the tokens are burnt, so _updateTokenBalance should
-        // be manually called to record the decrease in tokens
         _updateTokenBalance(usdl);
 
         uint256 feeBasisPoints = vaultUtils.getSellUsdlFeeBasisPoints(
@@ -1404,28 +1405,6 @@ contract Vault is ReentrancyGuard, IVault {
 
         return (usdOut, usdOutAfterFee);
     }
-
-    function getNextFundingRate(
-        address _token
-    ) public view override returns (uint256) {
-        if (lastFundingTimes[_token] + (fundingInterval) > block.timestamp) {
-            return 0;
-        }
-
-        uint256 intervals = (block.timestamp - lastFundingTimes[_token]) / (fundingInterval);
-        uint256 poolAmount = poolAmounts[_token];
-        if (poolAmount == 0) {
-            return 0;
-        }
-
-        uint256 _fundingRateFactor = stableTokens[_token]
-            ? stableFundingRateFactor
-            : fundingRateFactor;
-        return
-            (_fundingRateFactor * (reservedAmounts[_token]) * (intervals)) /
-            (poolAmount);
-    }
-
     
 
     function _validate(bool _condition, string memory errorMessage) private pure {

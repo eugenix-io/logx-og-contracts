@@ -37,4 +37,9 @@ interface IVaultUtils {
         uint256 _sizeDelta,
         uint256 _lastIncreasedTime
     ) external view returns (uint256);
+    function adjustForDecimals(
+        uint256 _amount,
+        address _tokenDiv,
+        address _tokenMul
+    ) external view returns (uint256);
 }
