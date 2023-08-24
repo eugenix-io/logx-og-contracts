@@ -682,11 +682,6 @@ contract Vault is ReentrancyGuard, IVault {
         );
         _validate(liquidationState != 0, "Vault: position not liquidatable");
         uint256 markPrice = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
-        if (_isLong) {
-            globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, true);
-        } else {
-            globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, false, true);
-        }
         if (liquidationState == 2) {
             // max leverage exceeded but there is collateral remaining after deducting losses so decreasePosition instead
             _decreasePosition(
@@ -699,6 +694,12 @@ contract Vault is ReentrancyGuard, IVault {
                 _account
             );
             return;
+        }
+
+        if (_isLong) {
+            globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, false);
+        } else {
+            globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, false, false);
         }
 
         uint256 feeTokens = usdToTokenMin(_collateralToken, marginFees);
@@ -1204,9 +1205,9 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 price = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
 
         if (_isLong) {
-            globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
+            globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, false);
         } else {
-            globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
+            globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, false);
         }
 
         if (position.size != _sizeDelta) {
