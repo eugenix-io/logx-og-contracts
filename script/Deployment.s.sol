@@ -12,7 +12,6 @@ import '../src/contracts/core/RewardRouter.sol';
 import '../src/contracts/core/RewardTracker.sol';
 import '../src/contracts/core/VaultUtils.sol';
 import '../src/contracts/libraries/token/IERC20.sol';
-import '../../src/contracts/core/interfaces/IMintable.sol';
 
 
 
@@ -40,9 +39,9 @@ contract Deployment is Script {
         PriceFeed priceFeed  = deployAndInitializePriceFeed();
         USDL usdl = deployUSDL(vault);
         RewardRouter rewardRouter = deployRewardRouter();
-        LlpManager llpManager = deployLlpManager(vault, usdl, rewardRouter);
-        initializeLLP(llpManager);
         VaultUtils vaultUtils = deployVaultUtils(vault);
+        LlpManager llpManager = deployLlpManager(vault, vaultUtils, usdl, rewardRouter);
+        initializeLLP(llpManager);
         OrderManager orderManager = deployOrderManager(vault, priceFeed);
         initializeVault(vault, orderManager, priceFeed, usdl, vaultUtils);
         RewardTracker rewardTracker = deployRewardTracker();
@@ -97,8 +96,8 @@ contract Deployment is Script {
         llp.setMinter(address(llpManager), true);
     }
 
-    function deployLlpManager(Vault vault, USDL usdl, RewardRouter rewardRouter) public returns (LlpManager){
-        LlpManager llpManager = new LlpManager(address(vault), address(usdl), vm.envAddress("LLP"), llpCooldownDuration);
+    function deployLlpManager(Vault vault, VaultUtils vaultUtils, USDL usdl, RewardRouter rewardRouter) public returns (LlpManager){
+        LlpManager llpManager = new LlpManager(address(vault), address(vaultUtils), address(usdl), vm.envAddress("LLP"), llpCooldownDuration);
         llpManager.setHandler(address(rewardRouter), true);
         llpManager.whiteListToken(vm.envAddress("USDC"));
         console.log("LlpManager deployed at address: ", address(llpManager));

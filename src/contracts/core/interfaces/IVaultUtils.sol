@@ -42,4 +42,15 @@ interface IVaultUtils {
         address _tokenDiv,
         address _tokenMul
     ) external view returns (uint256);
+    function getGlobalPositionDelta(address _token, bool _isLong) external view returns (bool, uint256);
+    function getGlobalPositionDeltaWithPrice(
+        address _token,
+        uint256 _price,
+        uint256 _size,
+        bool _isLong
+    ) external view returns (bool, uint256);
+    function getAum(bool maximise) external view returns (uint256);
+    function getAumInUsdl(
+        bool maximise
+    ) external view returns (uint256);
 }

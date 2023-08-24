@@ -20,11 +20,14 @@ contract VaultUtils is IVaultUtils, Governable {
     }
 
     IVault public vault;
+    
     uint256 public constant MAX_INT256 = uint256(type(int256).max);
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     uint256 public constant FUNDING_RATE_PRECISION = 1000000;
     uint256 public constant USDL_DECIMALS = 18;
+    uint256 public constant PRICE_PRECISION = 10 ** 30;
+
 
 
     constructor(IVault _vault) {
@@ -36,13 +39,28 @@ contract VaultUtils is IVaultUtils, Governable {
     }
 
     function validateIncreasePosition(
-        address /* _account */,
-        address /* _collateralToken */,
-        address /* _indexToken */,
-        uint256 /* _sizeDelta */,
-        bool /* _isLong */
+        address _account,
+        address _collateralToken,
+        address _indexToken,
+        uint256  _sizeDelta,
+        bool  _isLong 
     ) external view override {
-        // no additional validations
+        Position memory prevPosition = getPosition(_account, _collateralToken, _indexToken, _isLong);
+        uint256 sizeAfterUpdate = _sizeDelta + prevPosition.size;
+        uint256 length = vault.allWhitelistedTokensLength();
+        uint256 globalSizeAfterUpdate = _isLong ? vault.globalLongSizes(_indexToken) + _sizeDelta: vault.globalShortSizes(_indexToken) + _sizeDelta;
+        require(sizeAfterUpdate*100/(globalSizeAfterUpdate) < vault.maxExposurePerUser(), "VaultUtils: Heavy exposure for single user");
+        uint256 availableLiquidityInUsd = 0;
+
+        for (uint256 i = 0; i < length; i++) {
+            address token = vault.allWhitelistedTokens(i);
+            if(vault.whitelistedTokens(token)){
+                continue;
+            }
+            uint256 price = vault.getMinPrice(token);
+            availableLiquidityInUsd += vault.poolAmounts(token) * price;
+        }
+        require(sizeAfterUpdate*100/(availableLiquidityInUsd) < vault.maxLiquidityPerUser(), "VaultUtils: Huge liquidity captured for single user");
     }
 
     function validateDecreasePosition(
@@ -160,7 +178,7 @@ contract VaultUtils is IVaultUtils, Governable {
         }
         //AnirudhTodo - we need to cut fees from remaining collateral and them compare right?
         if (
-            remainingCollateral * (_vault.maxLeverage()) <
+            remainingCollateral * (_vault.maxLeverage()) * vault.safetyFactor() <
             position.size * (BASIS_POINTS_DIVISOR)
         ) {
             if (_raise) {
@@ -446,12 +464,6 @@ contract VaultUtils is IVaultUtils, Governable {
         uint256 _delta,
         int256 _realisedPnl
     ) internal pure returns (uint256) {
-        // global delta 10000, realised pnl 1000 => new pnl 9000
-        // global delta 10000, realised pnl -1000 => new pnl 11000
-        // global delta -10000, realised pnl 1000 => new pnl -11000
-        // global delta -10000, realised pnl -1000 => new pnl -9000
-        // global delta 10000, realised pnl 11000 => new pnl -1000 (flips sign)
-        // global delta -10000, realised pnl -11000 => new pnl 1000 (flips sign)
 
         if (_hasProfit) {
             // global shorts pnl is positive
@@ -493,5 +505,86 @@ contract VaultUtils is IVaultUtils, Governable {
             ? USDL_DECIMALS
             : vault.tokenDecimals(_tokenMul);
         return (_amount * (10 ** decimalsMul)) / (10 ** decimalsDiv);
+    }
+
+    function getAumInUsdl(
+        bool maximise
+    ) public view returns (uint256) {
+        uint256 aum = getAum(maximise);
+        return (aum * (10 ** USDL_DECIMALS)) / (PRICE_PRECISION);
+    }
+
+    function getAum(bool maximise) public view returns (uint256) {
+        uint256 length = vault.allWhitelistedTokensLength();
+        uint256 aum;
+        uint256 profits = 0;
+        IVault _vault = vault;
+
+        for (uint256 i = 0; i < length; i++) {
+            address token = vault.allWhitelistedTokens(i);
+            bool isWhitelisted = vault.whitelistedTokens(token);
+
+            if (!isWhitelisted) {
+                continue;
+            }
+
+            uint256 price = maximise
+                ? _vault.getMaxPrice(token)
+                : _vault.getMinPrice(token);
+            uint256 poolAmount = _vault.poolAmounts(token);
+            uint256 decimals = _vault.tokenDecimals(token);
+
+            if (_vault.stableTokens(token)) {
+                aum = aum + ((poolAmount * (price)) / (10 ** decimals));
+            } else {
+                aum = aum + ((poolAmount * (price)) / (10 ** decimals));
+                uint256 shortSize = _vault.globalShortSizes(token);
+
+                if (shortSize > 0) {
+                    ( bool hasProfit, uint256 delta) = getGlobalPositionDelta(token, false);
+                    if (!hasProfit) {
+                        aum = aum + (delta);
+                    } else {
+                        profits = profits + (delta);
+                    }
+                }
+
+                uint256 longSize = _vault.globalLongSizes(token);
+
+                if (longSize > 0) {
+                    ( bool hasProfit, uint256 delta) = getGlobalPositionDelta(token, true);
+                    if (!hasProfit) {
+                        aum = aum + (delta);
+                    } else {
+                        profits = profits + (delta);
+                    }
+                }
+            }
+        }
+
+        aum = profits > aum ? 0 : aum - (profits) ;
+        return aum;
+    }
+
+    function getGlobalPositionDelta(address _token, bool _isLong) public view returns (bool, uint256) {
+        uint256 size = _isLong ? vault.globalLongSizes(_token) : vault.globalShortSizes(_token);
+        if (size == 0) { return (false, 0); }
+
+        uint256 nextPrice = _isLong ? vault.getMinPrice(_token) : vault.getMaxPrice(_token);
+        return getGlobalPositionDeltaWithPrice(_token, nextPrice, size, _isLong);
+    }
+
+    function getGlobalPositionDeltaWithPrice(
+        address _token,
+        uint256 _price,
+        uint256 _size,
+        bool _isLong
+    ) public view returns (bool, uint256) {
+        uint256 averagePrice = _isLong? vault.globalLongAveragePrices(_token) : vault.globalShortAveragePrices(_token);
+        uint256 priceDelta = averagePrice > _price
+            ? averagePrice - (_price)
+            : _price - (averagePrice);
+        uint256 delta = (_size * (priceDelta)) / (averagePrice);
+        return (averagePrice > _price, delta);
     }
 }

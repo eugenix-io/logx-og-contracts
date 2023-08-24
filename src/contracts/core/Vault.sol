@@ -64,6 +64,9 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override inPrivateLiquidationMode = false;
 
     uint256 public override maxGasPrice;
+    uint256 public override maxExposurePerUser;
+    uint256 public maxLiquidityPerUser;
+    uint256 public safetyFactor;
 
     mapping(address => bool) public override isLiquidator;
     mapping(address => bool) public override isManager;
@@ -94,6 +97,7 @@ contract Vault is ReentrancyGuard, IVault {
     mapping(address => uint256) public override cumulativeFundingRates;
     // lastFundingTimes tracks the last time funding was updated for a token
     mapping(address => uint256) public override lastFundingTimes;
+    
 
     // positions tracks all open positions
     mapping(bytes32 => Position) public positions;
@@ -243,6 +247,20 @@ contract Vault is ReentrancyGuard, IVault {
     function setUsdl(address newUsdl) external {
         _onlyGov();
         usdl = newUsdl;
+    }
+
+    function setMaxExposurePerUser(uint256 _maxExposurePerUser) public  {
+        maxExposurePerUser = _maxExposurePerUser;
+        
+    }
+
+    function setMaxLiquidityPerUser(uint256 _maxLiquidityPerUser) public  {
+        maxLiquidityPerUser = _maxLiquidityPerUser;
+        
+    }
+
+    function setSafetyFactor(uint256 _safetyFactor) public  {
+        safetyFactor = _safetyFactor;
     }   
 
     function directPoolDeposit(address _token) external override nonReentrant {
