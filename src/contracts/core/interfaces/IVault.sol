@@ -21,6 +21,10 @@ interface IVault {
     function inPrivateLiquidationMode() external view returns (bool);
 
     function maxGasPrice() external view returns (uint256);
+    function maxExposurePerUser() external view returns (uint256);
+    function maxLiquidityPerUser() external view returns (uint256);
+    function safetyFactor() external view returns (uint256);
+
 
     function isLiquidator(address _account) external view returns (bool);
     function isManager(address _account) external view returns (bool);
@@ -37,6 +41,7 @@ interface IVault {
     function setMaxGlobalLongSize(address _token, uint256 _amount) external;
     function setInPrivateLiquidationMode(bool _inPrivateLiquidationMode) external;
     function setLiquidator(address _liquidator, bool _isActive) external;
+    
 
     function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor) external;
 
