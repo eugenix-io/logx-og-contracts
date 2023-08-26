@@ -10,7 +10,7 @@ import '../src/contracts/core/USDL.sol';
 import '../src/contracts/core/LlpManager.sol';
 import '../src/contracts/core/RewardRouter.sol';
 import '../src/contracts/core/RewardTracker.sol';
-import '../src/contracts/core/VaultUtils.sol';
+import '../src/contracts/core/Utils.sol';
 import '../src/contracts/libraries/token/IERC20.sol';
 
 
@@ -39,11 +39,11 @@ contract Deployment is Script {
         PriceFeed priceFeed  = deployAndInitializePriceFeed();
         USDL usdl = deployUSDL(vault);
         RewardRouter rewardRouter = deployRewardRouter();
-        VaultUtils vaultUtils = deployVaultUtils(vault);
-        LlpManager llpManager = deployLlpManager(vault, vaultUtils, usdl, rewardRouter);
+        Utils utils = deployUtils(vault);
+        LlpManager llpManager = deployLlpManager(vault, utils, usdl, rewardRouter);
         initializeLLP(llpManager);
         OrderManager orderManager = deployOrderManager(vault, priceFeed);
-        initializeVault(vault, orderManager, priceFeed, usdl, vaultUtils);
+        initializeVault(vault, orderManager, priceFeed, usdl, utils);
         RewardTracker rewardTracker = deployRewardTracker();
         initializeRewardRouter(rewardRouter, vm.envAddress("USDC"), vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
         
@@ -72,10 +72,10 @@ contract Deployment is Script {
         return rewardTracker;
     }
 
-    function deployVaultUtils(Vault vault) public returns (VaultUtils){
-        VaultUtils vaultUtils = new VaultUtils(vault);
-        console.log("VaultUtils deployed at address: ", address(vaultUtils));
-        return vaultUtils;
+    function deployUtils(Vault vault) public returns (Utils){
+        Utils utils = new Utils(vault);
+        console.log("Utils deployed at address: ", address(utils));
+        return utils;
     }
 
     function deployUSDL(Vault vault) public returns (USDL){
@@ -96,8 +96,8 @@ contract Deployment is Script {
         llp.setMinter(address(llpManager), true);
     }
 
-    function deployLlpManager(Vault vault, VaultUtils vaultUtils, USDL usdl, RewardRouter rewardRouter) public returns (LlpManager){
-        LlpManager llpManager = new LlpManager(address(vault), address(vaultUtils), address(usdl), vm.envAddress("LLP"), llpCooldownDuration);
+    function deployLlpManager(Vault vault, Utils utils, USDL usdl, RewardRouter rewardRouter) public returns (LlpManager){
+        LlpManager llpManager = new LlpManager(address(vault), address(utils), address(usdl), vm.envAddress("LLP"), llpCooldownDuration);
         llpManager.setHandler(address(rewardRouter), true);
         llpManager.whiteListToken(vm.envAddress("USDC"));
         console.log("LlpManager deployed at address: ", address(llpManager));
@@ -120,7 +120,7 @@ contract Deployment is Script {
         return vault;
     }
 
-    function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, VaultUtils vaultUtils) public {
+    function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, Utils utils) public {
         usdl.addVault(address(vault));
         vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd, fundingRateFactor, vm.envAddress("USDC"));
         vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
@@ -128,7 +128,7 @@ contract Deployment is Script {
         vault.setTokenConfig(vm.envAddress("BTC"), 18, 0, false, false, true);
         vault.setMaxGlobalLongSize(vm.envAddress("USDC"), maxGlobalLongSize);
         vault.setMaxGlobalShortSize(vm.envAddress("USDC"), maxGlobalShortSize);
-        vault.setVaultUtils(vaultUtils);
+        vault.setUtils(utils);
     }
 
     //util functions

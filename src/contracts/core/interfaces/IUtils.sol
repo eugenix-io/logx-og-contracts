@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.19;
 
-interface IVaultUtils {
+interface IUtils {
     function validateIncreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external view;
     function validateDecreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external view;
     function validateLiquidation(address _account, address _collateralToken, address _indexToken, bool _isLong, bool _raise) external view returns (uint256, uint256);
@@ -53,4 +53,6 @@ interface IVaultUtils {
     function getAumInUsdl(
         bool maximise
     ) external view returns (uint256);
+    function calculateMintAmount(uint256 _minusdl, address _token, uint256 aumInusdl, uint256 llpSupply, uint256 _minllp) external returns(uint256, uint256);
+
 }

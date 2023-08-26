@@ -19,7 +19,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
 
     IVault public override vault;
-    IVaultUtils public vaultUtils;
+    IUtils public utils;
     address public override usdl;
     address public override llp;
 
@@ -51,14 +51,14 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
     constructor(
         address _vault,
-        address _vaultUtils,
+        address _utils,
         address _usdl,
         address _llp,
         uint256 _cooldownDuration
     ) {
         gov = msg.sender;
         vault = IVault(_vault);
-        vaultUtils = IVaultUtils(_vaultUtils);
+        utils = IUtils(_utils);
         usdl = _usdl;
         llp = _llp;
         cooldownDuration = _cooldownDuration;
@@ -140,15 +140,15 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     }
 
     function getPrice(bool _maximise) external view returns (uint256) {
-        uint256 aum = vaultUtils.getAum(_maximise);
+        uint256 aum = utils.getAum(_maximise);
         uint256 supply = IERC20(llp).totalSupply();
         return (aum * llp_PRECISION) / supply;
     }
 
     function getAums() public view returns (uint256[] memory) {
         uint256[] memory amounts = new uint256[](2);
-        amounts[0] = vaultUtils.getAum(true);
-        amounts[1] = vaultUtils.getAum(false);
+        amounts[0] = utils.getAum(true);
+        amounts[1] = utils.getAum(false);
         return amounts;
     }
 
@@ -163,7 +163,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         require(_amount > 0, "LlpManager: invalid _amount");
 
         // calculate aum before buyusdl
-        uint256 aumInusdl = vaultUtils.getAumInUsdl(true);
+        uint256 aumInusdl = utils.getAumInUsdl(true);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
         IERC20(_token).transferFrom(
@@ -171,13 +171,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             address(vault),
             _amount
         );
-        uint256 usdlAmount = vault.buyUSDL(_token, address(this));
-        require(usdlAmount >= _minusdl, "LlpManager: insufficient usdl output");
-
-        uint256 mintAmount = aumInusdl == 0
-            ? usdlAmount
-            : (usdlAmount * (llpSupply)) / (aumInusdl);
-        require(mintAmount >= _minllp, "LlpManager: insufficient llp output");
+        (uint256 mintAmount, uint256 usdlAmount) = utils.calculateMintAmount(_minusdl, _token, aumInusdl, llpSupply, _minllp);
 
         IMintable(llp).mint(_account, mintAmount);
 
@@ -210,7 +204,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         );
 
         // calculate aum before sellusdl
-        uint256 aumInusdl = vaultUtils.getAumInUsdl(false);
+        uint256 aumInusdl = utils.getAumInUsdl(false);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
         uint256 usdlAmount = (_llpAmount * (aumInusdl)) / (llpSupply);

@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 import "./interfaces/ITimelock.sol";
 import "../core/interfaces/IVault.sol";
-import "../core/interfaces/IVaultUtils.sol";
+import "../core/interfaces/IUtils.sol";
 import "../core/interfaces/ILlpManager.sol";
 import './interfaces/IRewardRouter.sol';
 import './interfaces/IUSDL.sol';
@@ -216,8 +216,8 @@ contract Timelock is ITimelock {
         IYieldToken(_token).removeAdmin(_account);
     }
 
-    function setVaultUtils(address _vault, IVaultUtils _vaultUtils) external onlyAdmin {
-        IVault(_vault).setVaultUtils(_vaultUtils);
+    function setUtils(address _vault, IUtils _utils) external onlyAdmin {
+        IVault(_vault).setUtils(_utils);
     }
 
     function setMaxGasPrice(address _vault, uint256 _maxGasPrice) external onlyAdmin {

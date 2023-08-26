@@ -5,7 +5,7 @@ pragma solidity 0.8.19;
 import "../libraries/token/IERC20.sol";
 import "../libraries/utils/ReentrancyGuard.sol";
 import "./interfaces/IVault.sol";
-import "./interfaces/IVaultUtils.sol";
+import "./interfaces/IUtils.sol";
 import "./interfaces/IPriceFeed.sol";
 import "./interfaces/IUSDL.sol";
 import "../access/Governable.sol";
@@ -39,7 +39,7 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override isInitialized;
     address public usdc;
 
-    IVaultUtils public vaultUtils;
+    IUtils public utils;
 
     address public override orderManager;
     address public override priceFeed;
@@ -229,9 +229,9 @@ contract Vault is ReentrancyGuard, IVault {
         usdc = _usdc;
     }
 
-    function setVaultUtils(IVaultUtils _vaultUtils) external override {
+    function setUtils(IUtils _utils) external override {
         _onlyGov();
-        vaultUtils = _vaultUtils;
+        utils = _utils;
     }
 
     function setGov(address newGov) external {
@@ -492,17 +492,17 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 price = getMinPrice(_token);
 
         uint256 usdlAmount = (tokenAmount * (price)) / (PRICE_PRECISION);
-        usdlAmount = vaultUtils.adjustForDecimals(usdlAmount, _token, usdl);
+        usdlAmount = utils.adjustForDecimals(usdlAmount, _token, usdl);
         _validate(usdlAmount > 0, "Vault: usdlAmount too low");
 
-        uint256 feeBasisPoints = vaultUtils.getBuyUsdlFeeBasisPoints(
+        uint256 feeBasisPoints = utils.getBuyUsdlFeeBasisPoints(
             _token,
             usdlAmount
         );
 
         uint256 amountAfterFees = _collectSwapFees(_token, tokenAmount, feeBasisPoints);
         uint256 mintAmount = (amountAfterFees * (price)) / (PRICE_PRECISION);
-        mintAmount = vaultUtils.adjustForDecimals(mintAmount, _token, usdl);
+        mintAmount = utils.adjustForDecimals(mintAmount, _token, usdl);
         _increasePoolAmount(_token, amountAfterFees);
 
         IUSDL(usdl).mint(_receiver, mintAmount);
@@ -545,7 +545,7 @@ contract Vault is ReentrancyGuard, IVault {
     ) public view override returns (uint256) {
         uint256 price = getMaxPrice(_token);
         uint256 redemptionAmount = (_usdlAmount * (PRICE_PRECISION)) / (price);
-        return vaultUtils.adjustForDecimals(redemptionAmount, usdl, _token);
+        return utils.adjustForDecimals(redemptionAmount, usdl, _token);
     }
 
     function sellUSDL(
@@ -567,7 +567,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         _updateTokenBalance(usdl);
 
-        uint256 feeBasisPoints = vaultUtils.getSellUsdlFeeBasisPoints(
+        uint256 feeBasisPoints = utils.getSellUsdlFeeBasisPoints(
             _token,
             usdlAmount
         );
@@ -691,7 +691,7 @@ contract Vault is ReentrancyGuard, IVault {
         }
         _validate(position.size > 0, "Vault: no position found");
 
-        (uint256 liquidationState, uint256 marginFees) = vaultUtils.validateLiquidation(
+        (uint256 liquidationState, uint256 marginFees) = utils.validateLiquidation(
             _account,
             _collateralToken,
             _indexToken,
@@ -715,9 +715,9 @@ contract Vault is ReentrancyGuard, IVault {
         }
 
         if (_isLong) {
-            globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, false);
+            globalLongAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, false);
         } else {
-            globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, false, false);
+            globalShortAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, false, false);
         }
 
         uint256 feeTokens = usdToTokenMin(_collateralToken, marginFees);
@@ -831,7 +831,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) public override view returns (uint256) {
-        return vaultUtils.getFeeBasisPoints(_token, _usdlDelta, _feeBasisPoints, _increment);
+        return utils.getFeeBasisPoints(_token, _usdlDelta, _feeBasisPoints, _increment);
     }
 
     function _collectMarginFees(
@@ -878,7 +878,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _sizeDelta
     ) public view returns (uint256) {
         return
-            vaultUtils.getPositionFee(
+            utils.getPositionFee(
                 _account,
                 _collateralToken,
                 _indexToken,
@@ -896,7 +896,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _entryFundingRate
     ) public view returns (uint256) {
         return
-            vaultUtils.getFundingFee(
+            utils.getFundingFee(
                 _account,
                 _collateralToken,
                 _indexToken,
@@ -912,7 +912,7 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong
     ) public view returns (uint256) {
         return
-            vaultUtils.getEntryFundingRate(
+            utils.getEntryFundingRate(
                 _collateralToken,
                 _indexToken,
                 _isLong
@@ -974,7 +974,7 @@ contract Vault is ReentrancyGuard, IVault {
         _validateGasPrice();
         _validateOrderManager(_account);
         _validateTokens(_collateralToken, _indexToken);
-        vaultUtils.validateIncreasePosition(
+        utils.validateIncreasePosition(
             _account,
             _collateralToken,
             _indexToken,
@@ -1004,7 +1004,7 @@ contract Vault is ReentrancyGuard, IVault {
         }
 
         if (position.size > 0 && _sizeDelta > 0) {
-            position.averagePrice = vaultUtils.getNextAveragePrice(
+            position.averagePrice = utils.getNextAveragePrice(
                 _indexToken,
                 position.size,
                 position.averagePrice,
@@ -1044,7 +1044,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         _validate(position.size > 0, "Vault: size should be > 0");
         _validatePosition(position.size, position.collateral);
-        vaultUtils.validateLiquidation(
+        utils.validateLiquidation(
             _account,
             _collateralToken,
             _indexToken,
@@ -1061,7 +1061,7 @@ contract Vault is ReentrancyGuard, IVault {
             if(globalLongSizes[_indexToken] ==0){
                 globalLongAveragePrices[_indexToken] = price;
             } else {
-                globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
+                globalLongAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, true);
             }
             _increaseGlobalLongSize(_indexToken, _sizeDelta);
 
@@ -1069,7 +1069,7 @@ contract Vault is ReentrancyGuard, IVault {
             if (globalShortSizes[_indexToken] == 0) {//--etherscan-api-key "abc"
                 globalShortAveragePrices[_indexToken] = price;
             } else {
-                globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
+                globalShortAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
             }
             _increaseGlobalShortSize(_indexToken, _sizeDelta);
         }
@@ -1181,7 +1181,7 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong,
         address _receiver
     ) private returns (uint256) {
-        vaultUtils.validateDecreasePosition(
+        utils.validateDecreasePosition(
             _account,
             _collateralToken,
             _indexToken,
@@ -1223,9 +1223,9 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 price = _isLong ? getMinPrice(_indexToken) : getMaxPrice(_indexToken);
 
         if (_isLong) {
-            globalLongAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, false);
+            globalLongAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, false);
         } else {
-            globalShortAveragePrices[_indexToken] = vaultUtils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, false);
+            globalShortAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, false);
         }
 
         if (position.size != _sizeDelta) {
@@ -1237,7 +1237,7 @@ contract Vault is ReentrancyGuard, IVault {
             position.size = position.size - (_sizeDelta);
 
             _validatePosition(position.size, position.collateral);
-            vaultUtils.validateLiquidation(
+            utils.validateLiquidation(
                 _account,
                 _collateralToken,
                 _indexToken,
@@ -1370,7 +1370,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         // scope variables to avoid stack too deep errors
         {
-            (bool _hasProfit, uint256 delta) = vaultUtils.getDelta(
+            (bool _hasProfit, uint256 delta) = utils.getDelta(
                 _indexToken,
                 position.size,
                 position.averagePrice,
