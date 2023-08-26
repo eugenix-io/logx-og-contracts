@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.19;
 
-import "./IVaultUtils.sol";
+import "./IUtils.sol";
 
 interface IVault {
     function isInitialized() external view returns (bool);
-    function setVaultUtils(IVaultUtils _vaultUtils) external;
+    function setUtils(IUtils _utils) external;
 
     function orderManager() external view returns (address);
     function usdl() external view returns (address);

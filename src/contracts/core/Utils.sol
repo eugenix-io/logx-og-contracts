@@ -4,11 +4,11 @@ pragma solidity 0.8.19;
 
 import "../libraries/token/IERC20.sol";
 import "./interfaces/IVault.sol";
-import "./interfaces/IVaultUtils.sol";
+import "./interfaces/IUtils.sol";
 
 import "../access/Governable.sol";
 
-contract VaultUtils is IVaultUtils, Governable {
+contract Utils is IUtils, Governable {
     struct Position {
         uint256 size;
         uint256 collateral;
@@ -49,7 +49,7 @@ contract VaultUtils is IVaultUtils, Governable {
         uint256 sizeAfterUpdate = _sizeDelta + prevPosition.size;
         uint256 length = vault.allWhitelistedTokensLength();
         uint256 globalSizeAfterUpdate = _isLong ? vault.globalLongSizes(_indexToken) + _sizeDelta: vault.globalShortSizes(_indexToken) + _sizeDelta;
-        require(sizeAfterUpdate*100/(globalSizeAfterUpdate) < vault.maxExposurePerUser(), "VaultUtils: Heavy exposure for single user");
+        require(sizeAfterUpdate*100/(globalSizeAfterUpdate) < vault.maxExposurePerUser(), "Utils: Heavy exposure for single user");
         uint256 availableLiquidityInUsd = 0;
 
         for (uint256 i = 0; i < length; i++) {
@@ -60,7 +60,7 @@ contract VaultUtils is IVaultUtils, Governable {
             uint256 price = vault.getMinPrice(token);
             availableLiquidityInUsd += vault.poolAmounts(token) * price;
         }
-        require(sizeAfterUpdate*100/(availableLiquidityInUsd) < vault.maxLiquidityPerUser(), "VaultUtils: Huge liquidity captured for single user");
+        require(sizeAfterUpdate*100/(availableLiquidityInUsd) < vault.maxLiquidityPerUser(), "Utils: Huge liquidity captured for single user");
     }
 
     function validateDecreasePosition(
