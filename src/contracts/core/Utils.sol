@@ -54,7 +54,7 @@ contract Utils is IUtils, Governable {
 
         for (uint256 i = 0; i < length; i++) {
             address token = vault.allWhitelistedTokens(i);
-            if(vault.whitelistedTokens(token)){
+            if(!vault.whitelistedTokens(token)){
                 continue;
             }
             uint256 price = vault.getMinPrice(token);
