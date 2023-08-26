@@ -28,7 +28,7 @@ contract Deployment is Script {
     address constant executor = 0x143328D5d7C84515b3c8b3f8891471ff872C0015;
 
     function run() external{  
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY"); 
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_ADMIN"); 
         vm.startBroadcast(deployerPrivateKey);
         allContractDeployments();
         vm.stopBroadcast();
@@ -129,6 +129,14 @@ contract Deployment is Script {
         vault.setMaxGlobalLongSize(vm.envAddress("USDC"), maxGlobalLongSize);
         vault.setMaxGlobalShortSize(vm.envAddress("USDC"), maxGlobalShortSize);
         vault.setVaultUtils(vaultUtils);
+    }
+
+    //util functions
+    function addLiquidity() public {
+        IERC20 usdc = IERC20(vm.envAddress("USDC"));
+        usdc.approve(vm.envAddress("LLP_MANAGER"), 3000*10**18);
+        RewardRouter rewardRouter = RewardRouter(vm.envAddress("REWARD_ROUTER"));
+        rewardRouter.mintLlp(vm.envAddress("USDC"), 1000000000000000000000, 0, 0);
     }
 
 }
