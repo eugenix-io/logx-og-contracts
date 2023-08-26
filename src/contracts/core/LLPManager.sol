@@ -171,13 +171,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             address(vault),
             _amount
         );
-        uint256 usdlAmount = vault.buyUSDL(_token, address(this));
-        require(usdlAmount >= _minusdl, "LlpManager: insufficient usdl output");
-
-        uint256 mintAmount = aumInusdl == 0
-            ? usdlAmount
-            : (usdlAmount * (llpSupply)) / (aumInusdl);
-        require(mintAmount >= _minllp, "LlpManager: insufficient llp output");
+        (uint256 mintAmount, uint256 usdlAmount) = utils.calculateMintAmount(_minusdl, _token, aumInusdl, llpSupply, _minllp);
 
         IMintable(llp).mint(_account, mintAmount);
 

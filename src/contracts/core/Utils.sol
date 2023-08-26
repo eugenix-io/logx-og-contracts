@@ -587,4 +587,16 @@ contract Utils is IUtils, Governable {
         uint256 delta = (_size * (priceDelta)) / (averagePrice);
         return (averagePrice > _price, delta);
     }
+
+
+    function calculateMintAmount(uint256 _minusdl, address _token, uint256 aumInusdl, uint256 llpSupply, uint256 _minllp) external returns(uint256, uint256){
+        uint256 usdlAmount = vault.buyUSDL(_token, address(this));
+        require(usdlAmount >= _minusdl, "LlpManager: insufficient usdl output");
+
+        uint256 mintAmount = aumInusdl == 0
+            ? usdlAmount
+            : (usdlAmount * (llpSupply)) / (aumInusdl);
+        require(mintAmount >= _minllp, "LlpManager: insufficient llp output");
+        return (mintAmount, usdlAmount);
+    }
 }
