@@ -27,11 +27,16 @@ contract Utils is IUtils, Governable {
     uint256 public constant FUNDING_RATE_PRECISION = 1000000;
     uint256 public constant USDL_DECIMALS = 18;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
+    bool public isValidate = true;
 
 
 
     constructor(IVault _vault) {
         vault = _vault;
+    }
+
+    function setValidate(bool _validate) external onlyGov{
+        isValidate = _validate;
     }
 
     function setVault(IVault _vault) external onlyGov {
@@ -45,6 +50,11 @@ contract Utils is IUtils, Governable {
         uint256  _sizeDelta,
         bool  _isLong 
     ) external view override {
+
+        if(!isValidate){
+            return;
+        }
+
         Position memory prevPosition = getPosition(_account, _collateralToken, _indexToken, _isLong);
         uint256 sizeAfterUpdate = _sizeDelta + prevPosition.size;
         uint256 length = vault.allWhitelistedTokensLength();
@@ -54,7 +64,7 @@ contract Utils is IUtils, Governable {
 
         for (uint256 i = 0; i < length; i++) {
             address token = vault.allWhitelistedTokens(i);
-            if(vault.whitelistedTokens(token)){
+            if(!vault.whitelistedTokens(token)){
                 continue;
             }
             uint256 price = vault.getMinPrice(token);
