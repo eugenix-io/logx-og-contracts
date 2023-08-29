@@ -16,3 +16,5 @@ flatten-files/
 # Dotenv file
 .env
 .DS_Store
+
+test/debugHelper.t.sol

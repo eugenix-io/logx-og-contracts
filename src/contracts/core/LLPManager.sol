@@ -64,6 +64,10 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         cooldownDuration = _cooldownDuration;
     }
 
+    function setUtils(address _utils) external onlyGov {
+         utils = IUtils(_utils);
+    }
+
     function setHandler(address _handler, bool _isActive) external onlyGov {
         isHandler[_handler] = _isActive;
     }
