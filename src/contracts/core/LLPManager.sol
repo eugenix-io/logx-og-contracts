@@ -64,6 +64,10 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         cooldownDuration = _cooldownDuration;
     }
 
+    function setUtils(address _utils) external onlyGov {
+         utils = IUtils(_utils);
+    }
+
     function setHandler(address _handler, bool _isActive) external onlyGov {
         isHandler[_handler] = _isActive;
     }
@@ -171,7 +175,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             address(vault),
             _amount
         );
-        (uint256 mintAmount, uint256 usdlAmount) = utils.calculateMintAmount(_minusdl, _token, aumInusdl, llpSupply, _minllp);
+        (uint256 mintAmount, uint256 usdlAmount) = utils.calculateMintAmount(_minusdl, _token, aumInusdl, llpSupply, _minllp, address(this));
 
         IMintable(llp).mint(_account, mintAmount);
 
