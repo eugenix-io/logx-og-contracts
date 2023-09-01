@@ -65,6 +65,7 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     function mintLlp(address _token, uint256 _amount, uint256 _minUsdl, uint256 _minLlp) external nonReentrant returns (uint256) {
         require(_amount > 0, "RewardRouter: invalid _amount");
+        //TODO:move this supported token validation to utils.
         require(_token == usdc, "RewardRouter: Only USDC is supported");
 
         address account = msg.sender;
