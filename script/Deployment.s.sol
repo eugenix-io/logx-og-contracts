@@ -41,12 +41,12 @@ contract Deployment is Script {
         RewardRouter rewardRouter = deployRewardRouter();
         Utils utils = deployUtils(vault);
         LlpManager llpManager = deployLlpManager(vault, utils, usdl, rewardRouter);
-        initializeLLP(llpManager);
+       initializeLLP(llpManager);
         OrderManager orderManager = deployOrderManager(vault, priceFeed);
         initializeVault(vault, orderManager, priceFeed, usdl, utils);
         RewardTracker rewardTracker = deployRewardTracker();
-        initializeRewardRouter(rewardRouter, vm.envAddress("USDC"), vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
-        
+        initializeRewardRouter(rewardRouter, vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
+
     }
 
     function deployOrderManager(Vault vault, PriceFeed priceFeed) public returns (OrderManager){
@@ -61,8 +61,8 @@ contract Deployment is Script {
         return orderManager;
     }
 
-    function initializeRewardRouter(RewardRouter rewardRouter, address usdc, address llp, address llpManager, address rewardTracker) public {
-        rewardRouter.initialize(usdc, llp, llpManager, rewardTracker);
+    function initializeRewardRouter(RewardRouter rewardRouter, address llp, address llpManager, address rewardTracker) public {
+        rewardRouter.initialize(llp, llpManager, rewardTracker);
         RewardTracker(rewardTracker).setHandler(address(rewardRouter), true);
     }
 
@@ -134,9 +134,9 @@ contract Deployment is Script {
     //util functions
     function addLiquidity() public {
         IERC20 usdc = IERC20(vm.envAddress("USDC"));
-        usdc.approve(vm.envAddress("LLP_MANAGER"), 3000*10**18);
+        usdc.approve(vm.envAddress("LLP_MANAGER"), 10000000*10**18);
         RewardRouter rewardRouter = RewardRouter(vm.envAddress("REWARD_ROUTER"));
-        rewardRouter.mintLlp(vm.envAddress("USDC"), 1000000000000000000000, 0, 0);
+        rewardRouter.mintLlp(vm.envAddress("USDC"), 100000000000000000000000, 0, 0);
     }
 
 }
