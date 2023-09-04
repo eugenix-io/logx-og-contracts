@@ -15,8 +15,6 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     bool public isInitialized;
 
-    address public usdc;
-
     address public llp; // logX Liquidity Provider token
 
     address public llpManager;
@@ -29,14 +27,12 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
     event Burnllp(address indexed account, uint256 amount);
 
     function initialize(
-        address _usdc,
         address _llp,
         address _llpManager,
         address _feeLlpTracker
     ) external onlyGov {
         require(!isInitialized, "RewardRouter: already initialized");
         isInitialized = true;
-        usdc = _usdc;
         llp = _llp;
         llpManager = _llpManager;
         feeLlpTracker = _feeLlpTracker;
@@ -54,10 +50,6 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         llp = _llp;
     }
 
-    function setUsdc(address _usdc) external onlyGov {
-        usdc = _usdc;
-    }
-
     // to help users who accidentally send their tokens to this contract
     function withdrawToken(address _token, address _account, uint256 _amount) external onlyGov {
         IERC20(_token).transfer(_account, _amount);
@@ -65,7 +57,6 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     function mintLlp(address _token, uint256 _amount, uint256 _minUsdl, uint256 _minLlp) external nonReentrant returns (uint256) {
         require(_amount > 0, "RewardRouter: invalid _amount");
-        require(_token == usdc, "RewardRouter: Only USDC is supported");
 
         address account = msg.sender;
         uint256 llpAmount = ILlpManager(llpManager).addLiquidityForAccount(account, account, _token, _amount, _minUsdl, _minLlp);
@@ -73,11 +64,11 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         return llpAmount;
     }
 
-    function burnLlp( uint256 _llpAmount, uint256 _minOut) external nonReentrant returns (uint256) {
+    function burnLlp( uint256 _llpAmount, uint256 _minOut, address tokenOut) external nonReentrant returns (uint256) {
         require(_llpAmount > 0, "RewardRouter: invalid _llpAmount");
 
         address account = msg.sender;
-        uint256 amountOut = ILlpManager(llpManager).removeLiquidityForAccount(account, usdc, _llpAmount, _minOut, account);
+        uint256 amountOut = ILlpManager(llpManager).removeLiquidityForAccount(account, tokenOut, _llpAmount, _minOut, account);
         emit Burnllp(account, _llpAmount);
 
         return amountOut;

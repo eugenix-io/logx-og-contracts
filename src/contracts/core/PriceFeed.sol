@@ -15,7 +15,7 @@ import 'forge-std/console.sol';
 contract PriceFeed is IPriceFeed, Governable {
 
     uint256 maxAllowedDelay;
-    address updater; 
+    mapping(address => bool) updater; 
     address pythContract;
     uint256 public constant PRICE_PRECISION = 30;
 
@@ -26,7 +26,7 @@ contract PriceFeed is IPriceFeed, Governable {
     constructor(uint _maxAllowedDelay, address _pythContract, address _updater){
         maxAllowedDelay = _maxAllowedDelay;
         pythContract = _pythContract;
-        updater = _updater;
+        updater[_updater] = true;
     }
 
     function getPriceOfToken(address _token) external override view returns(uint256){
@@ -55,7 +55,11 @@ contract PriceFeed is IPriceFeed, Governable {
     }
 
     function setUpdater(address _updater) external onlyGov{
-        updater = _updater;
+        updater[_updater] = true;
+    }
+
+    function removeUpdater(address _updater) external onlyGov {
+        updater[_updater] = false;
     }
 
     function setPythContract(address _pythContract) external onlyGov{
@@ -77,7 +81,7 @@ contract PriceFeed is IPriceFeed, Governable {
     }
 
     modifier onlyUpdater(){
-        require(msg.sender == updater, "PriceFeed: sender does not have entitlements to update price");
+        require(updater[msg.sender], "PriceFeed: sender does not have entitlements to update price");
         _;
     }
 
