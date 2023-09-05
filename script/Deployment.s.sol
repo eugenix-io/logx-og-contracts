@@ -110,6 +110,16 @@ contract Deployment is Script {
         priceFeed.updateTokenIdMapping(vm.envAddress("USDC"), vm.envBytes32("USDC_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("ETH"), vm.envBytes32("ETH_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("BTC"), vm.envBytes32("BTC_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("UNI"), vm.envBytes32("UNI_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("LINK"), vm.envBytes32("LINK_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("ARB"), vm.envBytes32("ARB_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("CRV"), vm.envBytes32("CRV_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("AVAX"), vm.envBytes32("AVAX_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("BNB"), vm.envBytes32("BNB_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("FTM"), vm.envBytes32("FTM_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("OP"), vm.envBytes32("OP_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("MATIC"), vm.envBytes32("MATIC_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("MNT"), vm.envBytes32("MNT_PYTH_FEED"));
         console.log("PriceFeed initialized");
         return priceFeed;
     }
@@ -126,6 +136,16 @@ contract Deployment is Script {
         vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("BTC"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("UNI"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("LINK"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("ARB"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("CRV"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("AVAX"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("BNB"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("FTM"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("OP"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("MATIC"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("MNT"), 18, 0, false, false, true);
         vault.setMaxGlobalLongSize(vm.envAddress("USDC"), maxGlobalLongSize);
         vault.setMaxGlobalShortSize(vm.envAddress("USDC"), maxGlobalShortSize);
         vault.setUtils(utils);
@@ -137,6 +157,14 @@ contract Deployment is Script {
         usdc.approve(vm.envAddress("LLP_MANAGER"), 10000000*10**18);
         RewardRouter rewardRouter = RewardRouter(vm.envAddress("REWARD_ROUTER"));
         rewardRouter.mintLlp(vm.envAddress("USDC"), 100000000000000000000000, 0, 0);
+    }
+
+    function updateOnlyPriceFeed() public {
+        OrderManager orderManager = OrderManager(vm.envAddress("ORDER_MANAGER"));
+        Vault vault = Vault(vm.envAddress("VAULT"));
+        PriceFeed priceFeed = deployAndInitializePriceFeed();
+        orderManager.setPositionKeeper(address(priceFeed), true);
+        vault.setPriceFeed(address(priceFeed));
     }
 
 }
