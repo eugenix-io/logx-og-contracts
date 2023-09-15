@@ -76,7 +76,6 @@ interface IVault {
 
     function priceFeed() external view returns (address);
     function fundingRateFactor() external view returns (uint256);
-    function stableFundingRateFactor() external view returns (uint256);
     function cumulativeFundingRates(address _token) external view returns (uint256);
     function getNextFundingRate(address _token) external view returns (uint256);
     function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) external view returns (uint256);

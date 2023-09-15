@@ -56,9 +56,8 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override minProfitTime;
     bool public override hasDynamicFees = false;
 
-    uint256 public override fundingInterval = 8 hours;
+    uint256 public override fundingInterval = 1 hours;
     uint256 public override fundingRateFactor;
-    uint256 public override stableFundingRateFactor;
 
     bool public override inManagerMode = false;
     bool public override inPrivateLiquidationMode = false;
@@ -471,12 +470,9 @@ contract Vault is ReentrancyGuard, IVault {
         if (poolAmount == 0) {
             return 0;
         }
-
-        uint256 _fundingRateFactor = stableTokens[_token]
-            ? stableFundingRateFactor
-            : fundingRateFactor;
+        
         return
-            (_fundingRateFactor * (reservedAmounts[_token]) * (intervals)) /
+            (fundingRateFactor * (reservedAmounts[_token]) * (intervals)) /
             (poolAmount);
     }
 
