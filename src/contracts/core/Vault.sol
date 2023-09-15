@@ -9,6 +9,7 @@ import "./interfaces/IUtils.sol";
 import "./interfaces/IPriceFeed.sol";
 import "./interfaces/IUSDL.sol";
 import "../access/Governable.sol";
+import "../libraries/utils/EnumerableSet.sol";
 
 contract Vault is ReentrancyGuard, IVault {
 
@@ -100,7 +101,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     // positions tracks all open positions
     mapping(bytes32 => Position) public positions;
-    bytes32[] public positionKeys;
+    EnumerableSet.Bytes32Set private positionKeys;
 
     // feeReserves tracks the amount of fees per token
     mapping(address => uint256) public override feeReserves;
@@ -896,13 +897,14 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function getPositionKeysList() public view returns(bytes32[] memory){
-        return positionKeys;
+        return EnumerableSet.values(positionKeys);
     }
 
     function getAllOpenPositions() public view returns(Position[] memory){
-        Position[] memory _positions = new Position[](positionKeys.length);
-        for(uint256 i = 0; i < positionKeys.length; i++) {
-            _positions[i] = positions[positionKeys[i]];
+        uint numKeys = EnumerableSet.length(positionKeys);
+        Position[] memory _positions = new Position[](numKeys);
+        for(uint256 i = 0; i < numKeys; i++) {
+            _positions[i] = positions[EnumerableSet.at(positionKeys,i)];
         }
         return _positions;
     }
@@ -943,7 +945,7 @@ contract Vault is ReentrancyGuard, IVault {
             position.collateralToken = _collateralToken;
             position.indexToken = _indexToken;
             position.isLong = _isLong;
-            positionKeys.push(key);
+            EnumerableSet.add(positionKeys,key);
         }
 
         if (position.size > 0 && _sizeDelta > 0) {
@@ -1272,15 +1274,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     function deletePositionKey(bytes32 _key) private {
-        uint size = positionKeys.length;
-        for(uint i=0;i<size;i++){
-            if(positionKeys[i] == _key){
-                positionKeys[i] = positionKeys[positionKeys.length-1];
-                positionKeys.pop();
-                break;
-            }
-        }
-        delete positions[_key];
+        EnumerableSet.remove(positionKeys, _key);
     }
 
     function _reduceCollateral(
