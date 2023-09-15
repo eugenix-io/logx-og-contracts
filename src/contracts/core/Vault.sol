@@ -844,7 +844,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _size,
         uint256 _entryFundingRate
     ) private returns (uint256) {
-        uint256 feeUsd = getPositionFee(
+        uint256 feeUsd = utils.getPositionFee(
             _account,
             _collateralToken,
             _indexToken,
@@ -852,7 +852,7 @@ contract Vault is ReentrancyGuard, IVault {
             _sizeDelta
         );
 
-        uint256 fundingFee = getFundingFee(
+        uint256 fundingFee = utils.getFundingFee(
             _account,
             _collateralToken,
             _indexToken,
@@ -869,42 +869,6 @@ contract Vault is ReentrancyGuard, IVault {
 
         emit CollectMarginFees(_collateralToken, feeUsd, feeTokens);
         return feeUsd;
-    }
-
-    function getPositionFee(
-        address _account,
-        address _collateralToken,
-        address _indexToken,
-        bool _isLong,
-        uint256 _sizeDelta
-    ) public view returns (uint256) {
-        return
-            utils.getPositionFee(
-                _account,
-                _collateralToken,
-                _indexToken,
-                _isLong,
-                _sizeDelta
-            );
-    }
-
-    function getFundingFee(
-        address _account,
-        address _collateralToken,
-        address _indexToken,
-        bool _isLong,
-        uint256 _size,
-        uint256 _entryFundingRate
-    ) public view returns (uint256) {
-        return
-            utils.getFundingFee(
-                _account,
-                _collateralToken,
-                _indexToken,
-                _isLong,
-                _size,
-                _entryFundingRate
-            );
     }
 
     function getEntryFundingRate(
