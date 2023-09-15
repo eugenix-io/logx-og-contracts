@@ -461,19 +461,7 @@ contract Vault is ReentrancyGuard, IVault {
     function getNextFundingRate(
         address _token
     ) public view override returns (uint256) {
-        if (lastFundingTimes[_token] + (fundingInterval) > block.timestamp) {
-            return 0;
-        }
-
-        uint256 intervals = (block.timestamp - lastFundingTimes[_token]) / (fundingInterval);
-        uint256 poolAmount = poolAmounts[_token];
-        if (poolAmount == 0) {
-            return 0;
-        }
-        
-        return
-            (fundingRateFactor * (reservedAmounts[_token]) * (intervals)) /
-            (poolAmount);
+        return utils.getNextFundingRate(lastFundingTimes[_token], fundingInterval, fundingRateFactor, poolAmounts[_token], reservedAmounts[_token]);
     }
 
     function buyUSDL(

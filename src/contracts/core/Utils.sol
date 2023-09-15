@@ -620,4 +620,19 @@ contract Utils is IUtils, Governable {
         }
         _validate(_size >= _collateral, "Vault: collateral exceeds size");
     }
+
+    function getNextFundingRate(uint lastFundingTime, uint fundingInterval, uint fundingRateFactor, uint poolAmount, uint reservedAmount) external view returns(uint){
+        if (lastFundingTime + (fundingInterval) > block.timestamp) {
+            return 0;
+        }
+
+        uint256 intervals = (block.timestamp - lastFundingTime) / (fundingInterval);
+        if (poolAmount == 0) {
+            return 0;
+        }
+        
+        return
+            (fundingRateFactor * (reservedAmount) * (intervals)) /
+            (poolAmount);
+    }
 }

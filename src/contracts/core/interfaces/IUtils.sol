@@ -59,4 +59,6 @@ interface IUtils {
         uint256 _collateral
     ) external view;
 
+    function getNextFundingRate(uint lastFundingTime, uint fundingInterval, uint fundingRateFactor, uint poolAmount, uint reservedAmount) external view returns(uint);
+
 }
