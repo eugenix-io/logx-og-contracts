@@ -921,16 +921,7 @@ contract Vault is ReentrancyGuard, IVault {
     }
 
     //TODO: move to utils
-    function _validatePosition(
-        uint256 _size,
-        uint256 _collateral
-    ) private view {
-        if (_size == 0) {
-            _validate(_collateral == 0, "Vault: collateral should be 0");
-            return;
-        }
-        _validate(_size >= _collateral, "Vault: collateral exceeds size");
-    }
+    
 
     //TODO: move to utils
     function usdToTokenMax(
@@ -1047,7 +1038,7 @@ contract Vault is ReentrancyGuard, IVault {
         position.lastIncreasedTime = block.timestamp;
 
         _validate(position.size > 0, "Vault: size should be > 0");
-        _validatePosition(position.size, position.collateral);
+        utils.validatePosition(position.size, position.collateral);
         utils.validateLiquidation(
             _account,
             _collateralToken,
@@ -1240,7 +1231,7 @@ contract Vault is ReentrancyGuard, IVault {
             );
             position.size = position.size - (_sizeDelta);
 
-            _validatePosition(position.size, position.collateral);
+            utils.validatePosition(position.size, position.collateral);
             utils.validateLiquidation(
                 _account,
                 _collateralToken,

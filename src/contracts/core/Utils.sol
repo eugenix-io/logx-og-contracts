@@ -609,4 +609,15 @@ contract Utils is IUtils, Governable {
         require(mintAmount >= _minllp, "LlpManager: insufficient llp output");
         return (mintAmount, usdlAmount);
     }
+
+    function validatePosition(
+        uint256 _size,
+        uint256 _collateral
+    ) public view {
+        if (_size == 0) {
+            _validate(_collateral == 0, "Vault: collateral should be 0");
+            return;
+        }
+        _validate(_size >= _collateral, "Vault: collateral exceeds size");
+    }
 }
