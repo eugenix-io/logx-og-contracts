@@ -395,6 +395,7 @@ contract Vault is ReentrancyGuard, IVault {
         stableTokens[_token] = _isStable;
         canBeCollateralToken[_token] = _canBeCollateralToken;
         canBeIndexToken[_token] = _canBeIndexToken;
+        //TODO: add a check to see if number of decimals given is same as number of decimals on IERC20  contract.
 
         // validate price feed
         getMaxPrice(_token);
@@ -919,6 +920,7 @@ contract Vault is ReentrancyGuard, IVault {
             );
     }
 
+    //TODO: move to utils
     function _validatePosition(
         uint256 _size,
         uint256 _collateral
@@ -930,6 +932,7 @@ contract Vault is ReentrancyGuard, IVault {
         _validate(_size >= _collateral, "Vault: collateral exceeds size");
     }
 
+    //TODO: move to utils
     function usdToTokenMax(
         address _token,
         uint256 _usdAmount
@@ -940,6 +943,7 @@ contract Vault is ReentrancyGuard, IVault {
         return usdToToken(_token, _usdAmount, getMinPrice(_token));
     }
 
+    //TODO: move to utils
     function usdToToken(
         address _token,
         uint256 _usdAmount,

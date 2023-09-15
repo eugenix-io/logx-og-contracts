@@ -167,4 +167,46 @@ contract Deployment is Script {
         vault.setPriceFeed(address(priceFeed));
     }
 
+    function decreaseMarketPositions() public {
+        uint256 deployerPrivateKey = vm.envUint("FUNDS_PROVIDER_PVT_KEY"); 
+        OrderManager orderManager = OrderManager(vm.envAddress("ORDER_MANAGER"));
+        vm.startBroadcast(deployerPrivateKey);
+        orderManager.createDecreasePosition{value: 38*10**16}(vm.envAddress("USDCL"), vm.envAddress("UNI"), 0, 10991053747058005000000000000000,
+        true, 0x678F9fBAce927A9490070bf1eDB1564E26e0Db8c, 4316099772300000000000000000000, 38*10**16);
+        vm.stopBroadcast();
+        uint256 decPos = orderManager.decreasePositionRequestKeysStart();
+        // vm.stopPrank();
+        // vm.startPrank(vm.envAddress("ADMIN"));
+        //orderManager.executeDecreasePositions(decPos+ 1, payable(vm.envAddress("ADMIN")));
+        //vm.stopPrank();
+    }
+
+    function increaseMarketPositions() public {
+        uint256 deployerPrivateKey = vm.envUint("FUNDS_PROVIDER_PVT_KEY"); 
+        OrderManager orderManager = OrderManager(vm.envAddress("ORDER_MANAGER"));
+        vm.startBroadcast(deployerPrivateKey);
+        IERC20  usdc = IERC20(vm.envAddress("USDCL"));
+        usdc.approve(vm.envAddress("ORDER_MANAGER"), 200*10**18);
+        orderManager.createIncreasePosition{value: 38*10**16}(vm.envAddress("USDCL"), vm.envAddress("OP"), 10000000000000000000, 10988347427288002000000000000000,
+        true, 1302658323600000000000000000000, 38*10**16);
+        orderManager.createIncreasePosition{value: 38*10**16}(vm.envAddress("USDCL"), vm.envAddress("BTC"), 10000000000000000000, 10988347427288002000000000000000,
+        false, 25354550100000000000000000000000000, 38*10**16);
+        vm.stopBroadcast();
+    }
+
+    function deployTempUtils() public {
+
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_ADMIN"); 
+        Vault vault = Vault(vm.envAddress("VAULT"));
+        LlpManager llpManager = LlpManager(vm.envAddress("LLP_MANAGER"));
+        vm.startBroadcast(deployerPrivateKey);
+        Utils utils = new Utils(vault);
+        vault.setUtils(utils);
+        llpManager.setUtils(address(utils));
+        vault.setLiquidator(0x678F9fBAce927A9490070bf1eDB1564E26e0Db8c, true);
+        vault.liquidatePosition(0x89708d517aC399244Cf3Ff54324f793A2432AC93, 0xA11be02594AEF2AB383703D4ac7c7aD01767B30E, 0x0000000000000000000000000000000000000001, true, 0x678F9fBAce927A9490070bf1eDB1564E26e0Db8c);
+        vm.stopBroadcast();
+
+    }
+
 }
