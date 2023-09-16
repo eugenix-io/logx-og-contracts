@@ -6,6 +6,7 @@ import '../libraries/utils/ReentrancyGuard.sol';
 import '../libraries/token/IERC20.sol';
 import './BaseOrderManager.sol';
 import './interfaces/IOrderManager.sol';
+import '../libraries/utils/EnumerableSet.sol';
 
 contract OrderManager is
     BaseOrderManager,
@@ -66,7 +67,8 @@ contract OrderManager is
     uint256 public increasePositionRequestKeysStart;
     uint256 public decreasePositionRequestKeysStart;
 
-    mapping (address => mapping(uint256 => Order)) public orders;
+    mapping (bytes32 => Order) public orders;
+    EnumerableSet.Bytes32Set private orderKeys;
     mapping (address => uint256) public ordersIndex;
     mapping (address => bool) public isOrderKeeper;
     mapping (address => bool) public isLiquidator;
@@ -840,7 +842,7 @@ contract OrderManager is
         uint256 executionFee,
         bool isIncreaseOrder
     ) {
-        Order memory order = orders[_account][_orderIndex];
+        Order memory order = orders[getOrderKey(_account, _orderIndex)];
         return (
             order.collateralToken,
             order.collateralDelta,
@@ -908,7 +910,8 @@ contract OrderManager is
     ) private returns(address, uint256){
         uint256 _orderIndex = ordersIndex[_account];
         ordersIndex[_account] = _orderIndex+(1);
-        orders[_account][_orderIndex] = Order(
+        bytes32 orderKey = getOrderKey(_account,_orderIndex);
+        orders[orderKey] = Order(
             _account,
             _collateralToken,
             _indexToken,
@@ -920,13 +923,14 @@ contract OrderManager is
             _triggerAboveThreshold,
             isIncreaseOrder
         );
+        EnumerableSet.add(orderKeys, orderKey);
 
         emitOrderCreateEvent(_account, _orderIndex);
         return(msg.sender, _orderIndex);
     }
 
     function emitOrderCreateEvent(address _account, uint256 idx) internal{
-        Order memory order = orders[_account][idx];
+        Order memory order = orders[getOrderKey(_account,idx)];
         emit CreateOrder(
             _account,
             order.collateralToken,
@@ -955,7 +959,7 @@ contract OrderManager is
     }
 
     function updateOrder(uint256 _orderIndex, uint256 _sizeDelta, uint256 _collateralDelta,  uint256 _triggerPrice, bool _triggerAboveThreshold) external nonReentrant {
-        Order storage order = orders[msg.sender][_orderIndex];
+        Order storage order = orders[getOrderKey(msg.sender,_orderIndex)];
         require(order.account != address(0), "OrderManager: non-existent order");
 
         order.triggerPrice = _triggerPrice;
@@ -978,10 +982,12 @@ contract OrderManager is
     }
 
     function cancelOrder(uint256 _orderIndex) public nonReentrant {
-        Order memory order = orders[msg.sender][_orderIndex];
+        bytes32 orderKey = getOrderKey(msg.sender,_orderIndex);
+        Order memory order = orders[orderKey];
         require(order.account != address(0), "OrderManager: non-existent order");
 
-        delete orders[msg.sender][_orderIndex];
+        delete orders[orderKey];
+        EnumerableSet.remove(orderKeys, orderKey);
         IERC20(order.collateralToken).transfer(msg.sender, order.collateralDelta);
         (bool success,  ) = (msg.sender).call{value: order.executionFee}("");
         require(success, "OrderManager: Exectuion Fee transfer failed");
@@ -1034,7 +1040,8 @@ contract OrderManager is
     }
 
     function executeOrder(address _address, uint256 _orderIndex, address payable _feeReceiver) override external nonReentrant onlyOrderKeeper {
-        Order memory order = orders[_address][_orderIndex];
+        bytes32 orderKey = getOrderKey(_address,_orderIndex);
+        Order memory order = orders[orderKey];
         require(order.account != address(0), "OrderManager: non-existent order");
 
         // increase long should use max price
@@ -1057,7 +1064,8 @@ contract OrderManager is
             IERC20(order.collateralToken).transfer(order.account, amountOut);
         }
 
-        delete orders[_address][_orderIndex];
+        delete orders[orderKey];
+        EnumerableSet.remove(orderKeys, orderKey);
 
         // pay executor
         (bool success,  ) = _feeReceiver.call{value: order.executionFee}("");
@@ -1101,6 +1109,7 @@ contract OrderManager is
         IVault(vault).liquidatePosition(_account, _collateralToken, _indexToken, _isLong, _feeReceiver);
     }
 
-
-
+    function getOrderKey(address _account, uint256 index) public pure returns(bytes32){
+        return keccak256(abi.encodePacked(_account, index));
+    }
 }
