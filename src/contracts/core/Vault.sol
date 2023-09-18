@@ -127,7 +127,6 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 tokenAmount,
         uint256 feeBasisPoints
     );
-
     event IncreasePosition(
         bytes32 key,
         address account,
@@ -139,6 +138,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 price,
         uint256 fee
     );
+    //TODO: add realisedPnl to this event.
     event DecreasePosition(
         bytes32 key,
         address account,
