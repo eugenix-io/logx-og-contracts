@@ -384,6 +384,9 @@ contract Vault is ReentrancyGuard, IVault {
         bool _canBeIndexToken
     ) external override {
         _onlyGov();
+        // decimal check
+        _validate(_tokenDecimals == IERC20(address(_token)).decimals(), "Vault: token decimals do not match decimals in its ERC20 contract");
+        
         // increment token count for the first time
         if (!whitelistedTokens[_token]) {
             allWhitelistedTokens.push(_token);
@@ -396,9 +399,6 @@ contract Vault is ReentrancyGuard, IVault {
         canBeCollateralToken[_token] = _canBeCollateralToken;
         canBeIndexToken[_token] = _canBeIndexToken;
         //TODO: add a check to see if number of decimals given is same as number of decimals on IERC20  contract.
-
-        // validate price feed
-        getMaxPrice(_token);
     }
 
     function getMaxPrice(
