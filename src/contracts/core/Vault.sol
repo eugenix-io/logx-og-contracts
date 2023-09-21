@@ -788,19 +788,6 @@ contract Vault is ReentrancyGuard, IVault {
         return feeUsd;
     }
 
-    function getEntryFundingRate(
-        address _collateralToken,
-        address _indexToken,
-        bool _isLong
-    ) public view returns (uint256) {
-        return
-            utils.getEntryFundingRate(
-                _collateralToken,
-                _indexToken,
-                _isLong
-            );
-    }
-
     function getPositionKeysList() public view returns(bytes32[] memory){
         return EnumerableSet.values(positionKeys);
     }
@@ -884,7 +871,7 @@ contract Vault is ReentrancyGuard, IVault {
         _validate(position.collateral >= fee, "Vault: insufficient collateral");
 
         position.collateral = position.collateral - (fee);
-        position.entryFundingRate = getEntryFundingRate(
+        position.entryFundingRate = utils.getEntryFundingRate(
             _collateralToken,
             _indexToken,
             _isLong
@@ -1079,7 +1066,7 @@ contract Vault is ReentrancyGuard, IVault {
         }
 
         if (position.size != _sizeDelta) {
-            position.entryFundingRate = getEntryFundingRate(
+            position.entryFundingRate = utils.getEntryFundingRate(
                 _collateralToken,
                 _indexToken,
                 _isLong

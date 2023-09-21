@@ -206,6 +206,7 @@ contract Utils is IUtils, Governable {
         return (0, marginFees);
     }
 
+    // TODO: revisit this, check implemention
     function getEntryFundingRate(
         address _collateralToken,
         address /* _indexToken */,
