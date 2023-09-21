@@ -65,6 +65,7 @@ interface IUtils {
     function getMaxPrice(address _token) external view returns (uint256);
     function usdToTokenMin(address _token, uint256 _usdAmount) external view returns (uint256);
     function usdToTokenMax(address _token, uint256 _usdAmount) external view returns (uint256);
+    function updateCumulativeFundingRate(uint256 lastFundingTime, uint256 fundingInterval, uint256 fundingRateFactor, uint256 poolAmount, uint256 reservedAmount) external view returns(uint256 fundingTime, uint256 fundingRate);
 
 
 }

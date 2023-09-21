@@ -626,8 +626,22 @@ contract Utils is IUtils, Governable {
         }
         _validate(_size >= _collateral, "Vault: collateral exceeds size");
     }
+    function updateCumulativeFundingRate(uint256 lastFundingTime, uint256 fundingInterval, uint256 fundingRateFactor, uint256 poolAmount, uint256 reservedAmount) public view returns(uint256 fundingTime, uint256 fundingRate) {
+        if (lastFundingTime == 0) {
+            return ((block.timestamp / (fundingInterval)) * (fundingInterval) , 0);
+        }
+        
+        if (lastFundingTime + (fundingInterval) > block.timestamp) {
+            return (lastFundingTime,0);
+        }
 
-    function getNextFundingRate(uint lastFundingTime, uint fundingInterval, uint fundingRateFactor, uint poolAmount, uint reservedAmount) external view returns(uint){
+        fundingTime =  (block.timestamp / (fundingInterval)) * (fundingInterval);
+        fundingRate = getNextFundingRate(lastFundingTime, fundingInterval, fundingRateFactor, poolAmount, reservedAmount);
+
+        return (fundingTime, fundingRate);
+    }
+
+    function getNextFundingRate(uint lastFundingTime, uint fundingInterval, uint fundingRateFactor, uint poolAmount, uint reservedAmount) public view returns(uint){
         if (lastFundingTime + (fundingInterval) > block.timestamp) {
             return 0;
         }
@@ -679,5 +693,7 @@ contract Utils is IUtils, Governable {
     function getMaxPrice(address _token) public view returns (uint256) {
         return priceFeed.getMaxPriceOfToken(_token);
     }
+
+    
 
 }

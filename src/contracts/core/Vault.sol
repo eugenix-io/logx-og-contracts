@@ -26,7 +26,7 @@ contract Vault is ReentrancyGuard, IVault {
         int256 realisedPnl;
         uint256 lastIncreasedTime;
     }
-
+// ------------------------- LOGIC
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     uint256 public constant FUNDING_RATE_PRECISION = 1000000;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
@@ -67,6 +67,8 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override maxExposurePerUser;
     uint256 public maxLiquidityPerUser;
     uint256 public safetyFactor;
+
+// ------------------------------ / :LOGIC
 
     mapping(address => bool) public override isLiquidator;
     mapping(address => bool) public override isManager;
@@ -409,43 +411,19 @@ contract Vault is ReentrancyGuard, IVault {
         return nextBalance - (prevBalance);
     }
 
-    function updateCumulativeFundingRate(
-        address _collateralToken
-    ) public {
+    function updateCumulativeFundingRate(address _collateralToken) public {
 
-        if (lastFundingTimes[_collateralToken] == 0) {
-            lastFundingTimes[_collateralToken] =
-                (block.timestamp / (fundingInterval)) *
-                (fundingInterval);
-            return;
-        }
+        (uint256 fundingTime, uint256 fundingRate) = utils.updateCumulativeFundingRate(lastFundingTimes[_collateralToken], fundingInterval, fundingRateFactor, poolAmounts[_collateralToken], reservedAmounts[_collateralToken]);
 
-        if (
-            lastFundingTimes[_collateralToken] + (fundingInterval) >
-            block.timestamp
-        ) {
-            return;
-        }
-
-        uint256 fundingRate = getNextFundingRate(_collateralToken);
-        cumulativeFundingRates[_collateralToken] =
-            cumulativeFundingRates[_collateralToken] +
-            (fundingRate);
-        lastFundingTimes[_collateralToken] =
-            (block.timestamp / (fundingInterval)) *
-            (fundingInterval);
-
+        lastFundingTimes[_collateralToken] = fundingTime;
+        cumulativeFundingRates[_collateralToken] = cumulativeFundingRates[_collateralToken] + (fundingRate);
+        
         emit UpdateFundingRate(
             _collateralToken,
             cumulativeFundingRates[_collateralToken]
         );
     }
 
-    function getNextFundingRate(
-        address _token
-    ) public view override returns (uint256) {
-        return utils.getNextFundingRate(lastFundingTimes[_token], fundingInterval, fundingRateFactor, poolAmounts[_token], reservedAmounts[_token]);
-    }
 
     function buyUSDL(
         address _token,
