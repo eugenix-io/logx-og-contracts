@@ -47,6 +47,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     address public override usdl;
     address public override gov;
+    bool public ceaseActivity = false;
 
     uint256 public override maxLeverage = 50 * 10000; // 50x
 
@@ -231,6 +232,7 @@ contract Vault is ReentrancyGuard, IVault {
         usdc = _usdc;
     }
 
+
     function setUtils(IUtils _utils) external override {
         _onlyGov();
         utils = _utils;
@@ -239,6 +241,11 @@ contract Vault is ReentrancyGuard, IVault {
     function setGov(address newGov) external {
         _onlyGov();
         gov = newGov;
+    }
+
+    function setCeaseActivity(bool _cease) external {
+        _onlyGov();
+        ceaseActivity = _cease;
     }
 
     function setOrderManager(address newOrderManager) external {
@@ -808,6 +815,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _sizeDelta,
         bool _isLong
     ) external override nonReentrant {
+        _validate(!ceaseActivity, "Vault: trade activity is suspended!");
         _validateGasPrice();
         _validateOrderManager(_account);
         _validateTokens(_collateralToken, _indexToken);
@@ -946,6 +954,7 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong,
         address _receiver
     ) external override nonReentrant returns (uint256) {
+        _validate(!ceaseActivity, "Vault: trade activity is suspended!");
         _validateGasPrice();
         _validateOrderManager(_account);
         return
