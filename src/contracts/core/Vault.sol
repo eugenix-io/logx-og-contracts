@@ -485,15 +485,6 @@ contract Vault is ReentrancyGuard, IVault {
         emit DecreasePoolAmount(_token, _amount);
     }
 
-    function getRedemptionAmount(
-        address _token,
-        uint256 _usdlAmount
-    ) public view override returns (uint256) {
-        uint256 price = utils.getMaxPrice(_token);
-        uint256 redemptionAmount = (_usdlAmount * (PRICE_PRECISION)) / (price);
-        return utils.adjustForDecimals(redemptionAmount, usdl, _token);
-    }
-
     function sellUSDL(
         address _token,
         address _receiver
@@ -504,7 +495,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 usdlAmount = _transferIn(usdl);
         _validate(usdlAmount > 0, "Vault: usdlAmount too low");
 
-        uint256 redemptionAmount = getRedemptionAmount(_token, usdlAmount);
+        uint256 redemptionAmount = utils.getRedemptionAmount(_token, usdlAmount);
         _validate(redemptionAmount > 0, "Vault: redemptionAmount too low");
 
         _decreasePoolAmount(_token, redemptionAmount);

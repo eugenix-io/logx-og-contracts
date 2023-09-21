@@ -98,7 +98,6 @@ interface IVault {
     function canBeCollateralToken(address _token) external view returns (bool);
     function poolAmounts(address _token) external view returns (uint256);
     function reservedAmounts(address _token) external view returns (uint256);
-    function getRedemptionAmount(address _token, uint256 _usdlAmount) external view returns (uint256);
-
+    
     function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool, uint256);
 }

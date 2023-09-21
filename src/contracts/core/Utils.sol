@@ -695,5 +695,10 @@ contract Utils is IUtils, Governable {
     }
 
     
+    function getRedemptionAmount(address _token, uint256 _usdlAmount) public view override returns (uint256) {
+        uint256 price = getMaxPrice(_token);
+        uint256 redemptionAmount = (_usdlAmount * (PRICE_PRECISION)) / (price);
+        return adjustForDecimals(redemptionAmount, vault.usdl(), _token);
+    }
 
 }
