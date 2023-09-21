@@ -67,6 +67,14 @@ interface IUtils {
     function usdToTokenMax(address _token, uint256 _usdAmount) external view returns (uint256);
     function updateCumulativeFundingRate(uint256 lastFundingTime, uint256 fundingInterval, uint256 fundingRateFactor, uint256 poolAmount, uint256 reservedAmount) external view returns(uint256 fundingTime, uint256 fundingRate);
     function getRedemptionAmount(address _token, uint256 _usdlAmount) external view  returns (uint256);
-
+    function collectMarginFees(
+        address _account,
+        address _collateralToken,
+        address _indexToken,
+        bool _isLong,
+        uint256 _sizeDelta,
+        uint256 _size,
+        uint256 _entryFundingRate
+    ) external returns (uint256 feeTokens, uint256 feeUsd);
 
 }

@@ -702,4 +702,36 @@ contract Utils is IUtils, Governable {
         return adjustForDecimals(redemptionAmount, vault.usdl(), _token);
     }
 
+    function collectMarginFees(
+        address _account,
+        address _collateralToken,
+        address _indexToken,
+        bool _isLong,
+        uint256 _sizeDelta,
+        uint256 _size,
+        uint256 _entryFundingRate
+    ) public view returns (uint256 feeTokens, uint256 feeUsd) {
+        feeUsd = getPositionFee(
+            _account,
+            _collateralToken,
+            _indexToken,
+            _isLong,
+            _sizeDelta
+        );
+
+        uint256 fundingFee = getFundingFee(
+            _account,
+            _collateralToken,
+            _indexToken,
+            _isLong,
+            _size,
+            _entryFundingRate
+        );
+        feeUsd = feeUsd + (fundingFee);
+
+        feeTokens = usdToTokenMin(_collateralToken, feeUsd);
+
+        return (feeTokens, feeUsd);
+    }
+
 }

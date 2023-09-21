@@ -375,7 +375,7 @@ contract Vault is ReentrancyGuard, IVault {
         fundingRateFactor = _fundingRateFactor;
     }
 
-
+    // potential shift
     function _validateTokens(
         address _collateralToken,
         address _indexToken
@@ -431,7 +431,7 @@ contract Vault is ReentrancyGuard, IVault {
         );
     }
 
-
+    // potential shift
     function buyUSDL(
         address _token,
         address _receiver
@@ -470,6 +470,7 @@ contract Vault is ReentrancyGuard, IVault {
         return mintAmount;
     }
 
+    // potential shift
     function _collectSwapFees(address _token, uint256 _amount, uint256 _feeBasisPoints) private returns (uint256) {
         uint256 afterFeeAmount = _amount*(BASIS_POINTS_DIVISOR-(_feeBasisPoints))/(BASIS_POINTS_DIVISOR);
         uint256 feeAmount = _amount-(afterFeeAmount);
@@ -492,6 +493,7 @@ contract Vault is ReentrancyGuard, IVault {
         emit DecreasePoolAmount(_token, _amount);
     }
 
+    // potential shift
     function sellUSDL(
         address _token,
         address _receiver
@@ -723,11 +725,6 @@ contract Vault is ReentrancyGuard, IVault {
 
     }
 
-    
-
-    //100015345354437731381
-    //210000000000000000000
-
     function _increaseReservedAmount(address _token, uint256 _amount) private {
         reservedAmounts[_token] = reservedAmounts[_token] + (_amount);
         _validate(reservedAmounts[_token] <= poolAmounts[_token], "Vault: reservedAmount exceedes poolAmount");
@@ -755,10 +752,7 @@ contract Vault is ReentrancyGuard, IVault {
         return amount;
     }
 
-    function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) public override view returns (uint256) {
-        return utils.getFeeBasisPoints(_token, _usdlDelta, _feeBasisPoints, _increment);
-    }
-
+// shift
     function _collectMarginFees(
         address _account,
         address _collateralToken,
@@ -768,29 +762,8 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _size,
         uint256 _entryFundingRate
     ) private returns (uint256) {
-        uint256 feeUsd = utils.getPositionFee(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _isLong,
-            _sizeDelta
-        );
-
-        uint256 fundingFee = utils.getFundingFee(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _isLong,
-            _size,
-            _entryFundingRate
-        );
-        feeUsd = feeUsd + (fundingFee);
-
-        uint256 feeTokens = utils.usdToTokenMin(_collateralToken, feeUsd);
-        feeReserves[_collateralToken] =
-            feeReserves[_collateralToken] +
-            (feeTokens);
-
+        (uint256 feeTokens, uint256 feeUsd) = utils.collectMarginFees(_account, _collateralToken, _indexToken, _isLong, _sizeDelta, _size, _entryFundingRate);
+        feeReserves[_collateralToken] = feeReserves[_collateralToken] + (feeTokens);
         emit CollectMarginFees(_collateralToken, feeUsd, feeTokens);
         return feeUsd;
     }

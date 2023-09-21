@@ -76,7 +76,7 @@ interface IVault {
     function priceFeed() external view returns (address);
     function fundingRateFactor() external view returns (uint256);
     function cumulativeFundingRates(address _token) external view returns (uint256);
-    function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) external view returns (uint256);
+    // function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) external view returns (uint256);
 
     function liquidationFeeUsd() external view returns (uint256);
     function mintBurnFeeBasisPoints() external view returns (uint256);
@@ -98,6 +98,6 @@ interface IVault {
     function canBeCollateralToken(address _token) external view returns (bool);
     function poolAmounts(address _token) external view returns (uint256);
     function reservedAmounts(address _token) external view returns (uint256);
-    
+
     function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool, uint256);
 }
