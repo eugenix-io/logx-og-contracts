@@ -5,6 +5,7 @@ pragma solidity 0.8.19;
 import "../libraries/token/IERC20.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IUtils.sol";
+import "./interfaces/IPriceFeed.sol";
 
 import "../access/Governable.sol";
 
@@ -20,6 +21,7 @@ contract Utils is IUtils, Governable {
     }
 
     IVault public vault;
+    IPriceFeed public priceFeed;
     
     uint256 public constant MAX_INT256 = uint256(type(int256).max);
 
@@ -31,8 +33,9 @@ contract Utils is IUtils, Governable {
 
 
 
-    constructor(IVault _vault) {
+    constructor(IVault _vault, IPriceFeed _pricefeed) {
         vault = _vault;
+        priceFeed = _pricefeed;
     }
 
     function setValidate(bool _validate) external onlyGov{
@@ -41,6 +44,9 @@ contract Utils is IUtils, Governable {
 
     function setVault(IVault _vault) external onlyGov {
         vault = _vault;
+    }
+    function setPriceFeed(IPriceFeed _pricefeed) external onlyGov {
+        priceFeed = _pricefeed;
     }
 
     function validateIncreasePosition(
@@ -67,7 +73,7 @@ contract Utils is IUtils, Governable {
             if(!vault.whitelistedTokens(token)){
                 continue;
             }
-            uint256 price = vault.getMinPrice(token);
+            uint256 price = getMinPrice(token);
             availableLiquidityInUsd += vault.poolAmounts(token) * price;
         }
         require(sizeAfterUpdate*100/(availableLiquidityInUsd) < vault.maxLiquidityPerUser(), "Utils: Huge liquidity captured for single user");
@@ -318,8 +324,8 @@ contract Utils is IUtils, Governable {
     ) public view returns (bool, uint256) {
         _validate(_averagePrice > 0, "Vault: averagePrice should be > 0");
         uint256 price = _isLong
-            ? vault.getMinPrice(_indexToken)
-            : vault.getMaxPrice(_indexToken);
+            ? getMinPrice(_indexToken)
+            : getMaxPrice(_indexToken);
         uint256 priceDelta = _averagePrice > price
             ? _averagePrice - (price)
             : price - (_averagePrice);
@@ -539,8 +545,8 @@ contract Utils is IUtils, Governable {
             }
 
             uint256 price = maximise
-                ? _vault.getMaxPrice(token)
-                : _vault.getMinPrice(token);
+                ? getMaxPrice(token)
+                : getMinPrice(token);
             uint256 poolAmount = _vault.poolAmounts(token);
             uint256 decimals = _vault.tokenDecimals(token);
 
@@ -580,7 +586,7 @@ contract Utils is IUtils, Governable {
         uint256 size = _isLong ? vault.globalLongSizes(_token) : vault.globalShortSizes(_token);
         if (size == 0) { return (false, 0); }
 
-        uint256 nextPrice = _isLong ? vault.getMinPrice(_token) : vault.getMaxPrice(_token);
+        uint256 nextPrice = _isLong ? getMinPrice(_token) : getMaxPrice(_token);
         return getGlobalPositionDeltaWithPrice(_token, nextPrice, size, _isLong);
     }
 
@@ -635,4 +641,43 @@ contract Utils is IUtils, Governable {
             (fundingRateFactor * (reservedAmount) * (intervals)) /
             (poolAmount);
     }
+
+    function usdToTokenMax(address _token, uint256 _usdAmount) public view returns (uint256) {
+        if (_usdAmount == 0) { 
+            return 0;
+        }
+        return usdToToken(_token, _usdAmount, getMinPrice(_token));
+    }
+
+    function usdToTokenMin(address _token, uint256 _usdAmount) public view returns (uint256) {
+        if (_usdAmount == 0) {
+            return 0;
+        }
+        return usdToToken(_token, _usdAmount, getMaxPrice(_token));
+    }
+
+    function tokenToUsdMin(address _token, uint256 _tokenAmount) public view returns (uint256) {
+        if (_tokenAmount == 0) {
+            return 0;
+        }
+        uint256 price = getMinPrice(_token);
+        uint256 decimals = vault.tokenDecimals(_token);
+        return (_tokenAmount * (price)) / (10 ** decimals);
+    }
+
+    function usdToToken(address _token, uint256 _usdAmount, uint256 _price) public view returns (uint256) {
+        if (_usdAmount == 0) {
+            return 0;
+        }
+        uint256 decimals = vault.tokenDecimals(_token);
+        return (_usdAmount * (10 ** decimals)) / (_price);
+    }
+
+    function getMinPrice(address _token) public view returns (uint256) {
+        return priceFeed.getMinPriceOfToken(_token);
+    }
+    function getMaxPrice(address _token) public view returns (uint256) {
+        return priceFeed.getMaxPriceOfToken(_token);
+    }
+
 }

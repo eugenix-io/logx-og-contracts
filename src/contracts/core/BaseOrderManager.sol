@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 
 import '../libraries/token/IERC20.sol';
 import './interfaces/IVault.sol';
+import './interfaces/IUtils.sol';
 import './interfaces/ITimeLock.sol';
 import '../access/Governable.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
@@ -12,6 +13,7 @@ import '../libraries/utils/ReentrancyGuard.sol';
 contract BaseOrderManager{
     address public admin;
     address public vault;
+    address public utils;
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     mapping (address => uint256) public maxGlobalLongSizes;
@@ -38,9 +40,11 @@ contract BaseOrderManager{
     }
 
     constructor(
-        address _vault
+        address _vault,
+        address _utils
     ) {
         vault = _vault;
+        utils = _utils;
         admin = msg.sender;
     }
 
@@ -50,6 +54,10 @@ contract BaseOrderManager{
 
     function setVault(address _vault) external onlyAdmin {
         vault = _vault;
+    }
+    
+    function setUtils(address _utils) external onlyAdmin {
+        utils = _utils;
     }
 
     function setMaxGlobalSizes(
@@ -87,7 +95,7 @@ contract BaseOrderManager{
     function _increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, uint256 acceptablePrice) internal {
         _validateMaxGlobalSize(_indexToken, _isLong, _sizeDelta);
 
-        uint256 markPrice = _isLong ? IVault(vault).getMaxPrice(_indexToken) : IVault(vault).getMinPrice(_indexToken);
+        uint256 markPrice = _isLong ? IUtils(utils).getMaxPrice(_indexToken) : IUtils(utils).getMinPrice(_indexToken);
         if (_isLong) {
             require(markPrice <= acceptablePrice, "BasePositionManager: markPrice > price");
         } else {
@@ -98,9 +106,8 @@ contract BaseOrderManager{
     }
 
     function _decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, uint256 _price) internal returns (uint256) {
-        address _vault = vault;
 
-        uint256 markPrice = _isLong ? IVault(_vault).getMinPrice(_indexToken) : IVault(_vault).getMaxPrice(_indexToken);
+        uint256 markPrice = _isLong ? IUtils(utils).getMinPrice(_indexToken) : IUtils(utils).getMaxPrice(_indexToken);
         if (_isLong) {
             require(markPrice >= _price, "BasePositionManager: markPrice < price");
         } else {
@@ -131,7 +138,7 @@ contract BaseOrderManager{
         if (size == 0) { return false; }
 
         uint256 nextSize = size+(_sizeDelta);
-        uint256 collateralDelta = IVault(vault).tokenToUsdMin(collateralToken, _amountIn);
+        uint256 collateralDelta = IUtils(utils).tokenToUsdMin(collateralToken, _amountIn);
         uint256 nextCollateral = collateral+(collateralDelta);
 
         uint256 prevLeverage = size*(BASIS_POINTS_DIVISOR)/(collateral);

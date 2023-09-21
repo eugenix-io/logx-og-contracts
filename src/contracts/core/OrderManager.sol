@@ -228,9 +228,10 @@ contract OrderManager is
 
     constructor(
         address _vault,
+        address _utils,
         uint256 _minExecutionFeeMarketOrder, 
         uint256 _minExecutionFeeLimitOrder
-    ) BaseOrderManager(_vault) {
+    ) BaseOrderManager(_vault, _utils) {
         minExecutionFeeMarketOrder = _minExecutionFeeMarketOrder;
         minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
     }
@@ -825,7 +826,7 @@ contract OrderManager is
         bool _maximizePrice
     ) public view returns (uint256, bool) {
         uint256 currentPrice = _maximizePrice
-            ? IVault(vault).getMaxPrice(_indexToken) : IVault(vault).getMinPrice(_indexToken);
+            ? IUtils(utils).getMaxPrice(_indexToken) : IUtils(utils).getMinPrice(_indexToken);
         bool isPriceValid = _triggerAboveThreshold ? currentPrice > _triggerPrice : currentPrice < _triggerPrice;
         require(isPriceValid, "OrderManager: invalid price for execution");
         return (currentPrice, isPriceValid);
@@ -877,7 +878,7 @@ contract OrderManager is
         }
 
         {
-            uint256 _collateralAmountUsd = IVault(vault).tokenToUsdMin(_collateralToken, _collateralDelta);
+            uint256 _collateralAmountUsd = IUtils(utils).tokenToUsdMin(_collateralToken, _collateralDelta);
             require(_collateralAmountUsd >= minPurchaseTokenAmountUsd, "OrderManager: too less collateral");
         }
 

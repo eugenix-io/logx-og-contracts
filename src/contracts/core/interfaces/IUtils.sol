@@ -60,5 +60,11 @@ interface IUtils {
     ) external view;
 
     function getNextFundingRate(uint lastFundingTime, uint fundingInterval, uint fundingRateFactor, uint poolAmount, uint reservedAmount) external view returns(uint);
+    function getMinPrice(address _token) external view returns (uint256);
+    function tokenToUsdMin(address _token, uint256 _tokenAmount) external view returns (uint256);
+    function getMaxPrice(address _token) external view returns (uint256);
+    function usdToTokenMin(address _token, uint256 _usdAmount) external view returns (uint256);
+    function usdToTokenMax(address _token, uint256 _usdAmount) external view returns (uint256);
+
 
 }

@@ -39,18 +39,18 @@ contract Deployment is Script {
         PriceFeed priceFeed  = deployAndInitializePriceFeed();
         USDL usdl = deployUSDL(vault);
         RewardRouter rewardRouter = deployRewardRouter();
-        Utils utils = deployUtils(vault);
+        Utils utils = deployUtils(vault, priceFeed);
         LlpManager llpManager = deployLlpManager(vault, utils, usdl, rewardRouter);
        initializeLLP(llpManager);
-        OrderManager orderManager = deployOrderManager(vault, priceFeed);
+        OrderManager orderManager = deployOrderManager(vault, priceFeed, utils);
         initializeVault(vault, orderManager, priceFeed, usdl, utils);
         RewardTracker rewardTracker = deployRewardTracker();
         initializeRewardRouter(rewardRouter, vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
 
     }
 
-    function deployOrderManager(Vault vault, PriceFeed priceFeed) public returns (OrderManager){
-        OrderManager orderManager = new OrderManager(address(vault), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder);
+    function deployOrderManager(Vault vault, PriceFeed priceFeed, Utils utils) public returns (OrderManager){
+        OrderManager orderManager = new OrderManager(address(vault), address(utils), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder);
         console.log("OrderManager deployed at address: ", address(orderManager));
         orderManager.setPositionKeeper(address(priceFeed), true);
         orderManager.setMinExecutionFeeLimitOrder(minExecutionFeeLimitOrder);
@@ -72,8 +72,8 @@ contract Deployment is Script {
         return rewardTracker;
     }
 
-    function deployUtils(Vault vault) public returns (Utils){
-        Utils utils = new Utils(vault);
+    function deployUtils(Vault vault, PriceFeed pricefeed) public returns (Utils){
+        Utils utils = new Utils(vault, pricefeed);
         console.log("Utils deployed at address: ", address(utils));
         return utils;
     }
@@ -199,8 +199,9 @@ contract Deployment is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_ADMIN"); 
         Vault vault = Vault(vm.envAddress("VAULT"));
         LlpManager llpManager = LlpManager(vm.envAddress("LLP_MANAGER"));
+        PriceFeed pricefeed = PriceFeed(vm.envAddress("PRICE_FEED"));
         vm.startBroadcast(deployerPrivateKey);
-        Utils utils = new Utils(vault);
+        Utils utils = new Utils(vault, pricefeed);
         vault.setUtils(utils);
         llpManager.setUtils(address(utils));
         vault.setLiquidator(0x678F9fBAce927A9490070bf1eDB1564E26e0Db8c, true);
