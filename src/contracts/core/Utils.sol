@@ -38,8 +38,8 @@ contract Utils is IUtils, Governable {
         priceFeed = _pricefeed;
     }
 
-    function setValidate(bool _validate) external onlyGov{
-        isValidate = _validate;
+    function setValidate(bool _isValidate) external onlyGov{
+        isValidate = _isValidate;
     }
 
     function setVault(IVault _vault) external onlyGov {

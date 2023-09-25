@@ -299,10 +299,18 @@ contract OrderManager is
         uint256 _sizeDelta,
         bool _isLong,
         uint256 _acceptablePrice,
+        uint256 takeProfitPrice,
+        uint256 stopLossPrice,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
-        require(_executionFee >= minExecutionFeeMarketOrder, "OrderManager: execution fee less than min execution fee");
         require(_executionFee == msg.value, "OrderManager: execution fee not equal to value in msg.value");
+        if(takeProfitPrice ==0 && stopLossPrice ==0){
+            require(_executionFee >= minExecutionFeeMarketOrder, "OrderManager: execution fee less than min execution fee");
+        } else if(takeProfitPrice !=0 && stopLossPrice !=0){
+            require(_executionFee >= minExecutionFeeMarketOrder + 2 * minExecutionFeeLimitOrder, "OrderManager: execution fee less than min execution fee");
+        } else {
+            require(_executionFee >= minExecutionFeeMarketOrder + minExecutionFeeLimitOrder, "OrderManager: execution fee less than min execution fee");
+        }
 
         if (_amountIn > 0) {
             IERC20(_collateralToken).transferFrom(
@@ -311,9 +319,7 @@ contract OrderManager is
                 _amountIn
             );
         }
-
-        return
-            _createIncreasePosition(
+        bytes32 positionKey =  _createIncreasePosition(
                 msg.sender,
                 _collateralToken,
                 _indexToken,
@@ -321,8 +327,15 @@ contract OrderManager is
                 _sizeDelta,
                 _isLong,
                 _acceptablePrice,
-                _executionFee
+                minExecutionFeeMarketOrder
             );
+        if(takeProfitPrice !=0){
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice, _isLong, _executionFee, false );
+        }
+        if(stopLossPrice !=0){
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, stopLossPrice, !_isLong, _executionFee, false );
+        }
+        return positionKey;
     }
 
     function _createIncreasePosition(
@@ -875,9 +888,6 @@ contract OrderManager is
         require(msg.value == _executionFee, "OrderManager: incorrect execution fee transferred");
         if(isIncreaseOrder){
             IERC20(_collateralToken).transferFrom(msg.sender, address(this), _collateralDelta);
-        }
-
-        {
             uint256 _collateralAmountUsd = IUtils(utils).tokenToUsdMin(_collateralToken, _collateralDelta);
             require(_collateralAmountUsd >= minPurchaseTokenAmountUsd, "OrderManager: too less collateral");
         }
@@ -981,10 +991,15 @@ contract OrderManager is
             order.isIncreaseOrder
         );
     }
-
-    function cancelOrder(uint256 _orderIndex) public nonReentrant {
+    //TODO: add a test to check whether MNT is sent back to users.
+    function cancelOrder(uint256 _orderIndex, address account) public nonReentrant {
+        require(msg.sender == account || isOrderKeeper[msg.sender], "OrderManager: Cannot cancel");
         bytes32 orderKey = getOrderKey(msg.sender,_orderIndex);
         Order memory order = orders[orderKey];
+        _cancelOrder(orderKey, _orderIndex,  order);
+    }
+    function _cancelOrder(bytes32 orderKey, uint256 _orderIndex, Order memory order) internal nonReentrant {
+        
         require(order.account != address(0), "OrderManager: non-existent order");
 
         delete orders[orderKey];
@@ -992,8 +1007,6 @@ contract OrderManager is
         IERC20(order.collateralToken).transfer(msg.sender, order.collateralDelta);
         (bool success,  ) = (msg.sender).call{value: order.executionFee}("");
         require(success, "OrderManager: Exectuion Fee transfer failed");
-
-        
 
         emit CancelOrder(
             order.account,
@@ -1040,7 +1053,7 @@ contract OrderManager is
 
     }
 
-    function executeOrder(address _address, uint256 _orderIndex, address payable _feeReceiver) override external nonReentrant onlyOrderKeeper {
+    function executeOrder(address _address, uint256 _orderIndex, address payable _feeReceiver) override public nonReentrant onlyOrderKeeper {
         bytes32 orderKey = getOrderKey(_address,_orderIndex);
         Order memory order = orders[orderKey];
         require(order.account != address(0), "OrderManager: non-existent order");
@@ -1061,6 +1074,11 @@ contract OrderManager is
             IVault(vault).increasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 
         } else{
+            (uint size,,,,,,,) = IVault(vault).getPosition(order.account, order.collateralToken, order.indexToken, order.isLong);
+            if(size<order.sizeDelta){
+                cancelOrder(_orderIndex, _address);
+                return;
+            }
             uint256 amountOut = IVault(vault).decreasePosition(order.account, order.collateralToken, order.indexToken, order.collateralDelta, order.sizeDelta, order.isLong, address(this));
             IERC20(order.collateralToken).transfer(order.account, amountOut);
         }
@@ -1100,17 +1118,30 @@ contract OrderManager is
         );
     }
 
-    function liquidatePosition(
-        address _account,
-        address _collateralToken,
-        address _indexToken,
-        bool _isLong,
-        address _feeReceiver
-    ) external nonReentrant onlyLiquidator {
-        IVault(vault).liquidatePosition(_account, _collateralToken, _indexToken, _isLong, _feeReceiver);
-    }
-
     function getOrderKey(address _account, uint256 index) public pure returns(bytes32){
         return keccak256(abi.encodePacked(_account, index));
+    }
+
+    function getAllOrders() public view returns(Order[] memory){
+        uint orderLength = EnumerableSet.length(orderKeys);
+        Order[] memory openOrders = new Order[](orderLength);
+        for(uint i =0;i<orderLength;i++){
+            openOrders[i] = (orders[EnumerableSet.at(orderKeys, i)]);
+        }
+        return openOrders;
+    }
+
+    function executeMultipleOrders(address[] calldata accountAddresses, uint[] calldata orderIndices, address payable _feeReceiver) public onlyOrderKeeper {
+        uint length = accountAddresses.length;
+        for(uint i=0;i<length;i++){
+            executeOrder(accountAddresses[i], orderIndices[i],_feeReceiver);
+        }
+    }
+
+    function liquidateMultiplePositions(bytes32[] calldata keys, address payable _feeReceiver) public onlyLiquidator {
+        uint length = keys.length;
+        for(uint i=0;i<length;i++){
+            IVault(vault).liquidatePosition(keys[i],_feeReceiver); 
+        }
     }
 }

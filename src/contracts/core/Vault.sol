@@ -609,73 +609,68 @@ contract Vault is ReentrancyGuard, IVault {
 
     
 
+    function liquidatePosition(address _account, address _collateralToken, address _indexToken, bool _isLong, address _feeReceiver) external override nonReentrant {
+        bytes32 positionKey = getPositionKey(_account, _collateralToken, _indexToken, _isLong);
+        liquidatePosition(positionKey, _feeReceiver);
+    }
+
     function liquidatePosition(
-        address _account,
-        address _collateralToken,
-        address _indexToken,
-        bool _isLong,
+        bytes32 key,
         address _feeReceiver
-    ) external override nonReentrant {
+    ) public override nonReentrant {
         if (inPrivateLiquidationMode) {
             _validate(isLiquidator[msg.sender], "Vault: not liquidator");
         }
-
-
-        updateCumulativeFundingRate(_collateralToken);
         Position memory position;
         {
-        bytes32 key = getPositionKey(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _isLong
-        );
         position = positions[key];
         }
+        updateCumulativeFundingRate(position.collateralToken);
+        
         _validate(position.size > 0, "Vault: no position found");
 
         (uint256 liquidationState, uint256 marginFees) = utils.validateLiquidation(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _isLong,
+            position.account,
+            position.collateralToken,
+            position.indexToken,
+            position.isLong,
             false
         );
         _validate(liquidationState != 0, "Vault: position not liquidatable");
-        uint256 markPrice = _isLong ? utils.getMinPrice(_indexToken) : utils.getMaxPrice(_indexToken);
+        uint256 markPrice = position.isLong ? utils.getMinPrice(position.indexToken) : utils.getMaxPrice(position.indexToken);
         if (liquidationState == 2) {
             // max leverage exceeded but there is collateral remaining after deducting losses so decreasePosition instead
             _decreasePosition(
-                _account,
-                _collateralToken,
-                _indexToken,
+                position.account,
+                position.collateralToken,
+                position.indexToken,
                 0,
                 position.size,
-                _isLong,
-                _account
+                position.isLong,
+                position.account
             );
             return;
         }
 
-        if (_isLong) {
-            globalLongAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, true, false);
+        if (position.isLong) {
+            globalLongAveragePrices[position.indexToken] = utils.getNextGlobalAveragePrice(position.account, position.collateralToken, position.indexToken, markPrice, position.size, true, false);
         } else {
-            globalShortAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, markPrice, position.size, false, false);
+            globalShortAveragePrices[position.indexToken] = utils.getNextGlobalAveragePrice(position.account, position.collateralToken, position.indexToken, markPrice, position.size, false, false);
         }
 
-        uint256 feeTokens = utils.usdToTokenMin(_collateralToken, marginFees);
-        feeReserves[_collateralToken] =
-            feeReserves[_collateralToken] +
+        uint256 feeTokens = utils.usdToTokenMin(position.collateralToken, marginFees);
+        feeReserves[position.collateralToken] =
+            feeReserves[position.collateralToken] +
             (feeTokens);
-        emit CollectMarginFees(_collateralToken, marginFees, feeTokens);
+        emit CollectMarginFees(position.collateralToken, marginFees, feeTokens);
 
-        _decreaseReservedAmount(_collateralToken, position.reserveAmount);
+        _decreaseReservedAmount(position.collateralToken, position.reserveAmount);
 
         emit LiquidatePosition(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _isLong,
+            position.account,
+            position.collateralToken,
+            position.indexToken,
+            position.isLong,
             position.size,
             position.collateral,
             position.reserveAmount,
@@ -684,10 +679,10 @@ contract Vault is ReentrancyGuard, IVault {
         );
 
         emit UpdatePosition(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _isLong,
+            position.account,
+            position.collateralToken,
+            position.indexToken,
+            position.isLong,
             0,
             0,
             0,
@@ -700,33 +695,28 @@ contract Vault is ReentrancyGuard, IVault {
         if (marginFees < position.collateral) {
             uint256 remainingCollateral = position.collateral - (marginFees);
             _increasePoolAmount(
-                _collateralToken,
-                utils.usdToTokenMin(_collateralToken, remainingCollateral)
+                position.collateralToken,
+                utils.usdToTokenMin(position.collateralToken, remainingCollateral)
             );
         }
 
-        if (!_isLong) {
-            _decreaseGlobalShortSize(_indexToken, position.size);
+        if (!position.isLong) {
+            _decreaseGlobalShortSize(position.indexToken, position.size);
         } else {
-            _decreaseGlobalLongSize(_indexToken, position.size);
+            _decreaseGlobalLongSize(position.indexToken, position.size);
         }
 
-        deletePositionKey(getPositionKey(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _isLong
-        ));
+        deletePositionKey(key);
 
         // pay the fee receiver using the pool, we assume that in general the liquidated amount should be sufficient to cover
         // the liquidation fees
         _decreasePoolAmount(
-            _collateralToken,
-            utils.usdToTokenMin(_collateralToken, liquidationFeeUsd)
+            position.collateralToken,
+            utils.usdToTokenMin(position.collateralToken, liquidationFeeUsd)
         );
         _transferOut(
-            _collateralToken,
-            utils.usdToTokenMin(_collateralToken, liquidationFeeUsd),
+            position.collateralToken,
+            utils.usdToTokenMin(position.collateralToken, liquidationFeeUsd),
             _feeReceiver
         );
 

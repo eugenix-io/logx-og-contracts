@@ -188,9 +188,9 @@ contract Deployment is Script {
         IERC20  usdc = IERC20(vm.envAddress("USDCL"));
         usdc.approve(vm.envAddress("ORDER_MANAGER"), 200*10**18);
         orderManager.createIncreasePosition{value: 38*10**16}(vm.envAddress("USDCL"), vm.envAddress("OP"), 10000000000000000000, 10988347427288002000000000000000,
-        true, 1302658323600000000000000000000, 38*10**16);
+        true, 1302658323600000000000000000000, 0, 0, 38*10**16);
         orderManager.createIncreasePosition{value: 38*10**16}(vm.envAddress("USDCL"), vm.envAddress("BTC"), 10000000000000000000, 10988347427288002000000000000000,
-        false, 25354550100000000000000000000000000, 38*10**16);
+        false, 25354550100000000000000000000000000, 0, 0, 38*10**16);
         vm.stopBroadcast();
     }
 

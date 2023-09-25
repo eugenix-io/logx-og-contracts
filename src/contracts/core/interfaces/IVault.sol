@@ -72,11 +72,11 @@ interface IVault {
     function increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external;
     function decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external returns (uint256);
     function liquidatePosition(address _account, address _collateralToken, address _indexToken, bool _isLong, address _feeReceiver) external;
+    function liquidatePosition(bytes32 key, address feeReceiver) external;
 
     function priceFeed() external view returns (address);
     function fundingRateFactor() external view returns (uint256);
     function cumulativeFundingRates(address _token) external view returns (uint256);
-    // function getFeeBasisPoints(address _token, uint256 _usdlDelta, uint256 _feeBasisPoints, bool _increment) external view returns (uint256);
 
     function liquidationFeeUsd() external view returns (uint256);
     function mintBurnFeeBasisPoints() external view returns (uint256);
