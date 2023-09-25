@@ -47,7 +47,8 @@ contract Vault is ReentrancyGuard, IVault {
 
     address public override usdl;
     address public override gov;
-    bool public ceaseActivity = false;
+    bool public ceaseTradingActivity = false;
+    bool public ceaseLPActivity = false;
 
     uint256 public override maxLeverage = 50 * 10000; // 50x
 
@@ -243,9 +244,14 @@ contract Vault is ReentrancyGuard, IVault {
         gov = newGov;
     }
 
-    function setCeaseActivity(bool _cease) external {
+    function setCeaseTradingActivity(bool _cease) external {
         _onlyGov();
-        ceaseActivity = _cease;
+        ceaseTradingActivity = _cease;
+    }
+
+    function setCeaseLPActivity(bool _cease) external {
+        _onlyGov();
+        ceaseLPActivity = _cease;
     }
 
     function setOrderManager(address newOrderManager) external {
@@ -407,7 +413,6 @@ contract Vault is ReentrancyGuard, IVault {
         stableTokens[_token] = _isStable;
         canBeCollateralToken[_token] = _canBeCollateralToken;
         canBeIndexToken[_token] = _canBeIndexToken;
-        //TODO: add a check to see if number of decimals given is same as number of decimals on IERC20  contract.
     }
 
     function _transferIn(address _token) private returns (uint256) {
@@ -437,6 +442,7 @@ contract Vault is ReentrancyGuard, IVault {
         address _receiver
     ) external override nonReentrant returns (uint256) {
         _validateManager();
+        _validate(!ceaseLPActivity, "Vault: LP activity is suspended");
         _validate(whitelistedTokens[_token], "Vault: Not a whitelisted token");
 
         uint256 tokenAmount = _transferIn(_token);
@@ -498,6 +504,7 @@ contract Vault is ReentrancyGuard, IVault {
         address _token,
         address _receiver
     ) external override nonReentrant returns (uint256) {
+        _validate(!ceaseLPActivity, "Vault: LP activity is suspended");
         _validateManager();
         _validate(whitelistedTokens[_token], "Vault: Not a whitelisted token");
 
@@ -788,7 +795,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _sizeDelta,
         bool _isLong
     ) external override nonReentrant {
-        _validate(!ceaseActivity, "Vault: trade activity is suspended!");
+        _validate(!ceaseTradingActivity, "Vault: trade activity is suspended!");
         _validateGasPrice();
         _validateOrderManager(_account);
         _validateTokens(_collateralToken, _indexToken);
@@ -927,7 +934,7 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong,
         address _receiver
     ) external override nonReentrant returns (uint256) {
-        _validate(!ceaseActivity, "Vault: trade activity is suspended!");
+        _validate(!ceaseTradingActivity, "Vault: trade activity is suspended!");
         _validateGasPrice();
         _validateOrderManager(_account);
         return
