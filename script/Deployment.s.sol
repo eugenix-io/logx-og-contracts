@@ -17,7 +17,7 @@ import '../src/contracts/libraries/token/IERC20.sol';
 
 contract Deployment is Script {
     uint constant liquidationFeeUsd = 5 * 10 ** 30;
-    uint constant fundingRateFactor = 100;
+    uint constant borrowingRateFactor = 100;
     uint constant maxAllowedDelayPriceFeed = 300;
     uint constant minExecutionFeeMarketOrder = 37 * 10 ** 16;
     uint constant minExecutionFeeLimitOrder = 37 * 10 ** 16;
@@ -132,7 +132,7 @@ contract Deployment is Script {
 
     function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, Utils utils) public {
         usdl.addVault(address(vault));
-        vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd, fundingRateFactor, vm.envAddress("USDC"));
+        vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd, borrowingRateFactor, vm.envAddress("USDC"));
         vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("BTC"), 18, 0, false, false, true);

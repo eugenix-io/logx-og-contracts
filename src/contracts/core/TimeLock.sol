@@ -19,7 +19,7 @@ import '../libraries/token/IBaseToken.sol';
 contract Timelock is ITimelock {
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     uint256 public constant MAX_BUFFER = 5 days;
-    uint256 public constant MAX_FUNDING_RATE_FACTOR = 200; // 0.02%
+    uint256 public constant MAX_BORROWING_RATE_FACTOR = 200; // 0.02%
     uint256 public constant MAX_LEVERAGE_VALIDATION = 500000; // 50x
 
     uint256 public buffer;
@@ -149,9 +149,9 @@ contract Timelock is ITimelock {
       IVault(_vault).setMaxLeverage(_maxLeverage);
     }
 
-    function setFundingRate(address _vault, uint256 _fundingInterval, uint256 _fundingRateFactor) external onlyKeeperAndAbove {
-        require(_fundingRateFactor < MAX_FUNDING_RATE_FACTOR, "Timelock: invalid _fundingRateFactor");
-        IVault(_vault).setFundingRate(_fundingInterval, _fundingRateFactor);
+    function setBorrowingRate(address _vault, uint256 _borrowingInterval, uint256 _borrowingRateFactor) external onlyKeeperAndAbove {
+        require(_borrowingRateFactor < MAX_BORROWING_RATE_FACTOR, "Timelock: invalid _borrowingRateFactor");
+        IVault(_vault).setBorrowingRate(_borrowingInterval, _borrowingRateFactor);
     }
 
     function setMarginFeeBasisPoints(uint256 _marginFeeBasisPoints) external onlyHandlerAndAbove {

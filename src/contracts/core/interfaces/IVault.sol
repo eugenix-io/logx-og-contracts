@@ -15,7 +15,7 @@ interface IVault {
 
     function minProfitTime() external view returns (uint256);
     function hasDynamicFees() external view returns (bool);
-    function fundingInterval() external view returns (uint256);
+    function borrowingInterval() external view returns (uint256);
 
     function inManagerMode() external view returns (bool);
     function inPrivateLiquidationMode() external view returns (bool);
@@ -31,7 +31,7 @@ interface IVault {
 
     function minProfitBasisPoints(address _token) external view returns (uint256);
     function tokenBalances(address _token) external view returns (uint256);
-    function lastFundingTimes(address _token) external view returns (uint256);
+    function lastBorrowingTimes(address _token) external view returns (uint256);
 
     function setMaxLeverage(uint256 _maxLeverage) external;
     function setInManagerMode(bool _inManagerMode) external;
@@ -43,7 +43,7 @@ interface IVault {
     function setLiquidator(address _liquidator, bool _isActive) external;
     
 
-    function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor) external;
+    function setBorrowingRate(uint256 _borrowingInterval, uint256 _borrowingRateFactor) external;
 
     function setFees(
         uint256 _mintBurnFeeBasisPoints,
@@ -75,8 +75,8 @@ interface IVault {
     function liquidatePosition(bytes32 key, address feeReceiver) external;
 
     function priceFeed() external view returns (address);
-    function fundingRateFactor() external view returns (uint256);
-    function cumulativeFundingRates(address _token) external view returns (uint256);
+    function borrowingRateFactor() external view returns (uint256);
+    function cumulativeBorrowingRates(address _token) external view returns (uint256);
 
     function liquidationFeeUsd() external view returns (uint256);
     function mintBurnFeeBasisPoints() external view returns (uint256);

@@ -14,7 +14,7 @@ contract Utils is IUtils, Governable {
         uint256 size;
         uint256 collateral;
         uint256 averagePrice;
-        uint256 entryFundingRate;
+        uint256 entryBorrowingRate;
         uint256 reserveAmount;
         int256 realisedPnl;
         uint256 lastIncreasedTime;
@@ -26,7 +26,7 @@ contract Utils is IUtils, Governable {
     uint256 public constant MAX_INT256 = uint256(type(int256).max);
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
-    uint256 public constant FUNDING_RATE_PRECISION = 1000000;
+    uint256 public constant BORROWING_RATE_PRECISION = 1000000;
     uint256 public constant USDL_DECIMALS = 18;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     bool public isValidate = true;
@@ -104,7 +104,7 @@ contract Utils is IUtils, Governable {
                 uint256 size,
                 uint256 collateral,
                 uint256 averagePrice,
-                uint256 entryFundingRate /* reserveAmount */ /* realisedPnl */ /* hasProfit */,
+                uint256 entryBorrowingRate /* reserveAmount */ /* realisedPnl */ /* hasProfit */,
                 ,
                 ,
                 ,
@@ -118,7 +118,7 @@ contract Utils is IUtils, Governable {
             position.size = size;
             position.collateral = collateral;
             position.averagePrice = averagePrice;
-            position.entryFundingRate = entryFundingRate;
+            position.entryBorrowingRate = entryBorrowingRate;
             position.lastIncreasedTime = lastIncreasedTime;
         }
         return position;
@@ -146,13 +146,13 @@ contract Utils is IUtils, Governable {
             _isLong,
             position.lastIncreasedTime
         );
-        uint256 marginFees = getFundingFee(
+        uint256 marginFees = getBorrowingFee(
             _account,
             _collateralToken,
             _indexToken,
             _isLong,
             position.size,
-            position.entryFundingRate
+            position.entryBorrowingRate
         );
         marginFees =
             marginFees +
@@ -207,12 +207,12 @@ contract Utils is IUtils, Governable {
     }
 
     // TODO: revisit this, check implemention
-    function getEntryFundingRate(
+    function getEntryBorrowingRate(
         address _collateralToken,
         address /* _indexToken */,
         bool /* _isLong */
     ) public view override returns (uint256) {
-        return vault.cumulativeFundingRates(_collateralToken);
+        return vault.cumulativeBorrowingRates(_collateralToken);
     }
 
     function getPositionFee(
@@ -231,25 +231,25 @@ contract Utils is IUtils, Governable {
         return _sizeDelta - (afterFeeUsd);
     }
 
-    function getFundingFee(
+    function getBorrowingFee(
         address /* _account */,
         address _collateralToken,
         address /* _indexToken */,
         bool /* _isLong */,
         uint256 _size,
-        uint256 _entryFundingRate
+        uint256 _entryBorrowingRate
     ) public view override returns (uint256) {
         if (_size == 0) {
             return 0;
         }
 
-        uint256 fundingRate = vault.cumulativeFundingRates(_collateralToken) -
-            (_entryFundingRate);
-        if (fundingRate == 0) {
+        uint256 borrowingRate = vault.cumulativeBorrowingRates(_collateralToken) -
+            (_entryBorrowingRate);
+        if (borrowingRate == 0) {
             return 0;
         }
 
-        return (_size * (fundingRate)) / (FUNDING_RATE_PRECISION);
+        return (_size * (borrowingRate)) / (BORROWING_RATE_PRECISION);
     }
 
     function getBuyUsdlFeeBasisPoints(
@@ -620,40 +620,40 @@ contract Utils is IUtils, Governable {
     function validatePosition(
         uint256 _size,
         uint256 _collateral
-    ) public view {
+    ) public pure {
         if (_size == 0) {
             _validate(_collateral == 0, "Vault: collateral should be 0");
             return;
         }
         _validate(_size >= _collateral, "Vault: collateral exceeds size");
     }
-    function updateCumulativeFundingRate(uint256 lastFundingTime, uint256 fundingInterval, uint256 fundingRateFactor, uint256 poolAmount, uint256 reservedAmount) public view returns(uint256 fundingTime, uint256 fundingRate) {
-        if (lastFundingTime == 0) {
-            return ((block.timestamp / (fundingInterval)) * (fundingInterval) , 0);
+    function updateCumulativeBorrowingRate(uint256 lastBorrowingTime, uint256 borrowingInterval, uint256 borrowingRateFactor, uint256 poolAmount, uint256 reservedAmount) public view returns(uint256 borrowingTime, uint256 borrowingRate) {
+        if (lastBorrowingTime == 0) {
+            return ((block.timestamp / (borrowingInterval)) * (borrowingInterval) , 0);
         }
         
-        if (lastFundingTime + (fundingInterval) > block.timestamp) {
-            return (lastFundingTime,0);
+        if (lastBorrowingTime +borrowingInterval > block.timestamp) {
+            return (lastBorrowingTime,0);
         }
 
-        fundingTime =  (block.timestamp / (fundingInterval)) * (fundingInterval);
-        fundingRate = getNextFundingRate(lastFundingTime, fundingInterval, fundingRateFactor, poolAmount, reservedAmount);
+        borrowingTime =  (block.timestamp / (borrowingInterval)) * (borrowingInterval);
+        borrowingRate = getNextBorrowingRate(lastBorrowingTime, borrowingInterval, borrowingRateFactor, poolAmount, reservedAmount);
 
-        return (fundingTime, fundingRate);
+        return (borrowingTime, borrowingRate);
     }
 
-    function getNextFundingRate(uint lastFundingTime, uint fundingInterval, uint fundingRateFactor, uint poolAmount, uint reservedAmount) public view returns(uint){
-        if (lastFundingTime + (fundingInterval) > block.timestamp) {
+    function getNextBorrowingRate(uint lastBorrowingTime, uint borrowingInterval, uint borrowingRateFactor, uint poolAmount, uint reservedAmount) public view returns(uint){
+        if (lastBorrowingTime + (borrowingInterval) > block.timestamp) {
             return 0;
         }
 
-        uint256 intervals = (block.timestamp - lastFundingTime) / (fundingInterval);
+        uint256 intervals = (block.timestamp - lastBorrowingTime) / (borrowingInterval);
         if (poolAmount == 0) {
             return 0;
         }
         
         return
-            (fundingRateFactor * (reservedAmount) * (intervals)) /
+            (borrowingRateFactor * (reservedAmount) * (intervals)) /
             (poolAmount);
     }
 
@@ -709,7 +709,7 @@ contract Utils is IUtils, Governable {
         bool _isLong,
         uint256 _sizeDelta,
         uint256 _size,
-        uint256 _entryFundingRate
+        uint256 _entryBorrowingRate
     ) public view returns (uint256 feeTokens, uint256 feeUsd) {
         feeUsd = getPositionFee(
             _account,
@@ -719,15 +719,15 @@ contract Utils is IUtils, Governable {
             _sizeDelta
         );
 
-        uint256 fundingFee = getFundingFee(
+        uint256 borrowingFee = getBorrowingFee(
             _account,
             _collateralToken,
             _indexToken,
             _isLong,
             _size,
-            _entryFundingRate
+            _entryBorrowingRate
         );
-        feeUsd = feeUsd + (fundingFee);
+        feeUsd = feeUsd + (borrowingFee);
 
         feeTokens = usdToTokenMin(_collateralToken, feeUsd);
 
