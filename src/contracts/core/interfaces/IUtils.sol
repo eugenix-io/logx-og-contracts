@@ -5,8 +5,9 @@ pragma solidity 0.8.19;
 interface IUtils {
     function validateIncreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external view;
     function validateDecreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external view;
-    function validateLiquidation(address _account, address _collateralToken, address _indexToken, bool _isLong, bool _raise) external view returns (uint256, uint256);
+    function validateLiquidation(address _account, address _collateralToken, address _indexToken, bool _isLong, bool _raise) external view returns (uint256, int256);
     function getEntryBorrowingRate(address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256);
+    function getEntryFundingRate(address _collateralToken, address _indexToken, bool _isLong) external view returns (int256);
     function getPositionFee(address _account, address _collateralToken, address _indexToken, bool _isLong, uint256 _sizeDelta) external view returns (uint256);
     function getBorrowingFee(address _account, address _collateralToken, address _indexToken, bool _isLong, uint256 _size, uint256 _entryBorrowingRate) external view returns (uint256);
     function getBuyUsdlFeeBasisPoints(address _token, uint256 _usdgAmount) external view returns (uint256);
@@ -66,6 +67,7 @@ interface IUtils {
     function usdToTokenMin(address _token, uint256 _usdAmount) external view returns (uint256);
     function usdToTokenMax(address _token, uint256 _usdAmount) external view returns (uint256);
     function updateCumulativeBorrowingRate(uint256 lastBorrowingTime, uint256 borrowingInterval, uint256 borrowingRateFactor, uint256 poolAmount, uint256 reservedAmount) external view returns(uint256 borrowingTime, uint256 borrowingRate);
+    function updateCumulativeFundingRate(uint fundingRateFactor, address _indexToken, uint256 lastFundingTime, uint256 fundingInterval) external returns(uint lastFundingUpdateTime, int256 fundingRateForLong, int256 fundingRateForShort);
     function getRedemptionAmount(address _token, uint256 _usdlAmount) external view  returns (uint256);
     function collectMarginFees(
         address _account,
@@ -74,7 +76,8 @@ interface IUtils {
         bool _isLong,
         uint256 _sizeDelta,
         uint256 _size,
-        uint256 _entryBorrowingRate
-    ) external returns (uint256 feeTokens, uint256 feeUsd);
+        uint256 _entryBorrowingRate,
+        int256 _entryFundingRate
+    ) external returns (uint256 feeTokens, int256 feeUsd);
 
 }

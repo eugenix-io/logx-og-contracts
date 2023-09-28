@@ -13,8 +13,6 @@ import '../src/contracts/core/RewardTracker.sol';
 import '../src/contracts/core/Utils.sol';
 import '../src/contracts/libraries/token/IERC20.sol';
 
-
-
 contract Deployment is Script {
     uint constant liquidationFeeUsd = 5 * 10 ** 30;
     uint constant borrowingRateFactor = 100;

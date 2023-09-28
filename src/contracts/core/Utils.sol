@@ -18,6 +18,7 @@ contract Utils is IUtils, Governable {
         uint256 reserveAmount;
         int256 realisedPnl;
         uint256 lastIncreasedTime;
+        int256 entryFundingRate;
     }
 
     IVault public vault;
@@ -105,6 +106,7 @@ contract Utils is IUtils, Governable {
                 uint256 collateral,
                 uint256 averagePrice,
                 uint256 entryBorrowingRate /* reserveAmount */ /* realisedPnl */ /* hasProfit */,
+                int256 entryFundingRate,
                 ,
                 ,
                 ,
@@ -124,13 +126,14 @@ contract Utils is IUtils, Governable {
         return position;
     }
 
+    //TODO: account for funding fee as well.
     function validateLiquidation(
         address _account,
         address _collateralToken,
         address _indexToken,
         bool _isLong,
         bool _raise
-    ) public view override returns (uint256, uint256) {
+    ) public view override returns (uint256, int256) {
         Position memory position = getPosition(
             _account,
             _collateralToken,
@@ -146,17 +149,17 @@ contract Utils is IUtils, Governable {
             _isLong,
             position.lastIncreasedTime
         );
-        uint256 marginFees = getBorrowingFee(
+        int256 marginFees = int(getBorrowingFee(
             _account,
             _collateralToken,
             _indexToken,
             _isLong,
             position.size,
             position.entryBorrowingRate
-        );
+        ));
         marginFees =
             marginFees +
-            (
+            int(
                 getPositionFee(
                     _account,
                     _collateralToken,
@@ -166,6 +169,7 @@ contract Utils is IUtils, Governable {
                 )
             );
 
+        marginFees = marginFees + getFundingFee(_account, _collateralToken, _indexToken, _isLong, position.size, position.entryFundingRate);
         if (!hasProfit && position.collateral < delta) {
             if (_raise) {
                 revert("Vault: losses exceed collateral");
@@ -178,23 +182,29 @@ contract Utils is IUtils, Governable {
             remainingCollateral = position.collateral - (delta);
         }
 
-        if (remainingCollateral < marginFees) {
-            if (_raise) {
-                revert("Vault: fees exceed collateral");
-            }
+        if(marginFees<0){
+            remainingCollateral = remainingCollateral + uint(abs(marginFees));
+        } else {
+            if (remainingCollateral < uint(marginFees)) {
+                if (_raise) {
+                    revert("Vault: fees exceed collateral");
+                }
             // cap the fees to the remainingCollateral
-            return (1, remainingCollateral);
+                return (1, int(remainingCollateral));
+            }
+            remainingCollateral = remainingCollateral - uint(marginFees);
         }
 
-        if (remainingCollateral < marginFees + (_vault.liquidationFeeUsd())) {
+        if (remainingCollateral < (_vault.liquidationFeeUsd())) {
             if (_raise) {
                 revert("Vault: liquidation fees exceed collateral");
             }
             return (1, marginFees);
         }
-        //AnirudhTodo - we need to cut fees from remaining collateral and them compare right?
+
+        remainingCollateral = remainingCollateral - _vault.liquidationFeeUsd();
         if (
-            remainingCollateral * (_vault.maxLeverage()) * vault.safetyFactor() <
+            remainingCollateral * (_vault.maxLeverage()) * _vault.safetyFactor() <
             position.size * (BASIS_POINTS_DIVISOR)
         ) {
             if (_raise) {
@@ -213,6 +223,14 @@ contract Utils is IUtils, Governable {
         bool /* _isLong */
     ) public view override returns (uint256) {
         return vault.cumulativeBorrowingRates(_collateralToken);
+    }
+
+    function getEntryFundingRate(
+        address /*_collateralToken*/,
+        address _indexToken,
+        bool  _isLong
+    ) public view override returns (int256) {
+        return _isLong ? vault.cumulativeFundingRatesForLongs( _indexToken) : vault.cumulativeFundingRatesForShorts(_indexToken);
     }
 
     function getPositionFee(
@@ -279,10 +297,10 @@ contract Utils is IUtils, Governable {
     }
 
     function getFeeBasisPoints(
-        address _token,
-        uint256 _usdlDelta,
+        address /*_token*/,
+        uint256 /*_usdlDelta*/,
         uint256 _feeBasisPoints,
-        bool _increment
+        bool /*_increment*/
     ) public view override returns (uint256) {
         if (!vault.hasDynamicFees()) {
             return _feeBasisPoints;
@@ -428,6 +446,7 @@ contract Utils is IUtils, Governable {
             uint256 size /*uint256 collateral*/,
             ,
             uint256 averagePrice,
+            ,
             ,
             ,
             ,
@@ -642,6 +661,39 @@ contract Utils is IUtils, Governable {
         return (borrowingTime, borrowingRate);
     }
 
+    function updateCumulativeFundingRate(uint256 fundingRateFactor, address _indexToken, uint lastFundingTime, uint fundingInterval) public view returns(uint256 lastFundingUpdateTime, int256 fundingRateForLong, int256 fundingRateForShort) {
+        if (lastFundingTime == 0) {
+            return ((block.timestamp / (fundingInterval)) * (fundingInterval) , 0, 0);
+        }
+        
+        if (lastFundingTime +fundingInterval > block.timestamp) {
+            return (lastFundingTime,0, 0);
+        }
+
+        lastFundingUpdateTime =  (block.timestamp / (fundingInterval)) * (fundingInterval);
+        uint timeInterval = lastFundingUpdateTime - lastFundingTime;
+        (fundingRateForLong, fundingRateForShort) = getNextFundingRate(vault.fundingExponent(), fundingRateFactor, _indexToken);
+        return (lastFundingUpdateTime, fundingRateForLong * int(fundingRateFactor * timeInterval), fundingRateForShort * int(fundingRateFactor * timeInterval));
+    }
+
+    function getNextFundingRate( uint256 fundingExponent, uint256 fundingRateFactor, address _indexToken) public view returns(int256, int256 ) {
+        uint256 globalLongSizeVault = vault.globalLongSizes(_indexToken); 
+        uint256 globalShortSizeVault = vault.globalShortSizes(_indexToken);
+        uint256 oiImbalance = globalLongSizeVault>globalShortSizeVault? globalLongSizeVault - globalShortSizeVault: globalShortSizeVault - globalLongSizeVault;
+        if(globalLongSizeVault + globalShortSizeVault == 0){
+            return (0, 0);
+        }
+        //TODO: multiple with a factor so that final value is not less than 1.
+        uint nextFundingRateForLong =  ( (oiImbalance**fundingExponent))/ (globalLongSizeVault + globalShortSizeVault);
+        uint nextFundingRateForShort = nextFundingRateForLong *globalShortSizeVault/globalLongSizeVault;
+        if(globalLongSizeVault>globalShortSizeVault){
+            return (int256(nextFundingRateForLong), -1 * int256(nextFundingRateForShort)); // chance of overflow, revisit
+        } else {
+            return (-1 * int256(nextFundingRateForLong), int256(nextFundingRateForShort));
+        }
+        
+    }
+
     function getNextBorrowingRate(uint lastBorrowingTime, uint borrowingInterval, uint borrowingRateFactor, uint poolAmount, uint reservedAmount) public view returns(uint){
         if (lastBorrowingTime + (borrowingInterval) > block.timestamp) {
             return 0;
@@ -709,15 +761,16 @@ contract Utils is IUtils, Governable {
         bool _isLong,
         uint256 _sizeDelta,
         uint256 _size,
-        uint256 _entryBorrowingRate
-    ) public view returns (uint256 feeTokens, uint256 feeUsd) {
-        feeUsd = getPositionFee(
+        uint256 _entryBorrowingRate, 
+        int256 _entryFundingRate
+    ) public view returns (uint256 feeTokens, int256 feeUsd) {
+        feeUsd = int(getPositionFee(
             _account,
             _collateralToken,
             _indexToken,
             _isLong,
             _sizeDelta
-        );
+        ));
 
         uint256 borrowingFee = getBorrowingFee(
             _account,
@@ -727,11 +780,31 @@ contract Utils is IUtils, Governable {
             _size,
             _entryBorrowingRate
         );
-        feeUsd = feeUsd + (borrowingFee);
 
-        feeTokens = usdToTokenMin(_collateralToken, feeUsd);
+        int256 fundingFee = getFundingFee(_account, _collateralToken, _indexToken, _isLong, _size, _entryFundingRate);
+        feeUsd = feeUsd + int(borrowingFee) + fundingFee;
+
+        feeTokens = usdToTokenMin(_collateralToken, uint(abs(feeUsd)));
 
         return (feeTokens, feeUsd);
+    }
+
+    function abs(int value) public pure returns(int){
+        return value< 0 ? -value: value;
+    }
+
+    function getFundingFee(address /*account*/, address /*collateralToken*/, address indexToken, bool isLong, uint256 size, int256 entryFundingRate) public view returns(int256){
+        if(size==0){
+            return 0;
+        }
+        int256 differenceInFundingRate;
+        if(isLong){
+            differenceInFundingRate = vault.cumulativeFundingRatesForLongs(indexToken) - entryFundingRate;
+        } else {
+            differenceInFundingRate = vault.cumulativeFundingRatesForShorts(indexToken) - entryFundingRate;
+        }
+
+        return differenceInFundingRate * int(size);
     }
 
 }

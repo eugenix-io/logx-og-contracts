@@ -22,6 +22,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 collateral;
         uint256 averagePrice;
         uint256 entryBorrowingRate;
+        int256 entryFundingRate;
         uint256 reserveAmount;
         int256 realisedPnl;
         uint256 lastIncreasedTime;
@@ -35,7 +36,9 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public constant MAX_FEE_BASIS_POINTS = 500; // 5%
     uint256 public constant MAX_LIQUIDATION_FEE_USD = 100 * PRICE_PRECISION; // 100 USD
     uint256 public constant MIN_BORROWING_RATE_INTERVAL = 1 hours;
+    uint256 public constant MIN_FUNDING_RATE_INTERVAL = 1 hours;
     uint256 public constant MAX_BORROWING_RATE_FACTOR = 10000; // 1%
+    uint256 public constant MAX_FUNDING_RATE_FACTOR = 10000; // 1%
 
     bool public override isInitialized;
     address public usdc;
@@ -61,6 +64,8 @@ contract Vault is ReentrancyGuard, IVault {
 
     uint256 public override borrowingInterval = 1 hours;
     uint256 public override borrowingRateFactor;
+    uint256 public override fundingInterval = 1 hours;
+    uint256 public override fundingRateFactor;
 
     bool public override inManagerMode = false;
     bool public override inPrivateLiquidationMode = false;
@@ -100,8 +105,14 @@ contract Vault is ReentrancyGuard, IVault {
 
     // cumulativeBorrowingRates tracks the borrowing rates based on utilization
     mapping(address => uint256) public override cumulativeBorrowingRates;
+    uint256 public  fundingExponent;
+    mapping(address => int256) public  cumulativeFundingRatesForLongs;
+    mapping(address => int256) public cumulativeFundingRatesForShorts;
+
     // lastBorrowingTimes tracks the last time borrowing was updated for a token
     mapping(address => uint256) public override lastBorrowingTimes;
+    mapping(address => uint256) public override lastFundingTimes;
+    
     
 
     // positions tracks all open positions
@@ -141,7 +152,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 sizeDelta,
         bool isLong,
         uint256 price,
-        uint256 fee
+        int256 fee
     );
     //TODO: add realisedPnl to this event.
     event DecreasePosition(
@@ -193,10 +204,11 @@ contract Vault is ReentrancyGuard, IVault {
     );
 
     event UpdateBorrowingRate(address token, uint256 borrowingRate);
+    event UpdateFundingRate(address token, int256 fundingLongRate, int256 fundingShortRate);
     event UpdatePnl(bytes32 key, bool hasProfit, uint256 delta);
 
     event CollectSwapFees(address token, uint256 feeUsd, uint256 feeTokens);
-    event CollectMarginFees(address token, uint256 feeUsd, uint256 feeTokens);
+    event CollectMarginFees(address token, int256 feeUsd, uint256 feeTokens);
 
     event DirectPoolDeposit(address token, uint256 amount);
     event IncreasePoolAmount(address token, uint256 amount);
@@ -385,6 +397,17 @@ contract Vault is ReentrancyGuard, IVault {
         borrowingRateFactor = _borrowingRateFactor;
     }
 
+    function setFundingRate(
+        uint256 _fundingInterval,
+        uint256 _fundingRateFactor
+    ) external override {
+        _onlyGov();
+        _validate(_fundingInterval >= MIN_FUNDING_RATE_INTERVAL, "Vault: funding interval too low");
+        _validate(_fundingRateFactor <= MAX_FUNDING_RATE_FACTOR, "Vault: fundingRateFactor too high");
+        fundingInterval = _fundingInterval;
+        fundingRateFactor = _fundingRateFactor;
+    }
+
     // potential shift
     function _validateTokens(
         address _collateralToken,
@@ -440,6 +463,19 @@ contract Vault is ReentrancyGuard, IVault {
         );
     }
 
+    function updateCumulativeFundingRate(address _indexToken) public {
+        (uint lastFundingUpdateTime, int256 fundingLongRate, int256 fundingShortRate) = utils.updateCumulativeFundingRate( fundingRateFactor, _indexToken, lastFundingTimes[_indexToken], fundingInterval);
+        cumulativeFundingRatesForLongs[_indexToken] = cumulativeFundingRatesForLongs[_indexToken] + fundingLongRate;
+        cumulativeFundingRatesForShorts[_indexToken] = cumulativeFundingRatesForShorts[_indexToken] + fundingShortRate;
+        lastFundingTimes[_indexToken] = lastFundingUpdateTime;
+        
+        emit UpdateFundingRate(
+            _indexToken,
+            cumulativeFundingRatesForLongs[_indexToken],
+            cumulativeFundingRatesForShorts[_indexToken]
+        );
+    }
+
     // potential shift
     function buyUSDL(
         address _token,
@@ -456,6 +492,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         uint256 usdlAmount = (tokenAmount * (price)) / (PRICE_PRECISION);
         usdlAmount = utils.adjustForDecimals(usdlAmount, _token, usdl);
+        //this usdl amount is after multiplying with 10^ 18
         _validate(usdlAmount > 0, "Vault: usdlAmount too low");
 
         uint256 feeBasisPoints = utils.getBuyUsdlFeeBasisPoints(
@@ -566,6 +603,7 @@ contract Vault is ReentrancyGuard, IVault {
             uint256,
             uint256,
             uint256,
+            int256,
             uint256,
             uint256,
             bool,
@@ -587,6 +625,7 @@ contract Vault is ReentrancyGuard, IVault {
             position.collateral, // 1
             position.averagePrice, // 2
             position.entryBorrowingRate, // 3
+            position.entryFundingRate,
             position.reserveAmount, // 4
             realisedPnl, // 5
             position.realisedPnl >= 0, // 6
@@ -630,11 +669,12 @@ contract Vault is ReentrancyGuard, IVault {
         position = positions[key];
         }
         updateCumulativeBorrowingRate(position.collateralToken);
+        updateCumulativeFundingRate(position.indexToken);
 
         
         _validate(position.size > 0, "Vault: no position found");
 
-        (uint256 liquidationState, uint256 marginFees) = utils.validateLiquidation(
+        (uint256 liquidationState, int256 marginFees) = utils.validateLiquidation(
             position.account,
             position.collateralToken,
             position.indexToken,
@@ -663,11 +703,9 @@ contract Vault is ReentrancyGuard, IVault {
             globalShortAveragePrices[position.indexToken] = utils.getNextGlobalAveragePrice(position.account, position.collateralToken, position.indexToken, markPrice, position.size, false, false);
         }
 
-        uint256 feeTokens = utils.usdToTokenMin(position.collateralToken, marginFees);
-        feeReserves[position.collateralToken] =
-            feeReserves[position.collateralToken] +
-            (feeTokens);
-        emit CollectMarginFees(position.collateralToken, marginFees, feeTokens);
+        //manu to reason: we have marginFees here but it is not transferred why?
+        uint256 feeTokens = utils.usdToTokenMin(position.collateralToken, uint(abs(marginFees)));
+        updateFeeReserves(marginFees, position.collateralToken, feeTokens);
 
         _decreaseReservedAmount(position.collateralToken, position.reserveAmount);
 
@@ -697,14 +735,19 @@ contract Vault is ReentrancyGuard, IVault {
             0
         );
 
-        if (marginFees < position.collateral) {
-            uint256 remainingCollateral = position.collateral - (marginFees);
+        if(marginFees<0){
+            _increasePoolAmount(position.collateralToken, utils.usdToTokenMin(position.collateralToken, uint(abs(marginFees))));
+        } else {
+            if (uint(marginFees) < position.collateral) {
+            uint256 remainingCollateral = position.collateral - uint(marginFees);
             _increasePoolAmount(
                 position.collateralToken,
                 utils.usdToTokenMin(position.collateralToken, remainingCollateral)
             );
         }
+        }
 
+        
         if (!position.isLong) {
             _decreaseGlobalShortSize(position.indexToken, position.size);
         } else {
@@ -725,6 +768,20 @@ contract Vault is ReentrancyGuard, IVault {
             _feeReceiver
         );
 
+    }
+
+    function abs(int value) public pure returns(int){
+        return value< 0 ? -value: value;
+    }
+
+    function updateFeeReserves(int feeUsd, address _collateralToken, uint feeTokens) internal {
+        if(feeUsd >0){
+            feeReserves[_collateralToken] = feeReserves[_collateralToken] + (feeTokens);
+        } else {
+            feeReserves[_collateralToken] = feeReserves[_collateralToken] - (feeTokens);
+        }
+        
+        emit CollectMarginFees(_collateralToken, feeUsd, feeTokens);
     }
 
     function _increaseReservedAmount(address _token, uint256 _amount) private {
@@ -762,11 +819,11 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isLong,
         uint256 _sizeDelta,
         uint256 _size,
-        uint256 _entryBorrowingRate
-    ) private returns (uint256) {
-        (uint256 feeTokens, uint256 feeUsd) = utils.collectMarginFees(_account, _collateralToken, _indexToken, _isLong, _sizeDelta, _size, _entryBorrowingRate);
-        feeReserves[_collateralToken] = feeReserves[_collateralToken] + (feeTokens);
-        emit CollectMarginFees(_collateralToken, feeUsd, feeTokens);
+        uint256 _entryBorrowingRate,
+        int256 _entryFundingRate
+    ) private returns (int256) {
+        (uint256 feeTokens, int256 feeUsd) = utils.collectMarginFees(_account, _collateralToken, _indexToken, _isLong, _sizeDelta, _size, _entryBorrowingRate, _entryFundingRate);
+        updateFeeReserves(feeUsd, _collateralToken, feeTokens);
         return feeUsd;
     }
 
@@ -803,6 +860,7 @@ contract Vault is ReentrancyGuard, IVault {
         );
 
         updateCumulativeBorrowingRate(_collateralToken);
+        updateCumulativeFundingRate(_indexToken);
 
         bytes32 key = getPositionKey(
             _account,
@@ -835,14 +893,15 @@ contract Vault is ReentrancyGuard, IVault {
             );
         }
 
-        uint256 fee = _collectMarginFees(
+        int256 fee = _collectMarginFees(
             _account,
             _collateralToken,
             _indexToken,
             _isLong,
             _sizeDelta,
             position.size,
-            position.entryBorrowingRate
+            position.entryBorrowingRate,
+            position.entryFundingRate
         );
         uint256 collateralDelta = _transferIn(_collateralToken);
         uint256 collateralDeltaUsd = utils.tokenToUsdMin(
@@ -851,14 +910,18 @@ contract Vault is ReentrancyGuard, IVault {
         );
 
         position.collateral = position.collateral + (collateralDeltaUsd);
-        _validate(position.collateral >= fee, "Vault: insufficient collateral");
-
-        position.collateral = position.collateral - (fee);
+        if(fee>0){
+            _validate(position.collateral >= uint(fee), "Vault: insufficient collateral");
+            position.collateral = position.collateral - uint(fee);
+        } else {
+            position.collateral = position.collateral + uint(-fee);
+        }
         position.entryBorrowingRate = utils.getEntryBorrowingRate(
             _collateralToken,
             _indexToken,
             _isLong
         );
+        position.entryFundingRate = utils.getEntryFundingRate(_collateralToken, _indexToken, _isLong);
         position.size = position.size + (_sizeDelta);
         position.lastIncreasedTime = block.timestamp;
 
@@ -886,7 +949,7 @@ contract Vault is ReentrancyGuard, IVault {
             _increaseGlobalLongSize(_indexToken, _sizeDelta);
 
         } else {
-            if (globalShortSizes[_indexToken] == 0) {//--etherscan-api-key "abc"
+            if (globalShortSizes[_indexToken] == 0) {
                 globalShortAveragePrices[_indexToken] = price;
             } else {
                 globalShortAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, false, true);
@@ -1012,6 +1075,7 @@ contract Vault is ReentrancyGuard, IVault {
             _receiver
         );
         updateCumulativeBorrowingRate(_collateralToken);
+        updateCumulativeFundingRate(_indexToken);
 
         bytes32 key = getPositionKey(
             _account,
@@ -1055,6 +1119,7 @@ contract Vault is ReentrancyGuard, IVault {
                 _indexToken,
                 _isLong
             );
+            position.entryFundingRate = utils.getEntryFundingRate(_collateralToken, _indexToken, _isLong);
             position.size = position.size - (_sizeDelta);
 
             utils.validatePosition(position.size, position.collateral);
@@ -1169,14 +1234,15 @@ contract Vault is ReentrancyGuard, IVault {
         );
         Position storage position = positions[key];
 
-        uint256 fee = _collectMarginFees(
+        int256 fee = _collectMarginFees(
             _account,
             _collateralToken,
             _indexToken,
             _isLong,
             _sizeDelta,
             position.size,
-            position.entryBorrowingRate
+            position.entryBorrowingRate,
+            position.entryFundingRate
         );
         bool hasProfit;
         uint256 adjustedDelta;
@@ -1227,11 +1293,16 @@ contract Vault is ReentrancyGuard, IVault {
         // if the usdOut is more than the fee then deduct the fee from the usdOut directly
         // else deduct the fee from the position's collateral
         uint256 usdOutAfterFee = usdOut;
-        if (usdOut > fee) {
-            usdOutAfterFee = usdOut - (fee);
-        } else {
-            position.collateral = position.collateral - (fee);
+        if(fee<0){
+            usdOutAfterFee = usdOut + uint(abs(fee));
+        } else{
+            if (usdOut > uint(fee)) {
+                usdOutAfterFee = usdOut - uint(fee);
+            } else {
+                position.collateral = position.collateral - uint(fee);
+            }
         }
+        
 
         emit UpdatePnl(key, hasProfit, adjustedDelta);
 

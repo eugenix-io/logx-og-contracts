@@ -985,14 +985,13 @@ contract OrderManager is
         );
     }
 
-    function cancelOrder(uint256 _orderIndex, address account) public {
+    function cancelOrder(uint256 _orderIndex, address account) public nonReentrant() {
         require(msg.sender == account || isOrderKeeper[msg.sender], "OrderManager: Cannot cancel");
         bytes32 orderKey = getOrderKey(account,_orderIndex);
         Order memory order = orders[orderKey];
         _cancelOrder(orderKey, _orderIndex,  order);
     }
     function _cancelOrder(bytes32 orderKey, uint256 _orderIndex, Order memory order) internal {
-        
         require(order.account != address(0), "OrderManager: non-existent order");
 
         delete orders[orderKey];
@@ -1069,9 +1068,9 @@ contract OrderManager is
             IVault(vault).increasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 
         } else{
-            (uint size,,,,,,,) = IVault(vault).getPosition(order.account, order.collateralToken, order.indexToken, order.isLong);
+            (uint size,,,,,,,,) = IVault(vault).getPosition(order.account, order.collateralToken, order.indexToken, order.isLong);
             if(size<order.sizeDelta){
-                cancelOrder(_orderIndex, _address);
+                _cancelOrder(orderKey, _orderIndex, order);
                 return;
             }
             uint256 amountOut = IVault(vault).decreasePosition(order.account, order.collateralToken, order.indexToken, order.collateralDelta, order.sizeDelta, order.isLong, address(this));

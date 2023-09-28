@@ -143,7 +143,7 @@ contract BaseOrderManager{
         // if the position size is not increasing, this is a collateral deposit
         if (_sizeDelta == 0) { return true; }
 
-        (uint256 size, uint256 collateral, , , , , , ) = IVault(vault).getPosition(_account, collateralToken, _indexToken, _isLong);
+        (uint256 size, uint256 collateral, , , , , , , ) = IVault(vault).getPosition(_account, collateralToken, _indexToken, _isLong);
 
         // if there is no existing position, do not charge a fee
         if (size == 0) { return false; }

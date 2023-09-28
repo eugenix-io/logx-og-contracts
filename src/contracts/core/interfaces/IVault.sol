@@ -16,6 +16,7 @@ interface IVault {
     function minProfitTime() external view returns (uint256);
     function hasDynamicFees() external view returns (bool);
     function borrowingInterval() external view returns (uint256);
+    function fundingInterval() external view returns (uint256);
 
     function inManagerMode() external view returns (bool);
     function inPrivateLiquidationMode() external view returns (bool);
@@ -32,6 +33,7 @@ interface IVault {
     function minProfitBasisPoints(address _token) external view returns (uint256);
     function tokenBalances(address _token) external view returns (uint256);
     function lastBorrowingTimes(address _token) external view returns (uint256);
+    function lastFundingTimes(address _token) external view returns (uint256);
 
     function setMaxLeverage(uint256 _maxLeverage) external;
     function setInManagerMode(bool _inManagerMode) external;
@@ -44,6 +46,7 @@ interface IVault {
     
 
     function setBorrowingRate(uint256 _borrowingInterval, uint256 _borrowingRateFactor) external;
+    function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor) external;
 
     function setFees(
         uint256 _mintBurnFeeBasisPoints,
@@ -76,7 +79,10 @@ interface IVault {
 
     function priceFeed() external view returns (address);
     function borrowingRateFactor() external view returns (uint256);
+    function fundingRateFactor() external view returns (uint256);
     function cumulativeBorrowingRates(address _token) external view returns (uint256);
+    function cumulativeFundingRatesForLongs(address _token) external view returns (int);
+    function cumulativeFundingRatesForShorts(address _token) external view returns (int);
 
     function liquidationFeeUsd() external view returns (uint256);
     function mintBurnFeeBasisPoints() external view returns (uint256);
@@ -98,6 +104,7 @@ interface IVault {
     function canBeCollateralToken(address _token) external view returns (bool);
     function poolAmounts(address _token) external view returns (uint256);
     function reservedAmounts(address _token) external view returns (uint256);
+    function fundingExponent() external view returns (uint256);
 
-    function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool, uint256);
+    function getPosition(address _account, address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256, uint256, uint256, uint256, int256, uint256, uint256, bool, uint256);
 }
