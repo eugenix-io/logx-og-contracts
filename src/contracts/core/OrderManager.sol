@@ -7,23 +7,14 @@ import '../libraries/token/IERC20.sol';
 import './BaseOrderManager.sol';
 import './interfaces/IOrderManager.sol';
 import '../libraries/utils/EnumerableSet.sol';
+import "./../libraries/utils/Structs.sol";
 
 contract OrderManager is
     BaseOrderManager,
     IOrderManager,
     ReentrancyGuard
 {
-    struct IncreasePositionRequest {
-        address account;
-        address _collateralToken;
-        address indexToken;
-        uint256 amountIn;
-        uint256 sizeDelta;
-        bool isLong;
-        uint256 acceptablePrice;
-        uint256 executionFee;
-        uint256 blockNumber;
-        uint256 blockTime;    }
+    
 
     struct DecreasePositionRequest {
         address account;
@@ -54,11 +45,11 @@ contract OrderManager is
 
     uint256 public minExecutionFeeMarketOrder;
     uint256 public minExecutionFeeLimitOrder;
-    mapping(address => uint256) increasePositionsIndex;
-    mapping(bytes32 => IncreasePositionRequest) increasePositionRequests;
-    bytes32[] increasePositionRequestKeys;
-    mapping(address => uint256) decreasePositionsIndex;
-    mapping(bytes32 => DecreasePositionRequest) decreasePositionRequests;
+    mapping(address => uint256) public increasePositionsIndex;
+    mapping(bytes32 => StructsUtils.IncreasePositionRequest) public increasePositionRequests;
+    bytes32[] public increasePositionRequestKeys;
+    mapping(address => uint256) public decreasePositionsIndex;
+    mapping(bytes32 => DecreasePositionRequest) public decreasePositionRequests;
     bytes32[] decreasePositionRequestKeys;
     mapping(address => bool) public isPositionKeeper;
     uint256 public minBlockDelayKeeper;
@@ -229,9 +220,11 @@ contract OrderManager is
     constructor(
         address _vault,
         address _utils,
+        address _pricefeed,
         uint256 _minExecutionFeeMarketOrder, 
-        uint256 _minExecutionFeeLimitOrder
-    ) BaseOrderManager(_vault, _utils) {
+        uint256 _minExecutionFeeLimitOrder,
+        uint _depositFee
+    ) BaseOrderManager(_vault, _utils, _pricefeed, _depositFee) {
         minExecutionFeeMarketOrder = _minExecutionFeeMarketOrder;
         minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
     }
@@ -305,11 +298,11 @@ contract OrderManager is
     ) external payable nonReentrant returns (bytes32) {
         require(_executionFee == msg.value, "OrderManager: execution fee not equal to value in msg.value");
         if(takeProfitPrice ==0 && stopLossPrice ==0){
-            require(_executionFee >= minExecutionFeeMarketOrder, "OrderManager: execution fee less than min execution fee");
+            require(_executionFee >= minExecutionFeeMarketOrder, "OrderManager: market order execution fee less than min execution fee");
         } else if(takeProfitPrice !=0 && stopLossPrice !=0){
-            require(_executionFee >= minExecutionFeeMarketOrder + 2 * minExecutionFeeLimitOrder, "OrderManager: execution fee less than min execution fee");
+            require(_executionFee >= minExecutionFeeMarketOrder + 2 * minExecutionFeeLimitOrder, "OrderManager: tpsl execution fee less than min execution fee");
         } else {
-            require(_executionFee >= minExecutionFeeMarketOrder + minExecutionFeeLimitOrder, "OrderManager: execution fee less than min execution fee");
+            require(_executionFee >= minExecutionFeeMarketOrder + minExecutionFeeLimitOrder, "OrderManager: tp or sl execution fee less than min execution fee");
         }
 
         if (_amountIn > 0) {
@@ -330,10 +323,10 @@ contract OrderManager is
                 minExecutionFeeMarketOrder
             );
         if(takeProfitPrice !=0){
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice, _isLong, _executionFee, false );
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice, _isLong, minExecutionFeeLimitOrder, false );
         }
         if(stopLossPrice !=0){
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, stopLossPrice, !_isLong, _executionFee, false );
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, stopLossPrice, !_isLong, minExecutionFeeLimitOrder, false );
         }
         return positionKey;
     }
@@ -348,7 +341,7 @@ contract OrderManager is
         uint256 _acceptablePrice,
         uint256 _executionFee
     ) internal returns (bytes32) {
-        IncreasePositionRequest memory request = IncreasePositionRequest(
+        StructsUtils.IncreasePositionRequest memory request = StructsUtils.IncreasePositionRequest(
             _account,
             _collateralToken,
             _indexToken,
@@ -386,7 +379,7 @@ contract OrderManager is
         bytes32 _key,
         address payable _executionFeeReceiver
     ) public nonReentrant returns (bool) {
-        IncreasePositionRequest memory request = increasePositionRequests[_key];
+        StructsUtils.IncreasePositionRequest memory request = increasePositionRequests[_key];
         // if the request was already executed or cancelled, return true so that the executeIncreasePositions loop will continue executing the next request
         if (request.account == address(0)) {
             return true;
@@ -473,7 +466,7 @@ contract OrderManager is
         bytes32 _key,
         address payable _executionFeeReceiver
     ) public nonReentrant returns (bool) {
-        IncreasePositionRequest memory request = increasePositionRequests[_key];
+        StructsUtils.IncreasePositionRequest memory request = increasePositionRequests[_key];
         // if the request was already executed or cancelled, return true so that the executeIncreasePositions loop will continue executing the next request
         if (request.account == address(0)) {
             return true;
@@ -522,7 +515,7 @@ contract OrderManager is
     }
 
     function _storeIncreasePositionRequest(
-        IncreasePositionRequest memory _request
+        StructsUtils.IncreasePositionRequest memory _request
     ) internal returns (uint256, bytes32) {
         address account = _request.account;
         uint256 index = increasePositionsIndex[account] + 1;
@@ -991,21 +984,23 @@ contract OrderManager is
             order.isIncreaseOrder
         );
     }
-    //TODO: add a test to check whether MNT is sent back to users.
-    function cancelOrder(uint256 _orderIndex, address account) public nonReentrant {
+
+    function cancelOrder(uint256 _orderIndex, address account) public {
         require(msg.sender == account || isOrderKeeper[msg.sender], "OrderManager: Cannot cancel");
-        bytes32 orderKey = getOrderKey(msg.sender,_orderIndex);
+        bytes32 orderKey = getOrderKey(account,_orderIndex);
         Order memory order = orders[orderKey];
         _cancelOrder(orderKey, _orderIndex,  order);
     }
-    function _cancelOrder(bytes32 orderKey, uint256 _orderIndex, Order memory order) internal nonReentrant {
+    function _cancelOrder(bytes32 orderKey, uint256 _orderIndex, Order memory order) internal {
         
         require(order.account != address(0), "OrderManager: non-existent order");
 
         delete orders[orderKey];
         EnumerableSet.remove(orderKeys, orderKey);
-        IERC20(order.collateralToken).transfer(msg.sender, order.collateralDelta);
-        (bool success,  ) = (msg.sender).call{value: order.executionFee}("");
+        if(order.isIncreaseOrder){
+            IERC20(order.collateralToken).transfer(order.account, order.collateralDelta);
+        }
+        (bool success,  ) = (order.account).call{value: order.executionFee}("");
         require(success, "OrderManager: Exectuion Fee transfer failed");
 
         emit CancelOrder(
@@ -1015,8 +1010,8 @@ contract OrderManager is
             _orderIndex,
             order.collateralDelta,
             order.sizeDelta,
-            order.executionFee,
             order.triggerPrice,
+            order.executionFee,
             order.isLong,
             order.triggerAboveThreshold,
             order.isIncreaseOrder

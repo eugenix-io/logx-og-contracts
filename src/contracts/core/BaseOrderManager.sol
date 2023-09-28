@@ -8,12 +8,15 @@ import './interfaces/IUtils.sol';
 import './interfaces/ITimeLock.sol';
 import '../access/Governable.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
+import './interfaces/IPriceFeed.sol';
+import "forge-std/console.sol";
 
 
 contract BaseOrderManager{
     address public admin;
     address public vault;
     address public utils;
+    address public pricefeed;
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
     mapping (address => uint256) public maxGlobalLongSizes;
@@ -41,11 +44,15 @@ contract BaseOrderManager{
 
     constructor(
         address _vault,
-        address _utils
+        address _utils,
+        address _pricefeed,
+        uint _depositFee
     ) {
         vault = _vault;
         utils = _utils;
+        pricefeed = _pricefeed;
         admin = msg.sender;
+        depositFee = _depositFee;
     }
 
     function setAdmin(address _admin) external onlyAdmin {
@@ -58,6 +65,10 @@ contract BaseOrderManager{
     
     function setUtils(address _utils) external onlyAdmin {
         utils = _utils;
+    }
+
+    function setDepositFee(uint _fee) external onlyAdmin {
+        depositFee = _fee;
     }
 
     function setMaxGlobalSizes(
@@ -95,7 +106,7 @@ contract BaseOrderManager{
     function _increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, uint256 acceptablePrice) internal {
         _validateMaxGlobalSize(_indexToken, _isLong, _sizeDelta);
 
-        uint256 markPrice = _isLong ? IUtils(utils).getMaxPrice(_indexToken) : IUtils(utils).getMinPrice(_indexToken);
+        uint256 markPrice = _isLong ? IPriceFeed(pricefeed).getMaxPriceOfToken(_indexToken) : IPriceFeed(pricefeed).getMinPriceOfToken(_indexToken);
         if (_isLong) {
             require(markPrice <= acceptablePrice, "BasePositionManager: markPrice > price");
         } else {
@@ -107,7 +118,7 @@ contract BaseOrderManager{
 
     function _decreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver, uint256 _price) internal returns (uint256) {
 
-        uint256 markPrice = _isLong ? IUtils(utils).getMinPrice(_indexToken) : IUtils(utils).getMaxPrice(_indexToken);
+        uint256 markPrice = _isLong ? IPriceFeed(pricefeed).getMinPriceOfToken(_indexToken) : IPriceFeed(pricefeed).getMaxPriceOfToken(_indexToken);
         if (_isLong) {
             require(markPrice >= _price, "BasePositionManager: markPrice < price");
         } else {

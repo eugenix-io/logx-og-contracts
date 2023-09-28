@@ -625,7 +625,7 @@ contract Utils is IUtils, Governable {
             _validate(_collateral == 0, "Vault: collateral should be 0");
             return;
         }
-        _validate(_size >= _collateral, "Vault: collateral exceeds size");
+        _validate(_size >= _collateral, "Utils: collateral exceeds size");
     }
     function updateCumulativeBorrowingRate(uint256 lastBorrowingTime, uint256 borrowingInterval, uint256 borrowingRateFactor, uint256 poolAmount, uint256 reservedAmount) public view returns(uint256 borrowingTime, uint256 borrowingRate) {
         if (lastBorrowingTime == 0) {
