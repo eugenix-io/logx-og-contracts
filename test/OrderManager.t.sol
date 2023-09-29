@@ -43,21 +43,29 @@ contract OrderManagerTest is Test, Helper {
             emitOrderCreateEvent is emitted
         1. correct positionKey for a request is returned or not 
     */
-    function test_createIncreasePosition() public {
-        vm.startPrank(testUserAddress);
+   function testMarketOrderWithFeeZero() public {
         vm.expectRevert("OrderManager: market order execution fee less than min execution fee");
         orderManager.createIncreasePosition{value: 0}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, 0, 0, 0);
+   }
+
+   function testMarketWithTPSLOrderWithLessFee() public {
         vm.expectRevert("OrderManager: tpsl execution fee less than min execution fee");
         orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, takeProfitPrice, stopLossPrice, minExecutionFeeMarketOrder);
+
+   }
+
+   function testMarketWithTPOrderWithLessFee() public {
         vm.expectRevert("OrderManager: tp or sl execution fee less than min execution fee");
         orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, takeProfitPrice, 0, minExecutionFeeMarketOrder);
 
+   }
+    function testSuccessfulCreateIncreasePosition() public {
+        vm.startPrank(testUserAddress);
         uint256 tpslFeeAmount = minExecutionFeeMarketOrder + 2 * minExecutionFeeLimitOrder;
-        IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        
         uint256 prevBalance = IERC20(vm.envAddress("USDC")).balanceOf(address(orderManager));
         uint256 prevPositionIndex = orderManager.increasePositionsIndex(testUserAddress);
         uint256 prevOrderIndex = orderManager.ordersIndex(testUserAddress);
+        IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
 
         vm.expectEmit(true, true, true, false, address(orderManager));
         emit CreateIncreasePosition(
@@ -136,7 +144,6 @@ contract OrderManagerTest is Test, Helper {
 
         // should open a position and create two orders one tp and one sl
         bytes32 requestKey = orderManager.createIncreasePosition{value: tpslFeeAmount}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, takeProfitPrice, stopLossPrice, tpslFeeAmount);
-        
         uint256 finalBalance = IERC20(vm.envAddress("USDC")).balanceOf(address(orderManager));
         uint256 finalPositionIndex = orderManager.increasePositionsIndex(testUserAddress);
         uint256 finalOrderIndex = orderManager.ordersIndex(testUserAddress);
@@ -239,17 +246,24 @@ contract OrderManagerTest is Test, Helper {
         3.4 CreateDecreasePosition event is emitted with right values
    */
 
-  function test_createDecreasePosition() public {
+  function testCreateDecreasePositionWithoutExistingPosition() public {
+    vm.expectRevert("OrderManager: Sufficient size doesn't exist");
+    bytes32 requestKey = orderManager.createDecreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder);
+  }
+  function testSuccessfulCreateDecreasePosition() public {
     vm.startPrank(testUserAddress);
     vm.expectRevert("OrderManager: fee");
     orderManager.createDecreasePosition{value: 0}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, 0);
     vm.expectRevert("OrderManager: value sent is not equal to execution fee");
     orderManager.createDecreasePosition{value: 0}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder);
+    
+    bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
+    executeIncreaseLongPositionOnEth(requestKey);
 
     uint256 prevPositionIndex = orderManager.decreasePositionsIndex(testUserAddress);
     vm.expectEmit(true, true, true, false, address(orderManager));
     emit CreateDecreasePosition(testUserAddress, vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder, 0, 0, 0,0);
-    bytes32 requestKey = orderManager.createDecreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder);
+    requestKey = orderManager.createDecreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder);
     uint256 finalPositionIndex = orderManager.decreasePositionsIndex(testUserAddress);
     assertEq(finalPositionIndex, prevPositionIndex+1);
 
@@ -281,7 +295,7 @@ contract OrderManagerTest is Test, Helper {
         5.3 _createOrder is covered in createIncreasePosition
    */
 
-    function test_createOrder() public {
+    function testCreateOrder() public {
         vm.startPrank(testUserAddress);
 
         vm.expectRevert("OrderManager: incorrect execution fee transferred");
@@ -345,7 +359,7 @@ contract OrderManagerTest is Test, Helper {
         8.7 executionFee is sent to _executionFeeReceiver successfully
         8.8 ExecuteIncreasePosition is emitted correctly
   */
-    function test_executeIncreasePosition() public {
+    function testExecuteIncreasePosition() public {
         vm.startPrank(testUserAddress);
 
         bytes32 randomKey = getRequestKey(address(testUserAddress), 123);
@@ -355,26 +369,8 @@ contract OrderManagerTest is Test, Helper {
         IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
         bytes32 requestKey = orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, false, acceptablePrice, 0, 0, minExecutionFeeMarketOrder);
         // mockPrices
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xA11be02594AEF2AB383703D4ac7c7aD01767B30E)),
-            abi.encode(1 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xA11be02594AEF2AB383703D4ac7c7aD01767B30E)),
-            abi.encode(1 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1650 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1650 * 10**30)
-        );
+        mockPricesOfUSDC(1,1);
+        mockPricesOfEth(1650,1650);
         IERC20(vm.envAddress("USDC")).transfer(address(vault), 1000 *10**18);
         vault.directPoolDeposit(vm.envAddress("USDC"));
 
@@ -403,22 +399,13 @@ contract OrderManagerTest is Test, Helper {
 
         IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
         bytes32 requestKey2 = orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize/2, sizeDelta/2, false, acceptablePrice, 0, 0, minExecutionFeeMarketOrder);
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1590 * 10**30)
-        );
+        mockPricesOfEth(1590, 1610);
         vm.expectRevert("BasePositionManager: markPrice < price");
         bool executed2 = orderManager.executeIncreasePosition(requestKey2, payable(testUserAddress)); // some random bytes key
 
 
         IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
         bytes32 requestKey3 = orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize/2, sizeDelta/2, true, acceptablePrice, 0, 0, minExecutionFeeMarketOrder);
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1610 * 10**30)
-        );
         vm.expectRevert("BasePositionManager: markPrice > price");
         bool executed3 = orderManager.executeIncreasePosition(requestKey3, payable(testUserAddress)); // some random bytes key
 
@@ -439,57 +426,18 @@ contract OrderManagerTest is Test, Helper {
             9.5 If the user is just decreasign leverage then check transfer of deposit fee
     */
 
-   function test_executeDecreasePosition() public {
+   function testExecuteDecreasePosition() public {
         vm.startPrank(testUserAddress);
         bytes32 randomKey = getRequestKey(address(testUserAddress), 123);
         bool executedRandom = orderManager.executeDecreasePosition(randomKey, payable(testUserAddress)); // some random bytes key
         assertEq(executedRandom, true);
-        // create position
-        bytes32 requestKey = orderManager.createDecreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder);
-        // mockPrices
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xA11be02594AEF2AB383703D4ac7c7aD01767B30E)),
-            abi.encode(1 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xA11be02594AEF2AB383703D4ac7c7aD01767B30E)),
-            abi.encode(1 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1650 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1650 * 10**30)
-        );
-        // execute position
-        vm.expectRevert("Vault: no position found");
-        bool executed = orderManager.executeDecreasePosition(requestKey, payable(address(testUserAddress))); 
 
         // now 1. open create a open position request, execute request, create a decrease position request then execute it
 
         // 1. create a open position 
-        IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        bytes32 incRequestKey2 = orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, 0, 0, minExecutionFeeMarketOrder);
-        IERC20(vm.envAddress("USDC")).transfer(address(vault), 1000 *10**18);
-        vault.directPoolDeposit(vm.envAddress("USDC"));
+        bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
         // 2. Execute increase position
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1600 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1600 * 10**30)
-        );
-        bool executedIncr = orderManager.executeIncreasePosition(incRequestKey2, payable(address(testUserAddress))); 
+        executeIncreaseLongPositionOnEth(requestKey);
         // 3. create a decrease position request for open position
         bytes32 decRequestKey = orderManager.createDecreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder);
         
@@ -506,8 +454,6 @@ contract OrderManagerTest is Test, Helper {
 
         // cehck fee return 
         assertEq(finalFeeBal-initialFeeBal, minExecutionFeeMarketOrder);
-
-
 
         // check position got deleted
         ( address positionAccount,,,,,,,,,, ) = orderManager.decreasePositionRequests(decRequestKey);
@@ -536,54 +482,32 @@ contract OrderManagerTest is Test, Helper {
    */
 
     // also covers cancel orders
-   function test_executeOrder() public {
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xA11be02594AEF2AB383703D4ac7c7aD01767B30E)),
-            abi.encode(1 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xA11be02594AEF2AB383703D4ac7c7aD01767B30E)),
-            abi.encode(1 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1601 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1599 * 10**30)
-        );
+    function testExecuteFailForNonExistentOrder() public {
+        vm.expectRevert("OrderManager: non-existent order");
+        orderManager.executeOrder(testUserAddress, 0, payable(testUserAddress)); // non existent orderIndex
+    }
+
+    function testSuccessfulExecutionOfLimitOrder() public {
+        mockPricesOfUSDC(1, 1);
+        mockPricesOfEth(1599, 1601);
         // -------------------------// Place an order to open a position and check its execution -------------------------//
         vm.startPrank(testUserAddress);
         IERC20(vm.envAddress("USDC")).transfer(address(vault), 1000 *10**18);
         vault.directPoolDeposit(vm.envAddress("USDC"));
-
-        IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        (address orderAccount, uint256 orderIndex) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, takeProfitPrice, true, minExecutionFeeLimitOrder, true);
+        (address orderAccount, uint256 orderIndex) = createLongLimitOrderOnEth();
         vm.stopPrank();
 
         // execute order
-        vm.expectRevert("OrderManager: non-existent order");
-        orderManager.executeOrder(orderAccount, orderIndex+1, payable(testUserAddress)); // non existent orderIndex
-
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMaxPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1651 * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(_ipriceFeed.getMinPriceOfToken.selector, address(0xE42249ECa9DB752f28C129a110FAc486F4697d1F)),
-            abi.encode(1649 * 10**30)
-        );
+        mockPricesOfEth(1649, 1651);
         uint256 prevVaultBalance = IERC20(vm.envAddress("USDC")).balanceOf(address(vault));
         orderManager.executeOrder(orderAccount, orderIndex, payable(testUserAddress));
         uint256 nextVaultBalance = IERC20(vm.envAddress("USDC")).balanceOf(address(vault));
         assertEq(nextVaultBalance-prevVaultBalance, collateralSize);
+    }
+
+    function testCloseOrderWithSizeGreaterThanExistingPosition() public {
+        mockPricesOfUSDC(1, 1);
+        mockPricesOfEth(1599, 1601);
         //-------------------------// Place a decreasing order which exceeds position size and it should get cancelled -------------------------//
         vm.startPrank(testUserAddress);
         // IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
@@ -593,12 +517,21 @@ contract OrderManagerTest is Test, Helper {
         vm.expectEmit(true, true, true, true, address(orderManager));
         emit CancelOrder(testUserAddress, vm.envAddress("USDC"), vm.envAddress("ETH"), orderIndex2, collateralSize, sizeDelta*2, acceptablePrice, minExecutionFeeLimitOrder, true, true, false);
         orderManager.executeOrder(orderAccount2, orderIndex2, payable(testUserAddress)); // this should cancel because size*2
+    }
+    
+   function testExecuteOrder() public {
+        mockPricesOfUSDC(1, 1);
+        mockPricesOfEth(1599, 1601);
 
+        vm.startPrank(testUserAddress);
+        bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
+        executeIncreaseLongPositionOnEth(requestKey);
     
         //-------------------------// Place another decreasing order this time with right values and it shoudl execute -------------------------//-------------------------//-------------------------
-        vm.startPrank(testUserAddress);
+        
         (address orderAccount3, uint256 orderIndex3) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, acceptablePrice, true, minExecutionFeeLimitOrder, false);
         vm.stopPrank();
+        mockPricesOfEth(1649, 1651);
         uint256 initialUserBal = IERC20(vm.envAddress("USDC")).balanceOf(address(testUserAddress));
         uint256 initialFeeBal = address(testFeeReceiver).balance;
         orderManager.executeOrder(orderAccount3, orderIndex3, payable(testFeeReceiver));
@@ -610,8 +543,8 @@ contract OrderManagerTest is Test, Helper {
 
         bytes32 key = getOrderKey(testUserAddress, orderIndex3);
         ( address account,,,,,,,,,) = orderManager.orders(key);
-        assertEq(account, address(0)); // order delete after execution
-        assertEq(finalFeeBal-initialFeeBal, minExecutionFeeLimitOrder);
+        assertEq(account, address(0), "Address doesn't match"); // order delete after execution
+        assertEq(finalFeeBal-initialFeeBal, minExecutionFeeLimitOrder, "Balances doesn't match");
    }
 
     /*

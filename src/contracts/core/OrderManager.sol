@@ -540,6 +540,8 @@ contract OrderManager is
     ) external payable nonReentrant returns (bytes32) {
         require(_executionFee >= minExecutionFeeMarketOrder, "OrderManager: fee");
         require(_executionFee == msg.value, "OrderManager: value sent is not equal to execution fee");
+        bool sufficientPositionExists = checkSufficientPositionExists(msg.sender, _collateralToken, _indexToken,_isLong, _sizeDelta);
+        require(sufficientPositionExists, "OrderManager: Sufficient size doesn't exist");
 
         return
             _createDecreasePosition(
@@ -991,6 +993,7 @@ contract OrderManager is
         Order memory order = orders[orderKey];
         _cancelOrder(orderKey, _orderIndex,  order);
     }
+
     function _cancelOrder(bytes32 orderKey, uint256 _orderIndex, Order memory order) internal {
         require(order.account != address(0), "OrderManager: non-existent order");
 
@@ -1061,15 +1064,14 @@ contract OrderManager is
             order.isLong
         );
 
-
         if(order.isIncreaseOrder){
             _validateIncreaseOrder(_address, _orderIndex);
             IERC20(order.collateralToken).transfer(vault, order.collateralDelta);
             IVault(vault).increasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 
         } else{
-            (uint size,,,,,,,,) = IVault(vault).getPosition(order.account, order.collateralToken, order.indexToken, order.isLong);
-            if(size<order.sizeDelta){
+            bool sufficientSizeExists = checkSufficientPositionExists(order.account, order.collateralToken, order.indexToken, order.isLong, order.sizeDelta);
+            if(!sufficientSizeExists){
                 _cancelOrder(orderKey, _orderIndex, order);
                 return;
             }
@@ -1137,5 +1139,26 @@ contract OrderManager is
         for(uint i=0;i<length;i++){
             IVault(vault).liquidatePosition(keys[i],_feeReceiver); 
         }
+    }
+
+    // to help users who accidentally send their tokens to this contract or
+    // to withdraw any MNT struck in orderManager
+    function withdrawMNT(uint value, address receiver) public onlyAdmin {
+        (bool success, ) = payable(receiver).call{value: value}("");
+        require(success, "OrderManager: Transfer failed!");
+    }
+
+    // to help users who accidentally send their tokens to this contract
+    function withdrawToken(address _token, address _account, uint256 _amount) external onlyAdmin {
+        bool transferStatus = IERC20(_token).transfer(_account, _amount);
+        require(transferStatus, "OrderManager: token transfer failed!");
+    }
+
+    function checkSufficientPositionExists(address account, address collateralToken, address indexToken, bool isLong, uint sizeDelta) private view returns(bool) {
+        (uint size,,,,,,,,) = IVault(vault).getPosition(account, collateralToken, indexToken, isLong);
+        if(size < sizeDelta){
+            return false;
+        }
+        return true;
     }
 }

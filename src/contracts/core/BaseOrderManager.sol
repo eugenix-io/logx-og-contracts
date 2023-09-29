@@ -25,6 +25,7 @@ contract BaseOrderManager{
     mapping (address => uint256) public feeReserves;
     uint public depositFee;
 
+
     event SetMaxGlobalSizes(
         address[] tokens,
         uint256[] longSizes,
@@ -36,6 +37,8 @@ contract BaseOrderManager{
         uint256 prevLeverage,
         uint256 nextLeverage
     );
+    event WithdrawFees(address token, address receiver, uint256 amount);
+
 
     modifier onlyAdmin() {
         require(msg.sender == admin, "BasePositionManager: forbidden");
@@ -162,6 +165,17 @@ contract BaseOrderManager{
 
         return false;
 
+    }
+
+    function withdrawFees(address _token, address _receiver) external onlyAdmin {
+        uint256 amount = feeReserves[_token];
+        if (amount == 0) { return; }
+
+        feeReserves[_token] = 0;
+        bool transferStatus = IERC20(_token).transfer(_receiver, amount);
+        require(transferStatus, "BaseOrderManager: Fee withdrawl failed!");
+
+        emit WithdrawFees(_token, _receiver, amount);
     }
 
     function _collectFees(

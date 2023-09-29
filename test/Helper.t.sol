@@ -29,6 +29,7 @@ contract Helper is Test {
     uint256 constant acceptablePrice = 1600 * 10**30;
     uint256 constant takeProfitPrice = 1650;
     uint256 constant stopLossPrice = 1550;
+    uint256 constant PRICE_PRECISION = 10 ** 30;
 
     event CreateIncreasePosition(
         address indexed account,
@@ -137,8 +138,6 @@ contract Helper is Test {
     Utils utils;
     IUtils _iutils;
     OrderManager orderManager;
-    IPriceFeed _ipriceFeed;
-    IVault _ivault;
 
     function deployVault() public returns (Vault){
         Vault _vault = new Vault(); 
@@ -172,4 +171,56 @@ contract Helper is Test {
     function getOrderKey(address _account, uint256 index) public pure returns(bytes32){
         return keccak256(abi.encodePacked(_account, index));
     }
+
+    function mockPricesOfUSDC(uint usdcMinPrice, uint usdcMaxPrice) public {
+        vm.mockCall(
+            address(address(priceFeed)),
+            abi.encodeWithSelector(priceFeed.getMaxPriceOfToken.selector, address(vm.envAddress("USDC"))),
+            abi.encode(usdcMaxPrice * 10**30)
+        );
+        vm.mockCall(
+            address(address(priceFeed)),
+            abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress("USDC"))),
+            abi.encode(usdcMinPrice * 10**30)
+        );
+    }
+
+    function mockPricesOfEth(uint ethMinPrice, uint ethMaxPrice) public {
+        vm.mockCall(
+            address(address(priceFeed)),
+            abi.encodeWithSelector(priceFeed.getMaxPriceOfToken.selector, address(vm.envAddress("ETH"))),
+            abi.encode(ethMaxPrice * 10**30)
+        );
+        vm.mockCall(
+            address(address(priceFeed)),
+            abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress("ETH"))),
+            abi.encode(ethMinPrice * 10**30)
+        );
+    }
+
+    function createLongIncreasePositionOnEth(uint fee) public returns(bytes32) {
+        IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
+        return orderManager.createIncreasePosition{value: fee}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, 0, 0, fee);
+    }
+
+    function executeIncreaseLongPositionOnEth(bytes32 requestKey) public {
+        // mockPrices
+        mockPricesOfUSDC(1,1);
+        mockPricesOfEth(1600,1600);
+        IERC20(vm.envAddress("USDC")).transfer(address(vault), 1000 *10**18);
+        vault.directPoolDeposit(vm.envAddress("USDC"));
+
+        uint256 prevBalance = IERC20(vm.envAddress("USDC")).balanceOf(address(vault));
+        uint256 initialFeeBal = address(testUserAddress).balance;
+        vm.expectEmit(true, true, true, false, address(orderManager));
+        emit ExecuteIncreasePosition(testUserAddress, vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, false, acceptablePrice, minExecutionFeeLimitOrder, 0, 0);
+        bool executed = orderManager.executeIncreasePosition(requestKey, payable(address(testUserAddress))); 
+    }
+
+    function createLongLimitOrderOnEth() public returns(address orderAccount, uint256 orderIndex){
+        IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
+        (orderAccount, orderIndex) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, takeProfitPrice, true, minExecutionFeeLimitOrder, true);
+    }
+
+    
 }
