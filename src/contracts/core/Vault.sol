@@ -72,6 +72,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     uint256 public override maxGasPrice;
     uint256 public override maxExposurePerUser;
+    uint256 public maxOIImbalance;
     uint256 public maxLiquidityPerUser;
     uint256 public safetyFactor;
     
@@ -255,6 +256,11 @@ contract Vault is ReentrancyGuard, IVault {
     function setGov(address newGov) external {
         _onlyGov();
         gov = newGov;
+    }
+
+    function setMaxOIImbalance(uint256 _maxOIImbalance) external {
+        _onlyGov();
+        maxOIImbalance = _maxOIImbalance;
     }
 
     function setCeaseTradingActivity(bool _cease) external {
@@ -1011,49 +1017,66 @@ contract Vault is ReentrancyGuard, IVault {
         address _token,
         uint256 _amount
     ) internal {
-        globalShortSizes[_token] = globalShortSizes[_token] + (_amount);
+        uint globalShortSize = globalShortSizes[_token];
+        globalShortSize = globalShortSize + (_amount);
 
         uint256 maxSize = maxGlobalShortSizes[_token];
         if (maxSize != 0) {
             require(
-                globalShortSizes[_token] <= maxSize,
+                globalShortSize <= maxSize,
                 "Vault: max shorts exceeded"
             );
         }
+        validateOIImbalance(globalLongSizes[_token], globalShortSize);
+        globalShortSizes[_token] = globalShortSize;
     }
     function _decreaseGlobalShortSize(address _token, uint256 _amount) private {
         uint256 size = globalShortSizes[_token];
         if (_amount > size) {
-            globalShortSizes[_token] = 0;
-            return;
+            size = 0;
+        } else {
+            size = size - (_amount);
         }
+        validateOIImbalance(globalLongSizes[_token], size);
+        globalShortSizes[_token] = size;
+    }
 
-        globalShortSizes[_token] = size - (_amount);
+    function validateOIImbalance(uint globalLongSize, uint globalShortSize) view private {
+        if(globalLongSize>globalShortSize){
+            require(globalLongSize< globalShortSize + maxOIImbalance, "Vault: Max OI breached!");
+        } else {
+            require(globalShortSize< globalLongSize + maxOIImbalance, "Vault: Max OI breached!");
+        }
     }
 
     function _increaseGlobalLongSize(
         address _token,
         uint256 _amount
     ) internal {
-        globalLongSizes[_token] = globalLongSizes[_token] + (_amount);
+        uint globalLongSize = globalLongSizes[_token];
+        globalLongSize = globalLongSize + (_amount);
 
         uint256 maxSize = maxGlobalLongSizes[_token];
         if (maxSize != 0) {
             require(
-                globalLongSizes[_token] <= maxSize,
+                globalLongSize <= maxSize,
                 "Vault: max longs exceeded"
             );
         }
+        validateOIImbalance(globalLongSize, globalShortSizes[_token]);
+        globalLongSizes[_token] = globalLongSize;
+
     }
 
     function _decreaseGlobalLongSize(address _token, uint256 _amount) private {
         uint256 size = globalLongSizes[_token];
         if (_amount > size) {
-            globalLongSizes[_token] = 0;
-            return;
+            size = 0;
+        } else {
+            size = size - (_amount);
         }
-
-        globalLongSizes[_token] = size - (_amount);
+        validateOIImbalance(size, globalShortSizes[_token]);
+        globalLongSizes[_token] = size;
     }
 
     function _decreasePosition(
