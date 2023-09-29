@@ -22,12 +22,14 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     IUtils public utils;
     address public override usdl;
     address public override llp;
+    uint public maxPoolValue;
 
     uint256 public override cooldownDuration;
     mapping(address => uint256) public override lastAddedAt;
     mapping(address => bool) public whiteListedTokens;
 
     mapping(address => bool) public isHandler;
+
 
     event AddLiquidity(
         address account,
@@ -54,7 +56,8 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         address _utils,
         address _usdl,
         address _llp,
-        uint256 _cooldownDuration
+        uint256 _cooldownDuration, 
+        uint256 _maxPoolValue
     ) {
         gov = msg.sender;
         vault = IVault(_vault);
@@ -62,6 +65,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         usdl = _usdl;
         llp = _llp;
         cooldownDuration = _cooldownDuration;
+        maxPoolValue = _maxPoolValue;
     }
 
     function setUtils(address _utils) external onlyGov {
@@ -78,6 +82,10 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
     function removeFromWhiteListToken(address token) public onlyGov {
         whiteListedTokens[token] = false;
+    }
+
+    function setMaxPoolValue(uint _maxPoolValue) public onlyGov {
+        maxPoolValue = _maxPoolValue;
     }
 
     function setCooldownDuration(
@@ -176,7 +184,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             _amount
         );
         (uint256 mintAmount, uint256 usdlAmount) = utils.calculateMintAmount(_minusdl, _token, aumInusdl, llpSupply, _minllp, address(this));
-
+        require(aumInusdl + usdlAmount< maxPoolValue, "LLPManager: Max Pool value exceeded");
         IMintable(llp).mint(_account, mintAmount);
 
         lastAddedAt[_account] = block.timestamp;
