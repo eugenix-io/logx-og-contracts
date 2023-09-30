@@ -259,6 +259,7 @@ contract OrderManagerTest is Test, Helper {
     
     bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
     executeIncreaseLongPositionOnEth(requestKey);
+    console.log("executed");
 
     uint256 prevPositionIndex = orderManager.decreasePositionsIndex(testUserAddress);
     vm.expectEmit(true, true, true, false, address(orderManager));

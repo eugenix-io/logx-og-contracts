@@ -71,7 +71,7 @@ contract Utils is IUtils, Governable {
 
         for (uint256 i = 0; i < length; i++) {
             address token = vault.allWhitelistedTokens(i);
-            if(!vault.whitelistedTokens(token)){
+            if(!vault.canBeCollateralToken(token)){ // instead of whitelistedToken we should check for canBeCollateralToken true false?
                 continue;
             }
             uint256 price = getMinPrice(token);
@@ -80,6 +80,7 @@ contract Utils is IUtils, Governable {
         require(sizeAfterUpdate*100/(availableLiquidityInUsd) < vault.maxLiquidityPerUser(), "Utils: Huge liquidity captured for single user");
     }
 
+    // Will we be implementing this validation function
     function validateDecreasePosition(
         address /* _account */,
         address /* _collateralToken */,
@@ -646,7 +647,7 @@ contract Utils is IUtils, Governable {
         uint256 _collateral
     ) public pure {
         if (_size == 0) {
-            _validate(_collateral == 0, "Vault: collateral should be 0");
+            _validate(_collateral == 0, "Utils: collateral should be 0");
             return;
         }
         _validate(_size >= _collateral, "Utils: collateral exceeds size");

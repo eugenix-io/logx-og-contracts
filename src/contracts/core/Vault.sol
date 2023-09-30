@@ -494,13 +494,14 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 tokenAmount = _transferIn(_token);
         _validate(tokenAmount > 0, "Vault: tokenAmount too low");
 
-        uint256 price = utils.getMinPrice(_token);
+        uint256 price = utils.getMinPrice(_token); // Read directly from priceFeed instead of utils
 
         uint256 usdlAmount = (tokenAmount * (price)) / (PRICE_PRECISION);
         usdlAmount = utils.adjustForDecimals(usdlAmount, _token, usdl);
         //this usdl amount is after multiplying with 10^ 18
         _validate(usdlAmount > 0, "Vault: usdlAmount too low");
 
+        // Consider: If not targeting dynamic fees in mainnet than simplyign these function calls for LLP mint/burn fee basis points
         uint256 feeBasisPoints = utils.getBuyUsdlFeeBasisPoints(
             _token,
             usdlAmount
@@ -566,7 +567,7 @@ contract Vault is ReentrancyGuard, IVault {
         IUSDL(usdl).burn(address(this), usdlAmount);
 
         _updateTokenBalance(usdl);
-
+    
         uint256 feeBasisPoints = utils.getSellUsdlFeeBasisPoints(
             _token,
             usdlAmount
@@ -1335,7 +1336,7 @@ contract Vault is ReentrancyGuard, IVault {
             if (usdOut > uint(fee)) {
                 usdOutAfterFee = usdOut - uint(fee);
             } else {
-                position.collateral = position.collateral - uint(fee);
+                position.collateral = position.collateral - uint(fee); // Revist to check for fee > position.collateral
             }
         }
         

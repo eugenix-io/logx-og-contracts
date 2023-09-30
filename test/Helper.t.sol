@@ -14,10 +14,14 @@ import "./../../src/contracts/core/interfaces/IVault.sol";
 import "./../../src/contracts/libraries/token/IERC20.sol";
 import "./../../src/contracts/libraries/utils/EnumerableSet.sol";
 import "./../../src/contracts/libraries/utils/Structs.sol";
+import './../../src/contracts/core/USDL.sol';
+
 
 
 
 contract Helper is Test {
+    uint256 public constant BASIS_POINTS_DIVISOR = 10000;
+
     uint constant minExecutionFeeMarketOrder = 37 * 10 ** 16;
     uint constant minExecutionFeeLimitOrder = 37 * 10 ** 16;
     uint constant maxAllowedDelayPriceFeed = 300;
@@ -132,20 +136,27 @@ contract Helper is Test {
 
     address testUserAddress = 0xb3D1a79cdE88c1a9B69Fc43fd1eCEa6df87eFDeB;
     address testFeeReceiver = 0x79F30C5D9e25E70766DCC8ba6b489b5bA0Cc81FD;
+    address usdcSource = 0x2c089786d105b95a51c3E7FB5F4dc78E7B963634;
 
     Vault vault;
     PriceFeed priceFeed;
     Utils utils;
     IUtils _iutils;
     OrderManager orderManager;
+    USDL usdl;
 
     function deployVault() public returns (Vault){
         Vault _vault = new Vault(); 
         console.log("Vault deployed at address: ", address(_vault));
         return _vault;
     }
+    function deployUSDL(Vault _vault) public returns (USDL){
+        USDL _usdl = new USDL(address(_vault));
+        console.log("USDL deployed at address: ", address(_usdl));
+        return _usdl;
+    }
 
-     function deployAndInitializePriceFeed() public returns (PriceFeed){
+    function deployAndInitializePriceFeed() public returns (PriceFeed){
         PriceFeed _priceFeed = new PriceFeed(maxAllowedDelayPriceFeed, vm.envAddress("PYTH_CONTRACT"), vm.envAddress("UPDATER"));
         console.log("PriceFeed deployed at address: ", address(priceFeed));
         _priceFeed.updateTokenIdMapping(vm.envAddress("MNT"), vm.envBytes32("MNT_PYTH_FEED"));
@@ -195,6 +206,39 @@ contract Helper is Test {
             address(address(priceFeed)),
             abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress("ETH"))),
             abi.encode(ethMinPrice * 10**30)
+        );
+    }
+
+    // vault helper
+    function increasePositionVault( address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) public {
+        vault.increasePosition(_account, _collateralToken, _indexToken, _sizeDelta, _isLong);
+    }
+
+    function buyUsdlHelper(uint256 _amount) public returns(uint256) {
+        mockUSDCTransfer(_amount);
+        uint256 usdlAmount = vault.buyUSDL(vm.envAddress("USDC"), testUserAddress);
+        return usdlAmount;
+    }
+
+    function sellUsdlHelper(uint256 _amount) public returns(uint256) {
+        mockUSDLTransfer(_amount);
+        uint256 usdlAmount = vault.sellUSDL(vm.envAddress("USDC"), testUserAddress);
+        return usdlAmount;
+    }
+
+    function mockUSDCTransfer(uint256 _amount) public {
+        vm.mockCall(
+            address(address(vm.envAddress("USDC"))),
+            abi.encodeWithSelector(IERC20.balanceOf.selector, address(vault)),
+            abi.encode(vault.tokenBalances(vm.envAddress("USDC")) + _amount)
+        );
+    }
+
+    function mockUSDLTransfer(uint256 _amount) public{
+        vm.mockCall(
+            address(address(usdl)),
+            abi.encodeWithSelector(IERC20.balanceOf.selector, address(vault)),
+            abi.encode(vault.tokenBalances(address(usdl)) + _amount)
         );
     }
 
