@@ -13,6 +13,8 @@ interface IVault {
     function maxLeverage() external view returns (uint256);
     function gov() external view returns (address);
 
+    function ceaseTradingActivity() external view returns(bool);
+    function ceaseLPActivity() external view returns (bool);
     function minProfitTime() external view returns (uint256);
     function hasDynamicFees() external view returns (bool);
     function borrowingInterval() external view returns (uint256);

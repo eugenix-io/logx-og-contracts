@@ -96,7 +96,7 @@ contract Deployment is Script {
     }
 
     function deployLlpManager(Vault vault, Utils utils, USDL usdl, RewardRouter rewardRouter) public returns (LlpManager){
-        LlpManager llpManager = new LlpManager(address(vault), address(utils), address(usdl), vm.envAddress("LLP"), llpCooldownDuration, 10**25);
+        LlpManager llpManager = new LlpManager(address(vault), address(utils), address(usdl), vm.envAddress("LLP"), llpCooldownDuration, 10**36);
         llpManager.setHandler(address(rewardRouter), true);
         llpManager.whiteListToken(vm.envAddress("USDC"));
         console.log("LlpManager deployed at address: ", address(llpManager));

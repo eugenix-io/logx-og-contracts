@@ -119,6 +119,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 _minusdl,
         uint256 _minllp
     ) external override nonReentrant returns (uint256) {
+        _validateLPActivity();
         _validateHandler();
         _validateToken(_token);
         return
@@ -132,6 +133,10 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
             );
     }
 
+    function _validateLPActivity() view internal{
+        require(vault.ceaseLPActivity(), "LLPManager: LP activity ceased!");
+    }
+
     function removeLiquidityForAccount(
         address _account,
         address _tokenOut,
@@ -139,7 +144,9 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 _minOut,
         address _receiver
     ) external override nonReentrant returns (uint256) {
+        _validateLPActivity();
         _validateHandler();
+        _validateLPActivity();
         _validateToken(_tokenOut);
         return
             _removeLiquidity(

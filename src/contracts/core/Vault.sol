@@ -50,8 +50,8 @@ contract Vault is ReentrancyGuard, IVault {
 
     address public override usdl;
     address public override gov;
-    bool public ceaseTradingActivity = false;
-    bool public ceaseLPActivity = false;
+    bool public override ceaseTradingActivity = false;
+    bool public override ceaseLPActivity = false;
 
     uint256 public override maxLeverage = 50 * 10000; // 50x
 
@@ -72,7 +72,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     uint256 public override maxGasPrice;
     uint256 public override maxExposurePerUser;
-    uint256 public maxOIImbalance;
+    uint256 public maxOIImbalance = 10**36;
     uint256 public maxLiquidityPerUser;
     uint256 public safetyFactor;
     

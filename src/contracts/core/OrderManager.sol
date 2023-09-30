@@ -296,6 +296,7 @@ contract OrderManager is
         uint256 stopLossPrice,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
+        require(!IVault(vault).ceaseTradingActivity(), "OrderManager: Trading Activity is ceased!");
         require(_executionFee == msg.value, "OrderManager: execution fee not equal to value in msg.value");
         if(takeProfitPrice ==0 && stopLossPrice ==0){
             require(_executionFee >= minExecutionFeeMarketOrder, "OrderManager: market order execution fee less than min execution fee");
@@ -538,6 +539,7 @@ contract OrderManager is
         uint256 _acceptablePrice,
         uint256 _executionFee
     ) external payable nonReentrant returns (bytes32) {
+        require(!IVault(vault).ceaseTradingActivity(), "OrderManager: Trading Activity is ceased!");
         require(_executionFee >= minExecutionFeeMarketOrder, "OrderManager: fee");
         require(_executionFee == msg.value, "OrderManager: value sent is not equal to execution fee");
         bool sufficientPositionExists = checkSufficientPositionExists(msg.sender, _collateralToken, _indexToken,_isLong, _sizeDelta);
@@ -876,9 +878,7 @@ contract OrderManager is
         uint256 _executionFee,
         bool isIncreaseOrder
     ) external payable nonReentrant returns(address, uint256) {
-        // always need this call because of mandatory executionFee user has to transfer in ETH
-        //_transferInETH();
-
+        require(!IVault(vault).ceaseTradingActivity(), "OrderManager: Trading Activity is ceased!");
         require(_executionFee >= minExecutionFeeLimitOrder, "OrderManager: insufficient execution fee");
         require(msg.value == _executionFee, "OrderManager: incorrect execution fee transferred");
         if(isIncreaseOrder){
