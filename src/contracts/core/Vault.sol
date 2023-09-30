@@ -679,16 +679,18 @@ contract Vault is ReentrancyGuard, IVault {
 
         
         _validate(position.size > 0, "Vault: no position found");
+        uint256 markPrice = position.isLong ? utils.getMinPrice(position.indexToken) : utils.getMaxPrice(position.indexToken);
+
 
         (uint256 liquidationState, int256 marginFees) = utils.validateLiquidation(
             position.account,
             position.collateralToken,
             position.indexToken,
             position.isLong,
-            false
+            false,
+            markPrice
         );
         _validate(liquidationState != 0, "Vault: position not liquidatable");
-        uint256 markPrice = position.isLong ? utils.getMinPrice(position.indexToken) : utils.getMaxPrice(position.indexToken);
         if (liquidationState == 2) {
             // max leverage exceeded but there is collateral remaining after deducting losses so decreasePosition instead
             _decreasePosition(
@@ -938,7 +940,8 @@ contract Vault is ReentrancyGuard, IVault {
             _collateralToken,
             _indexToken,
             _isLong,
-            true
+            true,
+            price
         );
 
         // reserve tokens to pay profits on the position
@@ -1119,16 +1122,18 @@ contract Vault is ReentrancyGuard, IVault {
             _decreaseReservedAmount(_collateralToken, reserveDelta);
         }
 
+        uint256 price = _isLong ? utils.getMinPrice(_indexToken) : utils.getMaxPrice(_indexToken);
+
         (uint256 usdOut, uint256 usdOutAfterFee) = _reduceCollateral(
             _account,
             _collateralToken,
             _indexToken,
+            price,
             _collateralDelta,
             _sizeDelta,
             _isLong
         );
 
-        uint256 price = _isLong ? utils.getMinPrice(_indexToken) : utils.getMaxPrice(_indexToken);
 
         if (_isLong) {
             globalLongAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, false);
@@ -1151,7 +1156,8 @@ contract Vault is ReentrancyGuard, IVault {
                 _collateralToken,
                 _indexToken,
                 _isLong,
-                true
+                true,
+                price
             );
 
             emit DecreasePosition(
@@ -1245,6 +1251,7 @@ contract Vault is ReentrancyGuard, IVault {
         address _account,
         address _collateralToken,
         address _indexToken,
+        uint256 _price,
         uint256 _collateralDelta,
         uint256 _sizeDelta,
         bool _isLong
@@ -1272,11 +1279,15 @@ contract Vault is ReentrancyGuard, IVault {
 
         // scope variables to avoid stack too deep errors
         {
+            uint256 markPrice = _price;
+            address indexToken = _indexToken;
+            bool isLong = _isLong;
             (bool _hasProfit, uint256 delta) = utils.getDelta(
-                _indexToken,
+                indexToken,
                 position.size,
                 position.averagePrice,
-                _isLong,
+                markPrice,
+                isLong,
                 position.lastIncreasedTime
             );
             hasProfit = _hasProfit;
@@ -1286,18 +1297,20 @@ contract Vault is ReentrancyGuard, IVault {
 
         uint256 usdOut;
         // transfer profits out
-        if (hasProfit) {
-            usdOut = adjustedDelta;
-            position.realisedPnl = position.realisedPnl + int256(adjustedDelta);
-            uint256 tokenAmount = utils.usdToTokenMin(_collateralToken, adjustedDelta);
-            _decreasePoolAmount(_collateralToken, tokenAmount);
-        }
-
-        if (!hasProfit) {
-            position.collateral = position.collateral - (adjustedDelta);
-            uint256 tokenAmount = utils.usdToTokenMin(_collateralToken, adjustedDelta);
-            _increasePoolAmount(_collateralToken, tokenAmount);
-            position.realisedPnl = position.realisedPnl - int256(adjustedDelta);
+        {
+            address collateralToken = _collateralToken;
+            if (hasProfit) {
+                usdOut = adjustedDelta;
+                position.realisedPnl = position.realisedPnl + int256(adjustedDelta);
+                uint256 tokenAmount = utils.usdToTokenMin(collateralToken, adjustedDelta);
+                _decreasePoolAmount(collateralToken, tokenAmount);
+            }
+            if (!hasProfit) {
+                position.collateral = position.collateral - (adjustedDelta);
+                uint256 tokenAmount = utils.usdToTokenMin(collateralToken, adjustedDelta);
+                _increasePoolAmount(collateralToken, tokenAmount);
+                position.realisedPnl = position.realisedPnl - int256(adjustedDelta);
+            }
         }
 
         // reduce the position's collateral by _collateralDelta

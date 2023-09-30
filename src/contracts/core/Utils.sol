@@ -132,7 +132,8 @@ contract Utils is IUtils, Governable {
         address _collateralToken,
         address _indexToken,
         bool _isLong,
-        bool _raise
+        bool _raise,
+        uint256 _markPrice
     ) public view override returns (uint256, int256) {
         Position memory position = getPosition(
             _account,
@@ -146,6 +147,7 @@ contract Utils is IUtils, Governable {
             _indexToken,
             position.size,
             position.averagePrice,
+            _markPrice,
             _isLong,
             position.lastIncreasedTime
         );
@@ -321,6 +323,7 @@ contract Utils is IUtils, Governable {
             _indexToken,
             _size,
             _averagePrice,
+            _nextPrice,
             _isLong,
             _lastIncreasedTime
         );
@@ -338,13 +341,12 @@ contract Utils is IUtils, Governable {
         address _indexToken,
         uint256 _size,
         uint256 _averagePrice,
+        uint256 _nextPrice,
         bool _isLong,
         uint256 _lastIncreasedTime
     ) public view returns (bool, uint256) {
         _validate(_averagePrice > 0, "Vault: averagePrice should be > 0");
-        uint256 price = _isLong
-            ? getMinPrice(_indexToken)
-            : getMaxPrice(_indexToken);
+        uint256 price = _nextPrice;
         uint256 priceDelta = _averagePrice > price
             ? _averagePrice - (price)
             : price - (_averagePrice);
@@ -392,7 +394,8 @@ contract Utils is IUtils, Governable {
             _indexToken,
             _sizeDelta,
             _isIncrease,
-            _isLong
+            _isLong,
+            _nextPrice
         );
         uint256 averagePrice = _isLong
             ? vault.globalLongAveragePrices(_indexToken)
@@ -437,7 +440,8 @@ contract Utils is IUtils, Governable {
         address _indexToken,
         uint256 _sizeDelta,
         bool _isIncrease,
-        bool _isLong
+        bool _isLong,
+        uint256 _nextPrice
     ) public view returns (int256) {
         if (_isIncrease) {
             return 0;
@@ -458,6 +462,7 @@ contract Utils is IUtils, Governable {
             _indexToken,
             size,
             averagePrice,
+            _nextPrice,
             _isLong,
             lastIncreasedTime
         );
