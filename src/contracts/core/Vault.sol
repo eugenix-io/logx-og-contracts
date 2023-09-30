@@ -45,7 +45,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     IUtils public utils;
 
-    address public override orderManager;
+    mapping(address=>bool) public orderManagers;
     address public override priceFeed;
 
     address public override usdl;
@@ -239,7 +239,7 @@ contract Vault is ReentrancyGuard, IVault {
         _onlyGov();
         _validate(!isInitialized, "Vault: Already Initialized!");
         isInitialized = true;
-        orderManager = _orderManager;
+        orderManagers[_orderManager] = true;
         usdl = _usdl;
         priceFeed = _priceFeed;
         liquidationFeeUsd = _liquidationFeeUsd;
@@ -273,9 +273,9 @@ contract Vault is ReentrancyGuard, IVault {
         ceaseLPActivity = _cease;
     }
 
-    function setOrderManager(address newOrderManager) external {
+    function setOrderManager(address newOrderManager, bool _isOrderManager) external {
         _onlyGov();
-        orderManager = newOrderManager;
+        orderManagers[newOrderManager] = _isOrderManager;
     }
 
     function setUsdl(address newUsdl) external {
@@ -1370,7 +1370,7 @@ contract Vault is ReentrancyGuard, IVault {
         if (msg.sender == _account) {
             return;
         }
-        _validate(msg.sender == orderManager, "Vault: OrderManager not approved");
+        _validate(orderManagers[msg.sender] == true, "Vault: OrderManager not approved");
     }
 
     //function is added only for testing purposes to prevent locking of funds. 

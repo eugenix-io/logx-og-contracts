@@ -148,6 +148,7 @@ contract Deployment is Script {
         vault.setMaxGlobalLongSize(vm.envAddress("USDC"), maxGlobalLongSize);
         vault.setMaxGlobalShortSize(vm.envAddress("USDC"), maxGlobalShortSize);
         vault.setUtils(utils);
+        vault.setInManagerMode(true);
     }
 
     //util functions

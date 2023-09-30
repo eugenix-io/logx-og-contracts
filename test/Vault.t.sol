@@ -26,7 +26,7 @@ contract vaultTest is Test, Helper {
             minExecutionFeeLimitOrder,
             depositFee
         );
-        vault.setOrderManager(address(orderManager));
+        vault.setOrderManager(address(orderManager), true);
         mockPricesOfUSDC(1, 1);
         mockPricesOfEth(1650, 1650);
     }

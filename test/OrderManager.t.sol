@@ -22,7 +22,7 @@ contract OrderManagerTest is Test, Helper {
         orderManager = new OrderManager(address(vault), address(utils), address(priceFeed), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee);
         orderManager.setOrderKeeper(address(this), true);
         orderManager.setDelayValues(0, 0, 3600);
-        vault.setOrderManager(address(orderManager));
+        vault.setOrderManager(address(orderManager), true);
         vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
         vault.setUtils(utils);

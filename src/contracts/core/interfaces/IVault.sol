@@ -8,7 +8,6 @@ interface IVault {
     function isInitialized() external view returns (bool);
     function setUtils(IUtils _utils) external;
 
-    function orderManager() external view returns (address);
     function usdl() external view returns (address);
     function maxLeverage() external view returns (uint256);
     function gov() external view returns (address);
