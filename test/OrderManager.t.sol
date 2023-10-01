@@ -26,6 +26,7 @@ contract OrderManagerTest is Test, Helper {
         vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
         vault.setUtils(utils);
+        vault.setPriceFeed(address(priceFeed));
         vault.setSafetyFactor(1);
     }
 

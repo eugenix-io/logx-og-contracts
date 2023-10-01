@@ -158,7 +158,7 @@ contract Helper is Test {
 
     function deployAndInitializePriceFeed() public returns (PriceFeed){
         PriceFeed _priceFeed = new PriceFeed(maxAllowedDelayPriceFeed, vm.envAddress("PYTH_CONTRACT"), vm.envAddress("UPDATER"));
-        console.log("PriceFeed deployed at address: ", address(priceFeed));
+        console.log("PriceFeed deployed at address: ", address(_priceFeed));
         _priceFeed.updateTokenIdMapping(vm.envAddress("MNT"), vm.envBytes32("MNT_PYTH_FEED"));
         _priceFeed.updateTokenIdMapping(vm.envAddress("ETH"), vm.envBytes32("ETH_PYTH_FEED"));
         _priceFeed.updateTokenIdMapping(vm.envAddress("BTC"), vm.envBytes32("BTC_PYTH_FEED"));

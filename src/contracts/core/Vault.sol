@@ -494,7 +494,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 tokenAmount = _transferIn(_token);
         _validate(tokenAmount > 0, "Vault: tokenAmount too low");
 
-        uint256 price = utils.getMinPrice(_token); // Read directly from priceFeed instead of utils
+        uint256 price = getMinPriceOfToken(_token);
 
         uint256 usdlAmount = (tokenAmount * (price)) / (PRICE_PRECISION);
         usdlAmount = utils.adjustForDecimals(usdlAmount, _token, usdl);
@@ -680,7 +680,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         
         _validate(position.size > 0, "Vault: no position found");
-        uint256 markPrice = position.isLong ? utils.getMinPrice(position.indexToken) : utils.getMaxPrice(position.indexToken);
+        uint256 markPrice = position.isLong ? getMinPriceOfToken(position.indexToken) : getMaxPriceOfToken(position.indexToken);
 
 
         (uint256 liquidationState, int256 marginFees) = utils.validateLiquidation(
@@ -879,7 +879,7 @@ contract Vault is ReentrancyGuard, IVault {
         );
         Position storage position = positions[key];
 
-        uint256 price = _isLong ? utils.getMaxPrice(_indexToken) : utils.getMinPrice(_indexToken);
+        uint256 price = _isLong ? getMaxPriceOfToken(_indexToken) : getMinPriceOfToken(_indexToken);
 
         if (position.size == 0) {
             position.averagePrice = price;
@@ -1123,7 +1123,7 @@ contract Vault is ReentrancyGuard, IVault {
             _decreaseReservedAmount(_collateralToken, reserveDelta);
         }
 
-        uint256 price = _isLong ? utils.getMinPrice(_indexToken) : utils.getMaxPrice(_indexToken);
+        uint256 price = _isLong ? getMinPriceOfToken(_indexToken) : getMaxPriceOfToken(_indexToken);
 
         (uint256 usdOut, uint256 usdOutAfterFee) = _reduceCollateral(
             _account,
@@ -1371,6 +1371,13 @@ contract Vault is ReentrancyGuard, IVault {
             return;
         }
         _validate(orderManagers[msg.sender] == true, "Vault: OrderManager not approved");
+    }
+
+    function getMinPriceOfToken(address _token) public view returns(uint256){
+        return IPriceFeed(priceFeed).getMinPriceOfToken(_token);
+    }
+    function getMaxPriceOfToken(address _token) public view returns(uint256){
+        return IPriceFeed(priceFeed).getMaxPriceOfToken(_token);
     }
 
     //function is added only for testing purposes to prevent locking of funds. 

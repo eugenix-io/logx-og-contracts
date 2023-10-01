@@ -27,6 +27,7 @@ contract vaultTest is Test, Helper {
             depositFee
         );
         vault.setOrderManager(address(orderManager), true);
+        vault.setPriceFeed(address(priceFeed));
         mockPricesOfUSDC(1, 1);
         mockPricesOfEth(1650, 1650);
     }
