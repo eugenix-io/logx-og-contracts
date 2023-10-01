@@ -26,6 +26,9 @@ contract Helper is Test {
     uint constant minExecutionFeeLimitOrder = 37 * 10 ** 16;
     uint constant maxAllowedDelayPriceFeed = 300;
     uint constant depositFee = 10; //0.1%
+    uint constant maxLongMultiplier = 8;
+    uint constant maxShortMultiplier = 8;
+
 
     uint256 constant collateralSize = 10 * 10**18;
     uint256 constant sizeDelta = 100 * 10**30;
@@ -62,7 +65,8 @@ contract Helper is Test {
         uint256 executionFee,
         bool isLong,
         bool triggerAboveThreshold,
-        bool indexed isIncreaseOrder
+        bool indexed isIncreaseOrder,
+        bool isMaxOrder
     );
 
     event UpdateOrder(
@@ -75,7 +79,8 @@ contract Helper is Test {
         uint256 triggerPrice,
         bool isLong,
         bool triggerAboveThreshold,
-        bool indexed isIncreaseOrder
+        bool indexed isIncreaseOrder,
+        bool isMaxOrder
     );
     event ExecuteIncreasePosition(
         address indexed account,
@@ -263,7 +268,7 @@ contract Helper is Test {
 
     function createLongLimitOrderOnEth() public returns(address orderAccount, uint256 orderIndex){
         IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        (orderAccount, orderIndex) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, takeProfitPrice, true, minExecutionFeeLimitOrder, true);
+        (orderAccount, orderIndex) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, takeProfitPrice, true, minExecutionFeeLimitOrder, true, false);
     }
 
     

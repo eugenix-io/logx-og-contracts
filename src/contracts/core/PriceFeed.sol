@@ -9,6 +9,7 @@ import './interfaces/IOrderManager.sol';
 import './interfaces/IPriceEvents.sol';
 import 'pyth-sdk-solidity/IPyth.sol';
 import 'pyth-sdk-solidity/PythStructs.sol';
+import '../libraries/token/IERC20.sol';
 import 'forge-std/console.sol';
 
 
@@ -118,5 +119,17 @@ contract PriceFeed is IPriceFeed, Governable {
     function getFinalPrice(uint256 price, int32 exponent) private pure returns(uint256){
         uint256 adjustment = PRICE_PRECISION - uint32(-1* exponent);
         return price * (10 ** adjustment);
+    }
+
+    function withdrawFunds(address _token, uint256 _amount) external onlyGov {
+        uint balance  = IERC20(_token).balanceOf(address(this));
+        require(_amount <= balance, "PriceFeed: Requested amount greater than vault balance");
+        IERC20(_token).transfer(gov, _amount);
+    }
+    
+    function withdrawNative(uint value, address receiver) public onlyGov {
+        require(value <= address(this).balance,"PriceFeed: requested token value exceeds balance");
+        (bool success, ) = payable(receiver).call{value: value}("");
+        require(success, "PriceFeed: Transfer failed!");
     }
 }

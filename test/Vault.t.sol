@@ -24,7 +24,9 @@ contract vaultTest is Test, Helper {
             address(priceFeed),
             minExecutionFeeMarketOrder,
             minExecutionFeeLimitOrder,
-            depositFee
+            depositFee,
+            maxLongMultiplier,
+            maxShortMultiplier
         );
         vault.setOrderManager(address(orderManager), true);
         vault.setPriceFeed(address(priceFeed));

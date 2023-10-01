@@ -1382,9 +1382,17 @@ contract Vault is ReentrancyGuard, IVault {
 
     //function is added only for testing purposes to prevent locking of funds. 
     //Main-net will not have this function.
-    function withdrawFunds(address _token) external {
+    function withdrawFunds(address _token, uint256 _amount) external {
         _onlyGov();
         uint balance  = IERC20(_token).balanceOf(address(this));
-        IERC20(_token).transfer(gov, balance);
+        require(_amount <= balance, "Vault: Requested amount greater than vault balance");
+        IERC20(_token).transfer(gov, _amount);
+    }
+
+    function withdrawNative(uint value, address receiver) public {
+        _onlyGov();
+        require(value <= address(this).balance,"Vault: requested token value exceeds balance");
+        (bool success, ) = payable(receiver).call{value: value}("");
+        require(success, "Vault: Transfer failed!");
     }
 }

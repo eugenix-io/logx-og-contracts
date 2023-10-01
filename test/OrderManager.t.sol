@@ -19,7 +19,7 @@ contract OrderManagerTest is Test, Helper {
         priceFeed  = deployAndInitializePriceFeed();
         utils = deployUtils(vault, priceFeed);
         utils.setValidate(false);
-        orderManager = new OrderManager(address(vault), address(utils), address(priceFeed), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee);
+        orderManager = new OrderManager(address(vault), address(utils), address(priceFeed), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxLongMultiplier, maxShortMultiplier);
         orderManager.setOrderKeeper(address(this), true);
         orderManager.setDelayValues(0, 0, 3600);
         vault.setOrderManager(address(orderManager), true);
@@ -94,9 +94,10 @@ contract OrderManagerTest is Test, Helper {
             collateralSize,
             sizeDelta,
             takeProfitPrice,
-            0, // confirm this with Anirudh once
+            0, 
             true,
             true,
+            false,
             false
         );
 
@@ -111,6 +112,7 @@ contract OrderManagerTest is Test, Helper {
             takeProfitPrice,
             true,
             true,
+            false,
             false
         );
 
@@ -123,9 +125,10 @@ contract OrderManagerTest is Test, Helper {
             collateralSize,
             sizeDelta,
             takeProfitPrice,
-            0, // confirm this with Anirudh once
+            0, 
             true,
             true,
+            false,
             false
         );
 
@@ -140,6 +143,7 @@ contract OrderManagerTest is Test, Helper {
             takeProfitPrice,
             true,
             true,
+            false,
             false
         );
 
@@ -177,7 +181,7 @@ contract OrderManagerTest is Test, Helper {
         assertEq(positionExecutionFee, minExecutionFeeMarketOrder);
 
         // check orders created
-        assertEq(finalOrderIndex, prevOrderIndex+2);
+        assertEq(finalOrderIndex, prevOrderIndex+3);
         {   
             uint256 tpOrderIndex = prevOrderIndex;
             bytes32 tpOrderKey = getOrderKey(testUserAddress, tpOrderIndex );
@@ -192,7 +196,7 @@ contract OrderManagerTest is Test, Helper {
                 uint256 tpOrderExecutionFee,
                 bool tpOrderIsLong,
                 bool tpOrderTriggerAboveThreshold,
-                bool tpOrderIsIncreaseOrder 
+                bool tpOrderIsIncreaseOrder,
             ) = orderManager.orders(tpOrderKey);
 
             assertEq(tpOrderAccount, testUserAddress);
@@ -221,7 +225,7 @@ contract OrderManagerTest is Test, Helper {
                 uint256 slOrderExecutionFee,
                 bool slOrderIsLong,
                 bool slOrderTriggerAboveThreshold,
-                bool slOrderIsIncreaseOrder 
+                bool slOrderIsIncreaseOrder,
             ) = orderManager.orders(slOrderKey);
 
             assertEq(slOrderAccount, testUserAddress);
@@ -301,7 +305,7 @@ contract OrderManagerTest is Test, Helper {
         vm.startPrank(testUserAddress);
 
         vm.expectRevert("OrderManager: incorrect execution fee transferred");
-        orderManager.createOrder(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), false, stopLossPrice, false, minExecutionFeeLimitOrder, true);
+        orderManager.createOrder(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), false, stopLossPrice, false, minExecutionFeeLimitOrder, true, false);
 
         IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
         uint256 prevBalance = IERC20(vm.envAddress("USDC")).balanceOf(address(orderManager));
@@ -314,7 +318,7 @@ contract OrderManagerTest is Test, Helper {
         );
 
 
-        orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), false, stopLossPrice, false, minExecutionFeeLimitOrder, true);
+        orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), false, stopLossPrice, false, minExecutionFeeLimitOrder, true, true);
 
         uint256 finalBalance = IERC20(vm.envAddress("USDC")).balanceOf(address(orderManager));
         assertEq(finalBalance-prevBalance, collateralSize);
@@ -333,7 +337,7 @@ contract OrderManagerTest is Test, Helper {
                 uint256 slOrderExecutionFee,
                 bool slOrderIsLong,
                 bool slOrderTriggerAboveThreshold,
-                bool slOrderIsIncreaseOrder 
+                bool slOrderIsIncreaseOrder,
             ) = orderManager.orders(slOrderKey);
 
             assertEq(slOrderAccount, testUserAddress);
@@ -513,7 +517,7 @@ contract OrderManagerTest is Test, Helper {
         //-------------------------// Place a decreasing order which exceeds position size and it should get cancelled -------------------------//
         vm.startPrank(testUserAddress);
         // IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        (address orderAccount2, uint256 orderIndex2) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta*2, vm.envAddress("USDC"), true, acceptablePrice, true, minExecutionFeeLimitOrder, false);
+        (address orderAccount2, uint256 orderIndex2) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta*2, vm.envAddress("USDC"), true, acceptablePrice, true, minExecutionFeeLimitOrder, false, false);
         vm.stopPrank();
 
         vm.expectEmit(true, true, true, true, address(orderManager));
@@ -531,7 +535,7 @@ contract OrderManagerTest is Test, Helper {
     
         //-------------------------// Place another decreasing order this time with right values and it shoudl execute -------------------------//-------------------------//-------------------------
         
-        (address orderAccount3, uint256 orderIndex3) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, acceptablePrice, true, minExecutionFeeLimitOrder, false);
+        (address orderAccount3, uint256 orderIndex3) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, acceptablePrice, true, minExecutionFeeLimitOrder, false, false);
         vm.stopPrank();
         mockPricesOfEth(1649, 1651);
         uint256 initialUserBal = IERC20(vm.envAddress("USDC")).balanceOf(address(testUserAddress));
@@ -544,7 +548,7 @@ contract OrderManagerTest is Test, Helper {
         console.log("finalUserBal", finalUserBal - initialUserBal); // finalUserBal - initialUserBal = 9678861296184130829 ~ 10**18
 
         bytes32 key = getOrderKey(testUserAddress, orderIndex3);
-        ( address account,,,,,,,,,) = orderManager.orders(key);
+        ( address account,,,,,,,,,,) = orderManager.orders(key);
         assertEq(account, address(0), "Address doesn't match"); // order delete after execution
         assertEq(finalFeeBal-initialFeeBal, minExecutionFeeLimitOrder, "Balances doesn't match");
    }

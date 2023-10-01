@@ -41,6 +41,7 @@ contract OrderManager is
         bool isLong;
         bool triggerAboveThreshold;
         bool isIncreaseOrder;
+        bool isMaxOrder;
     }
 
     uint256 public minExecutionFeeMarketOrder;
@@ -63,6 +64,8 @@ contract OrderManager is
     mapping (address => uint256) public ordersIndex;
     mapping (address => bool) public isOrderKeeper;
     mapping (address => bool) public isLiquidator;
+    uint public maxLongMultiplier;
+    uint public maxShortMultiplier;
 
     uint256 public minPurchaseTokenAmountUsd;
 
@@ -163,7 +166,8 @@ contract OrderManager is
         uint256 executionFee,
         bool isLong,
         bool triggerAboveThreshold,
-        bool indexed isIncreaseOrder
+        bool indexed isIncreaseOrder,
+        bool isMaxOrder
     );
 
     event UpdateOrder(
@@ -176,7 +180,8 @@ contract OrderManager is
         uint256 triggerPrice,
         bool isLong,
         bool triggerAboveThreshold,
-        bool indexed isIncreaseOrder
+        bool indexed isIncreaseOrder,
+        bool isMaxOrder
     );
 
     event CancelOrder(
@@ -190,7 +195,8 @@ contract OrderManager is
         uint256 executionFee,
         bool isLong,
         bool triggerAboveThreshold,
-        bool indexed isIncreaseOrder
+        bool indexed isIncreaseOrder,
+        bool isMaxOrder
     );
     event ExecuteOrder(
         address indexed account,
@@ -223,10 +229,14 @@ contract OrderManager is
         address _pricefeed,
         uint256 _minExecutionFeeMarketOrder, 
         uint256 _minExecutionFeeLimitOrder,
-        uint _depositFee
+        uint _depositFee,
+        uint _maxLongMultiplier,
+        uint _maxShortMultiplier
     ) BaseOrderManager(_vault, _utils, _pricefeed, _depositFee) {
         minExecutionFeeMarketOrder = _minExecutionFeeMarketOrder;
         minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
+        maxLongMultiplier = _maxLongMultiplier;
+        maxShortMultiplier = _maxShortMultiplier;
     }
 
     modifier onlyPositionKeeper() {
@@ -250,6 +260,11 @@ contract OrderManager is
     ) external onlyAdmin {
         isPositionKeeper[_account] = _isActive;
         emit SetPositionKeeper(_account, _isActive);
+    }
+
+    function setMaxTPMultiplier(uint _maxLongMultiplier, uint _maxShortMultiplier) external onlyAdmin {
+        maxLongMultiplier = _maxLongMultiplier;
+        maxShortMultiplier = _maxShortMultiplier;
     }
 
     function setMinExecutionFeeMarketOrder(uint256 _minExecutionFeeMarketOrder) external onlyAdmin {
@@ -324,10 +339,16 @@ contract OrderManager is
                 minExecutionFeeMarketOrder
             );
         if(takeProfitPrice !=0){
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice, _isLong, minExecutionFeeLimitOrder, false );
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice, _isLong, minExecutionFeeLimitOrder, false , false);
         }
         if(stopLossPrice !=0){
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, stopLossPrice, !_isLong, minExecutionFeeLimitOrder, false );
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, stopLossPrice, !_isLong, minExecutionFeeLimitOrder, false , false);
+        }
+        if(_isLong){
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice*maxLongMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
+        }
+        else{
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice/maxShortMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
         }
         return positionKey;
     }
@@ -824,9 +845,10 @@ contract OrderManager is
 
     //function is added only for testing purposes to prevent locking of funds. 
     //Main-net will not have this function.
-    function withdrawFunds(address _token) external onlyAdmin {
+    function withdrawFunds(address _token, uint256 _amount) external onlyAdmin {
         uint balance  = IERC20(_token).balanceOf(address(this));
-        IERC20(_token).transfer(admin, balance);
+        require(_amount <= balance,"OrderManager: Requested amount exceeds OrderManager balance");
+        IERC20(_token).transfer(admin, _amount);
     }
 
     function validatePositionOrderPrice(
@@ -876,7 +898,8 @@ contract OrderManager is
         uint256 _triggerPrice,
         bool _triggerAboveThreshold,
         uint256 _executionFee,
-        bool isIncreaseOrder
+        bool isIncreaseOrder,
+        bool _maxOrder
     ) external payable nonReentrant returns(address, uint256) {
         require(!IVault(vault).ceaseTradingActivity(), "OrderManager: Trading Activity is ceased!");
         require(_executionFee >= minExecutionFeeLimitOrder, "OrderManager: insufficient execution fee");
@@ -897,7 +920,8 @@ contract OrderManager is
             _triggerPrice,
             _triggerAboveThreshold,
             _executionFee,
-            isIncreaseOrder
+            isIncreaseOrder,
+            _maxOrder
         );
     }
 
@@ -912,27 +936,45 @@ contract OrderManager is
         uint256 _triggerPrice,
         bool _triggerAboveThreshold,
         uint256 _executionFee,
-        bool isIncreaseOrder
+        bool _isIncreaseOrder,
+        bool _isMaxOrder
     ) private returns(address, uint256){
-        uint256 _orderIndex = ordersIndex[_account];
-        ordersIndex[_account] = _orderIndex+(1);
-        bytes32 orderKey = getOrderKey(_account,_orderIndex);
-        orders[orderKey] = Order(
-            _account,
-            _collateralToken,
-            _indexToken,
-            _collateralDelta,
-            _sizeDelta,
-            _triggerPrice,
-            _executionFee,
-            _isLong,
-            _triggerAboveThreshold,
-            isIncreaseOrder
-        );
-        EnumerableSet.add(orderKeys, orderKey);
 
-        emitOrderCreateEvent(_account, _orderIndex);
-        return(msg.sender, _orderIndex);
+        {
+            address account = _account;
+            uint256 collateralDelta = _collateralDelta;
+            address collateralToken = _collateralToken;
+            address indexToken = _indexToken;
+            uint256 sizeDelta = _sizeDelta;
+            bool isLong = _isLong;
+            uint256 triggerPrice = _triggerPrice;
+            bool triggerAboveThreshold = _triggerAboveThreshold;
+            uint256 executionFee = _executionFee;
+            bool isIncreaseOrder = _isIncreaseOrder;
+            bool isMaxOrder = _isMaxOrder;
+
+            uint256 _orderIndex = ordersIndex[account];
+            ordersIndex[account] = _orderIndex+(1);
+            bytes32 orderKey = getOrderKey(account,_orderIndex);
+            orders[orderKey] = Order(
+                account,
+                collateralToken,
+                indexToken,
+                collateralDelta,
+                sizeDelta,
+                triggerPrice,
+                executionFee,
+                isLong,
+                triggerAboveThreshold,
+                isIncreaseOrder,
+                isMaxOrder
+            );
+            EnumerableSet.add(orderKeys, orderKey);
+
+            emitOrderCreateEvent(account, _orderIndex);
+            return(msg.sender, _orderIndex);
+        }
+        
     }
 
     function emitOrderCreateEvent(address _account, uint256 idx) internal{
@@ -948,7 +990,8 @@ contract OrderManager is
             order.executionFee,
             order.isLong,
             order.triggerAboveThreshold,
-            order.isIncreaseOrder
+            order.isIncreaseOrder,
+            order.isMaxOrder
         );
         emit UpdateOrder(
             _account,
@@ -960,7 +1003,8 @@ contract OrderManager is
             order.triggerPrice,
             order.isLong,
             order.triggerAboveThreshold,
-            order.isIncreaseOrder
+            order.isIncreaseOrder,
+            order.isMaxOrder
         );
     }
 
@@ -983,7 +1027,8 @@ contract OrderManager is
             _triggerPrice,
             order.isLong,
             _triggerAboveThreshold,
-            order.isIncreaseOrder
+            order.isIncreaseOrder,
+            order.isMaxOrder
         );
     }
 
@@ -1016,7 +1061,8 @@ contract OrderManager is
             order.executionFee,
             order.isLong,
             order.triggerAboveThreshold,
-            order.isIncreaseOrder
+            order.isIncreaseOrder,
+            order.isMaxOrder
         );
 
         emit UpdateOrder(
@@ -1029,7 +1075,8 @@ contract OrderManager is
             0,
             false,
             false,
-            false
+            false,
+            order.isMaxOrder
         );
     }
 
@@ -1110,7 +1157,8 @@ contract OrderManager is
             0,
             false,
             false,
-            false
+            false,
+            order.isMaxOrder
         );
     }
 
@@ -1143,7 +1191,8 @@ contract OrderManager is
 
     // to help users who accidentally send their tokens to this contract or
     // to withdraw any MNT struck in orderManager
-    function withdrawMNT(uint value, address receiver) public onlyAdmin {
+    function withdrawNative(uint value, address receiver) public onlyAdmin {
+        require(value <= address(this).balance,"OrderManager: requested token value exceeds balance");
         (bool success, ) = payable(receiver).call{value: value}("");
         require(success, "OrderManager: Transfer failed!");
     }

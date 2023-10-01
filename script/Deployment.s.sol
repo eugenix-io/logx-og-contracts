@@ -25,6 +25,8 @@ contract Deployment is Script {
     uint constant minPurchaseTokenAmountUsd = 0;
     uint constant depositFee = 10;
     address constant executor = 0x143328D5d7C84515b3c8b3f8891471ff872C0015;
+    uint public maxLongMultiplier = 9;
+    uint public maxShortMultiplier = 9;
 
     function run() external{  
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_ADMIN"); 
@@ -49,7 +51,7 @@ contract Deployment is Script {
     }
 
     function deployOrderManager(Vault vault, PriceFeed priceFeed, Utils utils) public returns (OrderManager){
-        OrderManager orderManager = new OrderManager(address(vault), address(utils), address(priceFeed),minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee);
+        OrderManager orderManager = new OrderManager(address(vault), address(utils), address(priceFeed),minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxLongMultiplier, maxShortMultiplier);
         console.log("OrderManager deployed at address: ", address(orderManager));
         orderManager.setPositionKeeper(address(priceFeed), true);
         orderManager.setMinExecutionFeeLimitOrder(minExecutionFeeLimitOrder);
