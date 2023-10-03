@@ -134,7 +134,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     }
 
     function _validateLPActivity() view internal{
-        require(vault.ceaseLPActivity(), "LLPManager: LP activity ceased!");
+        require(!vault.ceaseLPActivity(), "LLPManager: LP activity ceased!");
     }
 
     function removeLiquidityForAccount(
@@ -146,7 +146,6 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
     ) external override nonReentrant returns (uint256) {
         _validateLPActivity();
         _validateHandler();
-        _validateLPActivity();
         _validateToken(_tokenOut);
         return
             _removeLiquidity(
