@@ -27,6 +27,7 @@ contract Deployment is Script {
     address constant executor = 0x143328D5d7C84515b3c8b3f8891471ff872C0015;
     uint public maxLongMultiplier = 9;
     uint public maxShortMultiplier = 9;
+    address[] rewardTrackerDepositToken;
 
     function run() external{  
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_ADMIN"); 
@@ -42,7 +43,7 @@ contract Deployment is Script {
         RewardRouter rewardRouter = deployRewardRouter();
         Utils utils = deployUtils(vault, priceFeed);
         LlpManager llpManager = deployLlpManager(vault, utils, usdl, rewardRouter);
-       initializeLLP(llpManager);
+        initializeLLP(llpManager);
         OrderManager orderManager = deployOrderManager(vault, priceFeed, utils);
         initializeVault(vault, orderManager, priceFeed, usdl, utils);
         RewardTracker rewardTracker = deployRewardTracker();
@@ -73,6 +74,12 @@ contract Deployment is Script {
         return rewardTracker;
     }
 
+    function initlializeRewardTracker(RewardTracker rewardTracker) public {
+        rewardTrackerDepositToken.push(vm.envAddress("LLP"));
+        address[] memory _depositTokens = rewardTrackerDepositToken;
+        rewardTracker.initialize(_depositTokens, vm.envAddress("USDCL"), vm.envAddress("ADMIN"));
+    }
+
     function deployUtils(Vault vault, PriceFeed pricefeed) public returns (Utils){
         Utils utils = new Utils(vault, pricefeed);
         console.log("Utils deployed at address: ", address(utils));
@@ -88,7 +95,6 @@ contract Deployment is Script {
     function deployRewardRouter() public returns (RewardRouter){
         RewardRouter rewardRouter = new RewardRouter();
         console.log("RewardRouter deployed at address: ", address(rewardRouter));
-        //whitelist tokens
         return rewardRouter;
     }
 
@@ -100,7 +106,7 @@ contract Deployment is Script {
     function deployLlpManager(Vault vault, Utils utils, USDL usdl, RewardRouter rewardRouter) public returns (LlpManager){
         LlpManager llpManager = new LlpManager(address(vault), address(utils), address(usdl), vm.envAddress("LLP"), llpCooldownDuration, 10**36);
         llpManager.setHandler(address(rewardRouter), true);
-        llpManager.whiteListToken(vm.envAddress("USDC"));
+        llpManager.whiteListToken(vm.envAddress("USDCL"));
         console.log("LlpManager deployed at address: ", address(llpManager));
         return llpManager;
     }
@@ -108,18 +114,18 @@ contract Deployment is Script {
     function deployAndInitializePriceFeed() public returns (PriceFeed){
         PriceFeed priceFeed = new PriceFeed(maxAllowedDelayPriceFeed, vm.envAddress("PYTH_CONTRACT"), vm.envAddress("UPDATER"));
         console.log("PriceFeed deployed at address: ", address(priceFeed));
-        priceFeed.updateTokenIdMapping(vm.envAddress("USDC"), vm.envBytes32("USDC_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("USDCL"), vm.envBytes32("USDC_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("ETH"), vm.envBytes32("ETH_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("BTC"), vm.envBytes32("BTC_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("UNI"), vm.envBytes32("UNI_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("LINK"), vm.envBytes32("LINK_PYTH_FEED"));
-        priceFeed.updateTokenIdMapping(vm.envAddress("ARB"), vm.envBytes32("ARB_PYTH_FEED"));
-        priceFeed.updateTokenIdMapping(vm.envAddress("CRV"), vm.envBytes32("CRV_PYTH_FEED"));
-        priceFeed.updateTokenIdMapping(vm.envAddress("AVAX"), vm.envBytes32("AVAX_PYTH_FEED"));
-        priceFeed.updateTokenIdMapping(vm.envAddress("BNB"), vm.envBytes32("BNB_PYTH_FEED"));
-        priceFeed.updateTokenIdMapping(vm.envAddress("FTM"), vm.envBytes32("FTM_PYTH_FEED"));
-        priceFeed.updateTokenIdMapping(vm.envAddress("OP"), vm.envBytes32("OP_PYTH_FEED"));
-        priceFeed.updateTokenIdMapping(vm.envAddress("MATIC"), vm.envBytes32("MATIC_PYTH_FEED"));
+        //priceFeed.updateTokenIdMapping(vm.envAddress("ARB"), vm.envBytes32("ARB_PYTH_FEED"));
+        //priceFeed.updateTokenIdMapping(vm.envAddress("CRV"), vm.envBytes32("CRV_PYTH_FEED"));
+        //priceFeed.updateTokenIdMapping(vm.envAddress("AVAX"), vm.envBytes32("AVAX_PYTH_FEED"));
+        //priceFeed.updateTokenIdMapping(vm.envAddress("BNB"), vm.envBytes32("BNB_PYTH_FEED"));
+        //priceFeed.updateTokenIdMapping(vm.envAddress("FTM"), vm.envBytes32("FTM_PYTH_FEED"));
+        //priceFeed.updateTokenIdMapping(vm.envAddress("OP"), vm.envBytes32("OP_PYTH_FEED"));
+        //priceFeed.updateTokenIdMapping(vm.envAddress("MATIC"), vm.envBytes32("MATIC_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("MNT"), vm.envBytes32("MNT_PYTH_FEED"));
         console.log("PriceFeed initialized");
         return priceFeed;
@@ -133,32 +139,32 @@ contract Deployment is Script {
 
     function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, Utils utils) public {
         usdl.addVault(address(vault));
-        vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd, borrowingRateFactor, vm.envAddress("USDC"));
-        vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
+        vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd, borrowingRateFactor, vm.envAddress("USDCL"));
+        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("BTC"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("BTC"), 8, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("UNI"), 18, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("LINK"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("ARB"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("CRV"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("AVAX"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("BNB"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("FTM"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("OP"), 18, 0, false, false, true);
-        vault.setTokenConfig(vm.envAddress("MATIC"), 18, 0, false, false, true);
+        // vault.setTokenConfig(vm.envAddress("ARB"), 18, 0, false, false, true);
+        // vault.setTokenConfig(vm.envAddress("CRV"), 18, 0, false, false, true);
+        // vault.setTokenConfig(vm.envAddress("AVAX"), 18, 0, false, false, true);
+        // vault.setTokenConfig(vm.envAddress("BNB"), 18, 0, false, false, true);
+        // vault.setTokenConfig(vm.envAddress("FTM"), 18, 0, false, false, true);
+        // vault.setTokenConfig(vm.envAddress("OP"), 18, 0, false, false, true);
+        // vault.setTokenConfig(vm.envAddress("MATIC"), 18, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("MNT"), 18, 0, false, false, true);
-        vault.setMaxGlobalLongSize(vm.envAddress("USDC"), maxGlobalLongSize);
-        vault.setMaxGlobalShortSize(vm.envAddress("USDC"), maxGlobalShortSize);
+        vault.setMaxGlobalLongSize(vm.envAddress("USDCL"), maxGlobalLongSize);
+        vault.setMaxGlobalShortSize(vm.envAddress("USDCL"), maxGlobalShortSize);
         vault.setUtils(utils);
         vault.setInManagerMode(true);
     }
 
     //util functions
     function addLiquidity() public {
-        IERC20 usdc = IERC20(vm.envAddress("USDC"));
+        IERC20 usdc = IERC20(vm.envAddress("USDCL"));
         usdc.approve(vm.envAddress("LLP_MANAGER"), 10000000*10**18);
         RewardRouter rewardRouter = RewardRouter(vm.envAddress("REWARD_ROUTER"));
-        rewardRouter.mintLlp(vm.envAddress("USDC"), 100000000000000000000000, 0, 0);
+        rewardRouter.mintLlp(vm.envAddress("USDCL"), 100000000000000000000000, 0, 0);
     }
 
     function updateOnlyPriceFeed() public {
@@ -209,7 +215,6 @@ contract Deployment is Script {
         vault.setLiquidator(0x678F9fBAce927A9490070bf1eDB1564E26e0Db8c, true);
         vault.liquidatePosition(0x89708d517aC399244Cf3Ff54324f793A2432AC93, 0xA11be02594AEF2AB383703D4ac7c7aD01767B30E, 0x0000000000000000000000000000000000000001, true, 0x678F9fBAce927A9490070bf1eDB1564E26e0Db8c);
         vm.stopBroadcast();
-
     }
 
 }
