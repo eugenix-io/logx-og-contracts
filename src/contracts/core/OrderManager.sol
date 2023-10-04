@@ -858,7 +858,7 @@ contract OrderManager is
         bool _maximizePrice
     ) public view returns (uint256, bool) {
         uint256 currentPrice = _maximizePrice
-            ? IUtils(utils).getMaxPrice(_indexToken) : IUtils(utils).getMinPrice(_indexToken);
+            ? IPriceFeed(pricefeed).getMaxPriceOfToken(_indexToken) : IPriceFeed(pricefeed).getMinPriceOfToken(_indexToken);
         bool isPriceValid = _triggerAboveThreshold ? currentPrice > _triggerPrice : currentPrice < _triggerPrice;
         require(isPriceValid, "OrderManager: invalid price for execution");
         return (currentPrice, isPriceValid);

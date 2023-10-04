@@ -55,7 +55,6 @@ interface IUtils {
     function getAumInUsdl(
         bool maximise
     ) external view returns (uint256);
-    function calculateMintAmount(uint256 _minusdl, address _token, uint256 aumInusdl, uint256 llpSupply, uint256 _minllp, address _receiver) external returns(uint256, uint256);
     function validatePosition(
         uint256 _size,
         uint256 _collateral

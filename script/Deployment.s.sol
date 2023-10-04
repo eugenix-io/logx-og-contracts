@@ -45,7 +45,7 @@ contract Deployment is Script {
         LlpManager llpManager = deployLlpManager(vault, utils, usdl, rewardRouter);
         initializeLLP(llpManager);
         OrderManager orderManager = deployOrderManager(vault, priceFeed, utils);
-        initializeVault(vault, orderManager, priceFeed, usdl, utils);
+        initializeVault(vault, orderManager, priceFeed, usdl, utils, llpManager);
         RewardTracker rewardTracker = deployRewardTracker();
         initializeRewardRouter(rewardRouter, vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
 
@@ -137,7 +137,7 @@ contract Deployment is Script {
         return vault;
     }
 
-    function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, Utils utils) public {
+    function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, Utils utils, LlpManager llpManager) public {
         usdl.addVault(address(vault));
         vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd, borrowingRateFactor, vm.envAddress("USDCL"));
         vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false);
@@ -157,6 +157,7 @@ contract Deployment is Script {
         vault.setMaxGlobalShortSize(vm.envAddress("USDCL"), maxGlobalShortSize);
         vault.setUtils(utils);
         vault.setInManagerMode(true);
+        vault.setManager(address(llpManager), true);
     }
 
     //util functions
