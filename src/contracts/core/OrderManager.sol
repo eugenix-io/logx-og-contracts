@@ -345,10 +345,10 @@ contract OrderManager is
             _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, stopLossPrice, !_isLong, minExecutionFeeLimitOrder, false , false);
         }
         if(_isLong){
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice*maxLongMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, _acceptablePrice*maxLongMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
         }
         else{
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, takeProfitPrice/maxShortMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, _acceptablePrice/maxShortMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
         }
         return positionKey;
     }
@@ -889,40 +889,92 @@ contract OrderManager is
         );
     }
 
-    function createOrder(
-        uint256 _collateralDelta,
-        address _indexToken,
-        uint256 _sizeDelta,
-        address _collateralToken,
-        bool _isLong,
-        uint256 _triggerPrice,
-        bool _triggerAboveThreshold,
-        uint256 _executionFee,
-        bool isIncreaseOrder,
-        bool _maxOrder
-    ) external payable nonReentrant returns(address, uint256) {
-        require(!IVault(vault).ceaseTradingActivity(), "OrderManager: Trading Activity is ceased!");
-        require(_executionFee >= minExecutionFeeLimitOrder, "OrderManager: insufficient execution fee");
-        require(msg.value == _executionFee, "OrderManager: incorrect execution fee transferred");
-        if(isIncreaseOrder){
-            IERC20(_collateralToken).transferFrom(msg.sender, address(this), _collateralDelta);
-            uint256 _collateralAmountUsd = IUtils(utils).tokenToUsdMin(_collateralToken, _collateralDelta);
-            require(_collateralAmountUsd >= minPurchaseTokenAmountUsd, "OrderManager: too less collateral");
-        }
+    function _validateLimitOrderPrices(uint256 currMarketPrice, bool _isLong, uint256 limitPrice) public pure {
+            if(_isLong){
+                require(limitPrice < currMarketPrice, "Order Manager: Limit Price should be lower than current market price for a Increase Order");
+            }
+            else{
+                require(limitPrice > currMarketPrice, "Order Manager: Limit Price should be higher than current market price for a Decrease Order");
+            }
+    }
 
-        return _createOrder(
-            msg.sender,
-            _collateralDelta,
-            _collateralToken,
-            _indexToken,
-            _sizeDelta,
-            _isLong,
-            _triggerPrice,
-            _triggerAboveThreshold,
-            _executionFee,
-            isIncreaseOrder,
-            _maxOrder
-        );
+    function _validateTPSLOrderPrices(uint256 currMarketPrice, bool _isLong, uint tpPrice, uint256 slPrice) public pure {
+        if(_isLong){
+            if(tpPrice !=0){
+                require(tpPrice > currMarketPrice, "Order Manager: TP price should be higher than curr market price for a long position");
+            }
+            if(slPrice !=0){
+                require(slPrice < currMarketPrice, "Order Manager: SL price should be lower than curr market price for a long position");
+            }
+        }
+        else{
+            if(tpPrice !=0){
+                require(tpPrice < currMarketPrice, "Order Manager: TP price should be lower than curr market price for a short position");
+            }
+            if(slPrice !=0){
+                require(slPrice > currMarketPrice, "Order Manager: SL price should be higher than curr market price for a short position");
+            }
+        }
+    }
+
+    function createOrders(
+        uint256 collateralDelta,
+        address indexToken,
+        uint256 sizeDelta,
+        address collateralToken,
+        bool isLong,
+        bool isIncreaseOrder,
+        uint256 _executionFee,
+        uint256 limitPrice,
+        uint256 tpPrice,
+        uint256 slPrice,
+        bool maxOrder
+    ) external payable nonReentrant {
+        require(!IVault(vault).ceaseTradingActivity(), "OrderManager: Trading Activity is ceased!");
+        require(msg.value == _executionFee, "OrderManager: incorrect execution fee transferred");
+
+        // to make sure that you can either open a limit order or tp or sl order
+        if(tpPrice !=0 || slPrice !=0){
+            require(limitPrice == 0, "OrderManager: Cannot open tp or sl order with a limit order");
+        }
+        // fee checks 
+        if(tpPrice !=0 && slPrice !=0){
+            require(_executionFee >= 2*minExecutionFeeLimitOrder, "OrderManager: Insufficient execution fee for limit order");
+        } else{
+            require(_executionFee >= minExecutionFeeLimitOrder, "OrderManager: Insufficient execution fee for limit order");
+        }
+        uint256 currMarketPrice = IPriceFeed(pricefeed).getPriceOfToken(indexToken);
+
+        {
+            uint256 _collateralDelta = collateralDelta;
+            address _indexToken = indexToken;
+            uint256 _sizeDelta = sizeDelta;
+            address _collateralToken = collateralToken;
+            bool _isLong = isLong;
+            uint256 _limitPrice = limitPrice;
+            bool _isIncreaseOrder = isIncreaseOrder;
+            bool _maxOrder = maxOrder;
+            uint256 _tpPrice= tpPrice;
+            uint256 _slPrice= slPrice;
+
+            if(limitPrice != 0){
+                    _validateLimitOrderPrices(currMarketPrice, _isLong, _limitPrice);
+        
+                    IERC20(_collateralToken).transferFrom(msg.sender, address(this), _collateralDelta);
+                    uint256 _collateralAmountUsd = IUtils(utils).tokenToUsdMin(_collateralToken, _collateralDelta);
+                    require(_collateralAmountUsd >= minPurchaseTokenAmountUsd, "OrderManager: too less collateral");
+                    _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _limitPrice, !_isLong, minExecutionFeeLimitOrder, _isIncreaseOrder, _maxOrder);
+            }else{
+                // tpsl order or limit order when closing position
+                _validateTPSLOrderPrices(currMarketPrice, _isLong, _tpPrice, _slPrice);
+                if(tpPrice != 0){
+                    _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _tpPrice, _isLong, minExecutionFeeLimitOrder, _isIncreaseOrder, _maxOrder);
+                }
+                if(slPrice !=0){
+                    _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _slPrice, !_isLong, minExecutionFeeLimitOrder, _isIncreaseOrder, _maxOrder);
+                }
+            }
+        }
     }
 
 
@@ -938,7 +990,7 @@ contract OrderManager is
         uint256 _executionFee,
         bool _isIncreaseOrder,
         bool _isMaxOrder
-    ) private returns(address, uint256){
+    ) private {
 
         {
             address account = _account;
@@ -972,7 +1024,6 @@ contract OrderManager is
             EnumerableSet.add(orderKeys, orderKey);
 
             emitOrderCreateEvent(account, _orderIndex);
-            return(msg.sender, _orderIndex);
         }
         
     }

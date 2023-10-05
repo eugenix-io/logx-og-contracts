@@ -268,7 +268,7 @@ contract Helper is Test {
 
     function createLongLimitOrderOnEth() public returns(address orderAccount, uint256 orderIndex){
         IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        (orderAccount, orderIndex) = orderManager.createOrder{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, takeProfitPrice, true, minExecutionFeeLimitOrder, true, false);
+        (orderAccount, orderIndex) = orderManager.createOrders{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, takeProfitPrice, true, minExecutionFeeLimitOrder, true, false);
     }
 
     
