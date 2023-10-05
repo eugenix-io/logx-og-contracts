@@ -464,6 +464,25 @@ contract OrderManagerTest is Test, Helper {
         // check position got deleted
         ( address positionAccount,,,,,,,,,, ) = orderManager.decreasePositionRequests(decRequestKey);
         assertEq(positionAccount, address(0));
+        (
+            uint256 positionSize,
+            uint256 positionCollateral,
+            uint256 positionAVGPrice,
+            uint256 positionEntryBorrowingRate,
+            int256 positionEntryFundingRate,
+            uint256 positionReserveAmount,
+            uint256 positionRealisedPnl,
+            bool isProfit,
+            uint256 positionLastIncreasedTime
+        ) = vault.getPosition(testUserAddress, vm.envAddress("USDC"), vm.envAddress("ETH"), true);
+        assertEq(positionSize, 0);
+        assertEq(positionCollateral, 0);
+        assertEq(positionAVGPrice, 0);
+        assertEq(positionEntryBorrowingRate, 0);
+        assertEq(positionEntryFundingRate, 0);
+        assertEq(positionReserveAmount, 0);
+        assertEq(positionRealisedPnl, 0);
+        assertEq(positionLastIncreasedTime, 0);
    }
 
     /* 10. executeOrder
