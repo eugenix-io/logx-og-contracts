@@ -65,8 +65,6 @@ contract Utils is IUtils, Governable {
         Position memory prevPosition = getPosition(_account, _collateralToken, _indexToken, _isLong);
         uint256 sizeAfterUpdate = _sizeDelta + prevPosition.size;
         uint256 length = vault.allWhitelistedTokensLength();
-        uint256 globalSizeAfterUpdate = _isLong ? vault.globalLongSizes(_indexToken) + _sizeDelta: vault.globalShortSizes(_indexToken) + _sizeDelta;
-        require(sizeAfterUpdate*100/(globalSizeAfterUpdate) < vault.maxExposurePerUser(), "Utils: Heavy exposure for single user");
         uint256 availableLiquidityInUsd = 0;
 
         for (uint256 i = 0; i < length; i++) {
@@ -85,7 +83,6 @@ contract Utils is IUtils, Governable {
         address /* _account */,
         address /* _collateralToken */,
         address /* _indexToken */,
-        uint256 /* _collateralDelta */,
         uint256 /* _sizeDelta */,
         bool /* _isLong */,
         address /* _receiver */
@@ -205,10 +202,9 @@ contract Utils is IUtils, Governable {
             return (1, marginFees);
         }
 
-        remainingCollateral = remainingCollateral - _vault.liquidationFeeUsd();
         if (
             remainingCollateral * (_vault.maxLeverage()) * _vault.safetyFactor() <
-            position.size * (BASIS_POINTS_DIVISOR)
+            position.size * (BASIS_POINTS_DIVISOR) * 100
         ) {
             if (_raise) {
                 revert("Vault: maxLeverage exceeded");
@@ -665,9 +661,9 @@ contract Utils is IUtils, Governable {
         }
 
         lastFundingUpdateTime =  (block.timestamp / (fundingInterval)) * (fundingInterval);
-        uint timeInterval = lastFundingUpdateTime - lastFundingTime;
+        uint intervals = (lastFundingUpdateTime - lastFundingTime)/fundingInterval;
         (fundingRateForLong, fundingRateForShort) = getNextFundingRate(vault.fundingExponent(), fundingRateFactor, _indexToken);
-        return (lastFundingUpdateTime, fundingRateForLong * int(fundingRateFactor * timeInterval), fundingRateForShort * int(fundingRateFactor * timeInterval));
+        return (lastFundingUpdateTime, fundingRateForLong * int(intervals), fundingRateForShort * int(intervals));
     }
 
     function getNextFundingRate( uint256 fundingExponent, uint256 fundingRateFactor, address _indexToken) public view returns(int256, int256 ) {
@@ -677,8 +673,7 @@ contract Utils is IUtils, Governable {
         if(globalLongSizeVault + globalShortSizeVault == 0){
             return (0, 0);
         }
-        //TODO: multiple with a factor so that final value is not less than 1.
-        uint nextFundingRateForLong =  ( (oiImbalance**fundingExponent))/ (globalLongSizeVault + globalShortSizeVault);
+        uint nextFundingRateForLong =  (fundingRateFactor*(oiImbalance**fundingExponent))/ (globalLongSizeVault + globalShortSizeVault);
         uint nextFundingRateForShort = nextFundingRateForLong *globalShortSizeVault/globalLongSizeVault;
         if(globalLongSizeVault>globalShortSizeVault){
             return (int256(nextFundingRateForLong), -1 * int256(nextFundingRateForShort)); // chance of overflow, revisit
@@ -799,6 +794,10 @@ contract Utils is IUtils, Governable {
         }
 
         return differenceInFundingRate * int(size);
+    }
+
+    function getTPPrice(uint256 /*sizeDelta*/, address /*indexToken*/, address /*collateralToken*/, bool /*isLong*/, uint256 markPrice) pure public returns(uint256) {
+        return markPrice;
     }
 
 }

@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 
 interface IUtils {
     function validateIncreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong) external view;
-    function validateDecreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _collateralDelta, uint256 _sizeDelta, bool _isLong, address _receiver) external view;
+    function validateDecreasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, address _receiver) external view;
     function validateLiquidation(address _account, address _collateralToken, address _indexToken, bool _isLong, bool _raise,  uint256 _markPrice) external view returns (uint256, int256);
     function getEntryBorrowingRate(address _collateralToken, address _indexToken, bool _isLong) external view returns (uint256);
     function getEntryFundingRate(address _collateralToken, address _indexToken, bool _isLong) external view returns (int256);
@@ -79,5 +79,6 @@ interface IUtils {
         uint256 _entryBorrowingRate,
         int256 _entryFundingRate
     ) external returns (uint256 feeTokens, int256 feeUsd);
+    function getTPPrice(uint256 sizeDelta, address indexToken, address collateraToken, bool isLong, uint256 markPrice) external returns(uint256);
 
 }

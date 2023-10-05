@@ -345,10 +345,12 @@ contract OrderManager is
             _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, stopLossPrice, !_isLong, minExecutionFeeLimitOrder, false , false);
         }
         if(_isLong){
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, _acceptablePrice*maxLongMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
+            uint256 tpPrice = IUtils(utils).getTPPrice(_sizeDelta, _indexToken, _collateralToken, true, _acceptablePrice);
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, tpPrice*maxLongMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
         }
         else{
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, _acceptablePrice/maxShortMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
+            uint256 tpPrice = IUtils(utils).getTPPrice(_sizeDelta, _indexToken, _collateralToken, false, _acceptablePrice);
+            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, tpPrice/maxShortMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
         }
         return positionKey;
     }

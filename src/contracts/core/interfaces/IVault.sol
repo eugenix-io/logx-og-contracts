@@ -23,7 +23,6 @@ interface IVault {
     function inPrivateLiquidationMode() external view returns (bool);
 
     function maxGasPrice() external view returns (uint256);
-    function maxExposurePerUser() external view returns (uint256);
     function maxLiquidityPerUser() external view returns (uint256);
     function safetyFactor() external view returns (uint256);
 
@@ -47,7 +46,7 @@ interface IVault {
     
 
     function setBorrowingRate(uint256 _borrowingInterval, uint256 _borrowingRateFactor) external;
-    function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor) external;
+    function setFundingRate(uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 fundingExponent) external;
 
     function setFees(
         uint256 _mintBurnFeeBasisPoints,

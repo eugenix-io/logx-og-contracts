@@ -71,7 +71,6 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override inPrivateLiquidationMode = false;
 
     uint256 public override maxGasPrice;
-    uint256 public override maxExposurePerUser;
     uint256 public maxOIImbalance = 10**36;
     uint256 public maxLiquidityPerUser;
     uint256 public safetyFactor;
@@ -146,9 +145,9 @@ contract Vault is ReentrancyGuard, IVault {
     );
     event IncreasePosition(
         bytes32 key,
-        address account,
-        address collateralToken,
-        address indexToken,
+        address indexed account,
+        address indexed collateralToken,
+        address indexed indexToken,
         uint256 collateralDelta,
         uint256 sizeDelta,
         bool isLong,
@@ -157,31 +156,20 @@ contract Vault is ReentrancyGuard, IVault {
     );
     //TODO: add realisedPnl to this event.
     event DecreasePosition(
-        bytes32 key,
-        address account,
+        address indexed account,
         address collateralToken,
-        address indexToken,
-        uint256 collateralDelta,
+        address indexed indexToken,
         uint256 sizeDelta,
         bool isLong,
         uint256 price,
-        uint256 fee
-    );
-    event LiquidatePosition(
-        address account,
-        address collateralToken,
-        address indexToken,
-        bool isLong,
-        uint256 size,
-        uint256 collateral,
-        uint256 reserveAmount,
-        int256 realisedPnl,
-        uint256 markPrice
+        int256 fee,
+        bool indexed isLiquidated,
+        int256 realisedPnl
     );
     event UpdatePosition(
-        address account,
-        address collateralToken,
-        address indexToken,
+        address indexed account,
+        address indexed collateralToken,
+        address indexed indexToken,
         bool isLong,
         uint256 size,
         uint256 collateral,
@@ -190,23 +178,10 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 reserveAmount,
         int256 realisedPnl,
         uint256 markPrice
-    );
-    event ClosePosition(
-        address account,
-        address collateralToken,
-        address indexToken,
-        bool isLong,
-        uint256 size,
-        uint256 collateral,
-        uint256 averagePrice,
-        uint256 entryBorrowingRate,
-        uint256 reserveAmount,
-        int256 realisedPnl
     );
 
     event UpdateBorrowingRate(address token, uint256 borrowingRate);
     event UpdateFundingRate(address token, int256 fundingLongRate, int256 fundingShortRate);
-    event UpdatePnl(bytes32 key, bool hasProfit, uint256 delta);
 
     event CollectSwapFees(address token, uint256 feeUsd, uint256 feeTokens);
     event CollectMarginFees(address token, int256 feeUsd, uint256 feeTokens);
@@ -281,12 +256,6 @@ contract Vault is ReentrancyGuard, IVault {
     function setUsdl(address newUsdl) external {
         _onlyGov();
         usdl = newUsdl;
-    }
-
-    function setMaxExposurePerUser(uint256 _maxExposurePerUser) public  {
-        _onlyGov();
-        maxExposurePerUser = _maxExposurePerUser;
-        
     }
 
     function setMaxLiquidityPerUser(uint256 _maxLiquidityPerUser) public  {
@@ -405,13 +374,15 @@ contract Vault is ReentrancyGuard, IVault {
 
     function setFundingRate(
         uint256 _fundingInterval,
-        uint256 _fundingRateFactor
+        uint256 _fundingRateFactor, 
+        uint256 _fundingExponent
     ) external override {
         _onlyGov();
         _validate(_fundingInterval >= MIN_FUNDING_RATE_INTERVAL, "Vault: funding interval too low");
         _validate(_fundingRateFactor <= MAX_FUNDING_RATE_FACTOR, "Vault: fundingRateFactor too high");
         fundingInterval = _fundingInterval;
         fundingRateFactor = _fundingRateFactor;
+        fundingExponent = _fundingExponent;
     }
 
     // potential shift
@@ -698,7 +669,6 @@ contract Vault is ReentrancyGuard, IVault {
                 position.account,
                 position.collateralToken,
                 position.indexToken,
-                0,
                 position.size,
                 position.isLong,
                 position.account
@@ -712,23 +682,12 @@ contract Vault is ReentrancyGuard, IVault {
             globalShortAveragePrices[position.indexToken] = utils.getNextGlobalAveragePrice(position.account, position.collateralToken, position.indexToken, markPrice, position.size, false, false);
         }
 
-        //manu to reason: we have marginFees here but it is not transferred why?
         uint256 feeTokens = utils.usdToTokenMin(position.collateralToken, uint(abs(marginFees)));
         updateFeeReserves(marginFees, position.collateralToken, feeTokens);
 
         _decreaseReservedAmount(position.collateralToken, position.reserveAmount);
 
-        emit LiquidatePosition(
-            position.account,
-            position.collateralToken,
-            position.indexToken,
-            position.isLong,
-            position.size,
-            position.collateral,
-            position.reserveAmount,
-            position.realisedPnl,
-            markPrice
-        );
+        emit DecreasePosition(position.account, position.collateralToken, position.indexToken, 0, position.isLong, markPrice, marginFees, true, 0);
 
         emit UpdatePosition(
             position.account,
@@ -1010,7 +969,6 @@ contract Vault is ReentrancyGuard, IVault {
                 _account,
                 _collateralToken,
                 _indexToken,
-                _collateralDelta,
                 _sizeDelta,
                 _isLong,
                 _receiver
@@ -1087,7 +1045,6 @@ contract Vault is ReentrancyGuard, IVault {
         address _account,
         address _collateralToken,
         address _indexToken,
-        uint256 _collateralDelta,
         uint256 _sizeDelta,
         bool _isLong,
         address _receiver
@@ -1096,24 +1053,24 @@ contract Vault is ReentrancyGuard, IVault {
             _account,
             _collateralToken,
             _indexToken,
-            _collateralDelta,
             _sizeDelta,
             _isLong,
             _receiver
         );
         updateCumulativeBorrowingRate(_collateralToken);
         updateCumulativeFundingRate(_indexToken);
-
+        Position storage position;
+        {
         bytes32 key = getPositionKey(
             _account,
             _collateralToken,
             _indexToken,
             _isLong
         );
-        Position storage position = positions[key];
+        position = positions[key];
+        }
         _validate(position.size > 0, "Vault: no position found");
         _validate(position.size >= _sizeDelta, "Vault: decrease position size too large");
-        _validate(position.collateral >= _collateralDelta, "Vault: decrease position collateral too large");
 
         // scrop variables to avoid stack too deep errors
         {
@@ -1124,17 +1081,35 @@ contract Vault is ReentrancyGuard, IVault {
         }
 
         uint256 price = _isLong ? getMinPriceOfToken(_indexToken) : getMaxPriceOfToken(_indexToken);
-
-        (uint256 usdOut, uint256 usdOutAfterFee) = _reduceCollateral(
+        uint amountOutAfterFees;
+        {
+        (uint256 usdOut, uint256 usdOutAfterFee, int256 signedDelta) = _reduceCollateral(
             _account,
             _collateralToken,
             _indexToken,
-            price,
-            _collateralDelta,
+            0,
             _sizeDelta,
             _isLong
         );
-
+        if (usdOut > 0) {
+            amountOutAfterFees = utils.usdToTokenMin(
+                _collateralToken,
+                usdOutAfterFee
+            );
+            _transferOut(_collateralToken, amountOutAfterFees, _receiver);
+        }
+        emit DecreasePosition(
+                _account,
+                _collateralToken,
+                _indexToken,
+                _sizeDelta,
+                _isLong,
+                price,
+                int(usdOut - (usdOutAfterFee)),
+                false,
+                signedDelta
+        );
+        }
 
         if (_isLong) {
             globalLongAveragePrices[_indexToken] = utils.getNextGlobalAveragePrice(_account, _collateralToken, _indexToken, price, _sizeDelta, true, false);
@@ -1160,19 +1135,17 @@ contract Vault is ReentrancyGuard, IVault {
                 true,
                 price
             );
-
-            emit DecreasePosition(
-                key,
-                _account,
-                _collateralToken,
-                _indexToken,
-                _collateralDelta,
-                _sizeDelta,
-                _isLong,
-                price,
-                usdOut - (usdOutAfterFee)
-            );
-            emit UpdatePosition(
+            
+        } else {
+            bytes32 key = getPositionKey(
+            _account,
+            _collateralToken,
+            _indexToken,
+            _isLong
+        );
+            deletePositionKey(key);
+        }
+        emit UpdatePosition(
                 _account,
                 _collateralToken,
                 _indexToken,
@@ -1185,46 +1158,6 @@ contract Vault is ReentrancyGuard, IVault {
                 position.realisedPnl,
                 price
             );
-        } else {
-            emit DecreasePosition(
-                key,
-                _account,
-                _collateralToken,
-                _indexToken,
-                _collateralDelta,
-                _sizeDelta,
-                _isLong,
-                price,
-                usdOut - (usdOutAfterFee)
-            );
-            emit UpdatePosition(
-                _account,
-                _collateralToken,
-                _indexToken,
-                _isLong,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                price
-            );
-            emit ClosePosition(
-                _account,
-                _collateralToken,
-                _indexToken,
-                _isLong,
-                position.size,
-                position.collateral,
-                position.averagePrice,
-                position.entryBorrowingRate,
-                position.reserveAmount,
-                position.realisedPnl
-            );
-
-            deletePositionKey(key);
-        }
 
         if (!_isLong) {
             _decreaseGlobalShortSize(_indexToken, _sizeDelta);
@@ -1232,38 +1165,32 @@ contract Vault is ReentrancyGuard, IVault {
             _decreaseGlobalLongSize(_indexToken, _sizeDelta);
         }
 
-        if (usdOut > 0) {
-            uint256 amountOutAfterFees = utils.usdToTokenMin(
-                _collateralToken,
-                usdOutAfterFee
-            );
-            _transferOut(_collateralToken, amountOutAfterFees, _receiver);
-            return amountOutAfterFees;
-        }
-
-        return 0;
+        return amountOutAfterFees;
     }
 
     function deletePositionKey(bytes32 _key) private {
         EnumerableSet.remove(positionKeys, _key);
+        delete positions[_key];
     }
 
     function _reduceCollateral(
         address _account,
         address _collateralToken,
         address _indexToken,
-        uint256 _price,
         uint256 _collateralDelta,
         uint256 _sizeDelta,
         bool _isLong
-    ) private returns (uint256, uint256) {
+    ) private returns (uint256, uint256, int256 ) {
+        Position storage position ;
+        {
         bytes32 key = getPositionKey(
             _account,
             _collateralToken,
             _indexToken,
             _isLong
         );
-        Position storage position = positions[key];
+        position = positions[key];
+        }
 
         int256 fee = _collectMarginFees(
             _account,
@@ -1280,7 +1207,7 @@ contract Vault is ReentrancyGuard, IVault {
 
         // scope variables to avoid stack too deep errors
         {
-            uint256 markPrice = _price;
+            uint256 markPrice = _isLong ? getMinPriceOfToken(_indexToken) : getMaxPriceOfToken(_indexToken);
             address indexToken = _indexToken;
             bool isLong = _isLong;
             (bool _hasProfit, uint256 delta) = utils.getDelta(
@@ -1339,11 +1266,8 @@ contract Vault is ReentrancyGuard, IVault {
                 position.collateral = position.collateral - uint(fee); // Revist to check for fee > position.collateral
             }
         }
-        
-
-        emit UpdatePnl(key, hasProfit, adjustedDelta);
-
-        return (usdOut, usdOutAfterFee);
+        int signedDelta = hasProfit ? int(adjustedDelta) : -1 * int(adjustedDelta);
+        return (usdOut, usdOutAfterFee, signedDelta);
     }
     
 
