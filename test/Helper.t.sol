@@ -105,7 +105,8 @@ contract Helper is Test {
         uint256 executionFee,
         bool isLong,
         bool triggerAboveThreshold,
-        bool indexed isIncreaseOrder
+        bool indexed isIncreaseOrder,
+        bool isMaxOrder
     );
     event CreateDecreasePosition(
         address indexed account,
@@ -212,6 +213,12 @@ contract Helper is Test {
             abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress("ETH"))),
             abi.encode(ethMinPrice * 10**30)
         );
+        vm.mockCall(
+            address(address(priceFeed)),
+            abi.encodeWithSelector(priceFeed.getPriceOfToken.selector, address(vm.envAddress("ETH"))),
+            abi.encode((ethMinPrice * 10**30 + ethMaxPrice* 10**30)/2)
+        );
+
     }
 
     // vault helper
@@ -266,9 +273,9 @@ contract Helper is Test {
         bool executed = orderManager.executeIncreasePosition(requestKey, payable(address(testUserAddress))); 
     }
 
-    function createLongLimitOrderOnEth() public returns(address orderAccount, uint256 orderIndex){
+    function createLongLimitOrderOnEth() public {
         IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        (orderAccount, orderIndex) = orderManager.createOrders{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, takeProfitPrice, true, minExecutionFeeLimitOrder, true, false);
+        orderManager.createOrders{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, true, minExecutionFeeLimitOrder, acceptablePrice, 0, 0, false);
     }
 
     
