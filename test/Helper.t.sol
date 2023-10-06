@@ -142,7 +142,7 @@ contract Helper is Test {
 
     address testUserAddress = 0xb3D1a79cdE88c1a9B69Fc43fd1eCEa6df87eFDeB;
     address testFeeReceiver = 0x79F30C5D9e25E70766DCC8ba6b489b5bA0Cc81FD;
-    address usdcSource = 0x2c089786d105b95a51c3E7FB5F4dc78E7B963634;
+    address usdclSource = 0x2c089786d105b95a51c3E7FB5F4dc78E7B963634;
 
     Vault vault;
     PriceFeed priceFeed;
@@ -189,16 +189,16 @@ contract Helper is Test {
         return keccak256(abi.encodePacked(_account, index));
     }
 
-    function mockPricesOfUSDC(uint usdcMinPrice, uint usdcMaxPrice) public {
+    function mockPricesOfUSDCL(uint usdclMinPrice, uint usdclMaxPrice) public {
         vm.mockCall(
             address(address(priceFeed)),
-            abi.encodeWithSelector(priceFeed.getMaxPriceOfToken.selector, address(vm.envAddress("USDC"))),
-            abi.encode(usdcMaxPrice * 10**30)
+            abi.encodeWithSelector(priceFeed.getMaxPriceOfToken.selector, address(vm.envAddress("USDCL"))),
+            abi.encode(usdclMaxPrice * 10**30)
         );
         vm.mockCall(
             address(address(priceFeed)),
-            abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress("USDC"))),
-            abi.encode(usdcMinPrice * 10**30)
+            abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress("USDCL"))),
+            abi.encode(usdclMinPrice * 10**30)
         );
     }
 
@@ -227,22 +227,22 @@ contract Helper is Test {
     }
 
     function buyUsdlHelper(uint256 _amount) public returns(uint256) {
-        mockUSDCTransfer(_amount);
-        uint256 usdlAmount = vault.buyUSDL(vm.envAddress("USDC"), testUserAddress);
+        mockUSDCLTransfer(_amount);
+        uint256 usdlAmount = vault.buyUSDL(vm.envAddress("USDCL"), testUserAddress);
         return usdlAmount;
     }
 
     function sellUsdlHelper(uint256 _amount) public returns(uint256) {
         mockUSDLTransfer(_amount);
-        uint256 usdlAmount = vault.sellUSDL(vm.envAddress("USDC"), testUserAddress);
+        uint256 usdlAmount = vault.sellUSDL(vm.envAddress("USDCL"), testUserAddress);
         return usdlAmount;
     }
 
-    function mockUSDCTransfer(uint256 _amount) public {
+    function mockUSDCLTransfer(uint256 _amount) public {
         vm.mockCall(
-            address(address(vm.envAddress("USDC"))),
+            address(address(vm.envAddress("USDCL"))),
             abi.encodeWithSelector(IERC20.balanceOf.selector, address(vault)),
-            abi.encode(vault.tokenBalances(vm.envAddress("USDC")) + _amount)
+            abi.encode(vault.tokenBalances(vm.envAddress("USDCL")) + _amount)
         );
     }
 
@@ -255,28 +255,63 @@ contract Helper is Test {
     }
 
     function createLongIncreasePositionOnEth(uint fee) public returns(bytes32) {
-        IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        return orderManager.createIncreasePosition{value: fee}(vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, 0, 0, fee);
+        IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
+        return orderManager.createIncreasePosition{value: fee}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, 0, 0, fee);
     }
 
-    function executeIncreaseLongPositionOnEth(bytes32 requestKey) public {
+    //TODO: technically move  mock prices and adding liquidity to pool to different function.
+    function executeIncreaseLongPositionOnEth(bytes32 requestKey, uint minPrice, uint maxPrice) public {
         // mockPrices
-        mockPricesOfUSDC(1,1);
-        mockPricesOfEth(1600,1600);
-        IERC20(vm.envAddress("USDC")).transfer(address(vault), 1000 *10**18);
-        vault.directPoolDeposit(vm.envAddress("USDC"));
+        mockPricesOfEth(minPrice,maxPrice);
+        IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
+        //TODO: replace pool deposit with proper add liquidity to pool.
+        vault.directPoolDeposit(vm.envAddress("USDCL"));
 
-        uint256 prevBalance = IERC20(vm.envAddress("USDC")).balanceOf(address(vault));
+        uint256 prevBalance = IERC20(vm.envAddress("USDCL")).balanceOf(address(vault));
         uint256 initialFeeBal = address(testUserAddress).balance;
-        vm.expectEmit(true, true, true, false, address(orderManager));
-        emit ExecuteIncreasePosition(testUserAddress, vm.envAddress("USDC"), vm.envAddress("ETH"), collateralSize, sizeDelta, false, acceptablePrice, minExecutionFeeLimitOrder, 0, 0);
         bool executed = orderManager.executeIncreasePosition(requestKey, payable(address(testUserAddress))); 
     }
 
-    function createLongLimitOrderOnEth() public {
-        IERC20(vm.envAddress("USDC")).approve(address(orderManager), collateralSize);
-        orderManager.createOrders{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDC"), true, true, minExecutionFeeLimitOrder, acceptablePrice, 0, 0, false);
+    function createDecreaseLongPositionOnEth(uint fee) public returns(bytes32) {
+        return orderManager.createDecreasePosition{value: fee}(vm.envAddress("USDCL"), vm.envAddress("ETH"), 0, sizeDelta, true, address(testUserAddress), acceptablePrice, fee);
     }
 
-    
+    function executeDecreaseLongPositionOnEth(bytes32 requestKey, uint minPrice, uint maxPrice) public {
+        mockPricesOfEth(minPrice, maxPrice);
+        orderManager.executeDecreasePosition(requestKey, payable(address(testUserAddress)));
+    }
+
+    function createLongLimitOrderOnEth() public {
+        IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
+        orderManager.createOrders{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDCL"), true, true, minExecutionFeeLimitOrder, acceptablePrice, 0, 0, false);
+    }
+
+    function setInitialState() public {
+        vm.deal(testUserAddress, 2 ether);
+        vault = deployVault();
+        // initialize vault
+        priceFeed  = deployAndInitializePriceFeed();
+        utils = deployUtils(vault, priceFeed);
+        utils.setValidate(false);
+        orderManager = new OrderManager(address(vault), address(utils), address(priceFeed), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxLongMultiplier, maxShortMultiplier);
+        initializeOrderManager();
+        initializeVault();
+        mockPricesOfUSDCL(1,1);
+    }
+
+    function initializeVault() public {
+        vault.setOrderManager(address(orderManager), true);
+        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false);
+        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
+        vault.setUtils(utils);
+        vault.setPriceFeed(address(priceFeed));
+        vault.setSafetyFactor(100);
+        vault.setFundingRate(3600, 100, 1);
+        vault.setBorrowingRate(3600, 100);
+    }   
+
+    function initializeOrderManager() public {
+        orderManager.setOrderKeeper(address(this), true);
+        orderManager.setDelayValues(0, 0, 3600);
+    }
 }

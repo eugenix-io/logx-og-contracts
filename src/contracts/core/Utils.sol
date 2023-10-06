@@ -681,6 +681,9 @@ contract Utils is IUtils, Governable {
             return (0, 0);
         }
         uint nextFundingRateForLong =  (fundingRateFactor*(oiImbalance**fundingExponent))/ (globalLongSizeVault + globalShortSizeVault);
+        if(globalLongSizeVault==0){
+            return(0, int(nextFundingRateForLong));
+        }
         uint nextFundingRateForShort = nextFundingRateForLong *globalShortSizeVault/globalLongSizeVault;
         if(globalLongSizeVault>globalShortSizeVault){
             return (int256(nextFundingRateForLong), -1 * int256(nextFundingRateForShort)); // chance of overflow, revisit

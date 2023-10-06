@@ -16,7 +16,7 @@ contract vaultTest is Test, Helper {
         vault.setUtils(utils);
         vault.setSafetyFactor(1);
         vault.setUsdl(address(usdl));
-        vault.setTokenConfig(vm.envAddress("USDC"), 18, 0, true, true, false);
+        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
         orderManager = new OrderManager(
             address(vault),
@@ -30,7 +30,7 @@ contract vaultTest is Test, Helper {
         );
         vault.setOrderManager(address(orderManager), true);
         vault.setPriceFeed(address(priceFeed));
-        mockPricesOfUSDC(1, 1);
+        mockPricesOfUSDCL(1, 1);
         mockPricesOfEth(1650, 1650);
     }
 
@@ -63,7 +63,7 @@ contract vaultTest is Test, Helper {
         vm.expectRevert("Vault: Invalid indexToken");
         increasePositionVault(
             testUserAddress,
-            vm.envAddress("USDC"),
+            vm.envAddress("USDCL"),
             indexToken,
             sizeDelta,
             true
@@ -77,7 +77,7 @@ contract vaultTest is Test, Helper {
     //     vm.expectRevert("Utils: Heavy exposure for single user");
     //     increasePositionVault(
     //         testUserAddress,
-    //         vm.envAddress("USDC"),
+    //         vm.envAddress("USDCL"),
     //         vm.envAddress("ETH"),
     //         sizeDelta,
     //         true
@@ -90,7 +90,7 @@ contract vaultTest is Test, Helper {
     //     vm.startPrank(address(orderManager));
     //     increasePositionVault(
     //         testUserAddress,
-    //         vm.envAddress("USDC"),
+    //         vm.envAddress("USDCL"),
     //         vm.envAddress("ETH"),
     //         sizeDelta,
     //         true
@@ -110,7 +110,7 @@ contract vaultTest is Test, Helper {
         address randomUser = makeAddr("Random user address");
         vm.prank(randomUser);
         vm.expectRevert("Vault: not manager");
-        vault.buyUSDL(vm.envAddress("USDC"), testUserAddress);
+        vault.buyUSDL(vm.envAddress("USDCL"), testUserAddress);
     }
 
     // 4.1 Try sending a token that is not whitelisted
@@ -123,19 +123,19 @@ contract vaultTest is Test, Helper {
     // 4.2 Try buying llp by sending zero tokens
     function testBuyUsdlTokenAmountZero() public {
         // mock balanceOf call with prev balance to return 0 from _transferIn
-        mockUSDCTransfer(0);
+        mockUSDCLTransfer(0);
         vm.expectRevert("Vault: tokenAmount too low");
-        vault.buyUSDL(vm.envAddress("USDC"), testUserAddress);
+        vault.buyUSDL(vm.envAddress("USDCL"), testUserAddress);
     }
 
     // 4.3 Try a case where output usdlAmount amounts to zero, mock price to zero
     function testBuyUsdlZeroUsdl() public {
-        mockPricesOfUSDC(0, 0);
+        mockPricesOfUSDCL(0, 0);
         console.log("test");
-        mockUSDCTransfer(10 * 10 ** 18);
+        mockUSDCLTransfer(10 * 10 ** 18);
         vm.expectRevert("Vault: usdlAmount too low");
         uint256 usdlAmount = vault.buyUSDL(
-            vm.envAddress("USDC"),
+            vm.envAddress("USDCL"),
             testUserAddress
         );
         console.log("usdlamount", usdlAmount);
@@ -153,7 +153,7 @@ contract vaultTest is Test, Helper {
         assertEq(usdlAmount, amountAfterFee);
         assertEq(
             transferAmount - amountAfterFee,
-            vault.feeReserves(vm.envAddress("USDC"))
+            vault.feeReserves(vm.envAddress("USDCL"))
         );
     }
 
@@ -161,9 +161,9 @@ contract vaultTest is Test, Helper {
     function testBuyUsdlSuccessfullPoolAmount() public {
         uint256 transferAmount = 1000 * 10 ** 18;
         // check feeReserves[_token] value
-        uint256 initialPoolAmount = vault.poolAmounts(vm.envAddress("USDC"));
+        uint256 initialPoolAmount = vault.poolAmounts(vm.envAddress("USDCL"));
         uint256 usdlAmount = buyUsdlHelper(transferAmount);
-        uint256 finalPoolAmount = vault.poolAmounts(vm.envAddress("USDC"));
+        uint256 finalPoolAmount = vault.poolAmounts(vm.envAddress("USDCL"));
         // usdlAMount should be .3% of transferAmount
         uint256 amountAfterFee = (transferAmount *
             (BASIS_POINTS_DIVISOR - vault.mintBurnFeeBasisPoints())) /
@@ -204,7 +204,7 @@ contract vaultTest is Test, Helper {
     function testSellUsdlZeroUsdlSent() public {
         mockUSDLTransfer(0);
         vm.expectRevert("Vault: usdlAmount too low");
-        vault.sellUSDL(vm.envAddress("USDC"), testUserAddress);
+        vault.sellUSDL(vm.envAddress("USDCL"), testUserAddress);
     }
 
     // 5.3 Check one case where redemptionAmount amounts to zero
@@ -218,19 +218,19 @@ contract vaultTest is Test, Helper {
             abi.encode(0)
         );
         vm.expectRevert("Vault: redemptionAmount too low");
-        vault.sellUSDL(vm.envAddress("USDC"), testUserAddress);
+        vault.sellUSDL(vm.envAddress("USDCL"), testUserAddress);
     }
 
     // 5.4 Check pool amounts is decreased according to redemptionAmount
     function testSellUSDLSuccessFullPoolAmount() public {
         // 1. buy some usdl
-        uint256 transferUSDCAmount = 1000 * 10 ** 18;
-        uint256 usdlAmount = buyUsdlHelper(transferUSDCAmount);
-        uint256 finalPoolAmount = vault.poolAmounts(vm.envAddress("USDC"));
-        console.log("final balance", finalPoolAmount); // 99.7% of USDC amount
+        uint256 transferUSDCLAmount = 1000 * 10 ** 18;
+        uint256 usdlAmount = buyUsdlHelper(transferUSDCLAmount);
+        uint256 finalPoolAmount = vault.poolAmounts(vm.envAddress("USDCL"));
+        console.log("final balance", finalPoolAmount); // 99.7% of USDCL amount
 
         // 2. try selling half
-        uint256 amountOut = sellUsdlHelper(transferUSDCAmount / 2); // - Causing issue because trying to burn usdl which is not present in vault
+        uint256 amountOut = sellUsdlHelper(transferUSDCLAmount / 2); // - Causing issue because trying to burn usdl which is not present in vault
         console.log("sellusdl amount out", amountOut);
     }
 
