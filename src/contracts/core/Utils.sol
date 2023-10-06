@@ -27,7 +27,8 @@ contract Utils is IUtils, Governable {
     uint256 public constant MAX_INT256 = uint256(type(int256).max);
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
-    uint256 public constant BORROWING_RATE_PRECISION = 1000000;
+    uint256 public BORROWING_RATE_PRECISION = 1000000;
+    int256 public FUNDING_RATE_PRECISION = 1000000;
     uint256 public constant USDL_DECIMALS = 18;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     bool public isValidate = true;
@@ -48,6 +49,12 @@ contract Utils is IUtils, Governable {
     }
     function setPriceFeed(IPriceFeed _pricefeed) external onlyGov {
         priceFeed = _pricefeed;
+    }
+    function setBorrowingRatePrecision(uint256 _precision) external onlyGov{
+        BORROWING_RATE_PRECISION = _precision;
+    }
+    function setFundingRatePrecision(int256 _precision) external onlyGov{
+        FUNDING_RATE_PRECISION = _precision;
     }
 
     function validateIncreasePosition(
@@ -793,7 +800,7 @@ contract Utils is IUtils, Governable {
             differenceInFundingRate = vault.cumulativeFundingRatesForShorts(indexToken) - entryFundingRate;
         }
 
-        return differenceInFundingRate * int(size);
+        return (differenceInFundingRate * int(size))/FUNDING_RATE_PRECISION;
     }
 
     function getTPPrice(uint256 /*sizeDelta*/, address /*indexToken*/, address /*collateralToken*/, bool /*isLong*/, uint256 markPrice) pure public returns(uint256) {
