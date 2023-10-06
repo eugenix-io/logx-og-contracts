@@ -404,7 +404,7 @@ contract Vault is ReentrancyGuard, IVault {
     ) external override {
         _onlyGov();
         // decimal check
-        _validate(_tokenDecimals == IERC20(address(_token)).decimals(), "Vault: token decimals do not match decimals in its ERC20 contract");
+        // _validate(_tokenDecimals == IERC20(address(_token)).decimals(), "Vault: token decimals do not match decimals in its ERC20 contract");
         
         // increment token count for the first time
         if (!whitelistedTokens[_token]) {

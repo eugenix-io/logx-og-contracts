@@ -28,6 +28,12 @@ contract Deployment is Script {
     uint public maxLongMultiplier = 9;
     uint public maxShortMultiplier = 9;
     address[] rewardTrackerDepositToken;
+    uint256 public fundingInterval = 3600;
+    uint256 public fundingRateFactor = 100;
+    uint256 public fundingExponent = 1;
+    uint256 public maxLiquidityPerUser = 10;
+    uint256 public safetyFactorVault = 90;
+
 
     function run() external{  
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY_ADMIN"); 
@@ -47,8 +53,8 @@ contract Deployment is Script {
         OrderManager orderManager = deployOrderManager(vault, priceFeed, utils);
         initializeVault(vault, orderManager, priceFeed, usdl, utils, llpManager);
         RewardTracker rewardTracker = deployRewardTracker();
+        initlializeRewardTracker(rewardTracker);
         initializeRewardRouter(rewardRouter, vm.envAddress("LLP"), address(llpManager), address(rewardTracker));
-
     }
 
     function deployOrderManager(Vault vault, PriceFeed priceFeed, Utils utils) public returns (OrderManager){
@@ -108,6 +114,7 @@ contract Deployment is Script {
         llpManager.setHandler(address(rewardRouter), true);
         llpManager.whiteListToken(vm.envAddress("USDCL"));
         console.log("LlpManager deployed at address: ", address(llpManager));
+        usdl.addVault(address(llpManager));  // also add llpmanager as vault in usdl(this is needed when llpManager mints usdl)
         return llpManager;
     }
 
@@ -119,14 +126,25 @@ contract Deployment is Script {
         priceFeed.updateTokenIdMapping(vm.envAddress("BTC"), vm.envBytes32("BTC_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("UNI"), vm.envBytes32("UNI_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("LINK"), vm.envBytes32("LINK_PYTH_FEED"));
-        //priceFeed.updateTokenIdMapping(vm.envAddress("ARB"), vm.envBytes32("ARB_PYTH_FEED"));
-        //priceFeed.updateTokenIdMapping(vm.envAddress("CRV"), vm.envBytes32("CRV_PYTH_FEED"));
-        //priceFeed.updateTokenIdMapping(vm.envAddress("AVAX"), vm.envBytes32("AVAX_PYTH_FEED"));
-        //priceFeed.updateTokenIdMapping(vm.envAddress("BNB"), vm.envBytes32("BNB_PYTH_FEED"));
-        //priceFeed.updateTokenIdMapping(vm.envAddress("FTM"), vm.envBytes32("FTM_PYTH_FEED"));
-        //priceFeed.updateTokenIdMapping(vm.envAddress("OP"), vm.envBytes32("OP_PYTH_FEED"));
-        //priceFeed.updateTokenIdMapping(vm.envAddress("MATIC"), vm.envBytes32("MATIC_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("ARB"), vm.envBytes32("ARB_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("CRV"), vm.envBytes32("CRV_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("AVAX"), vm.envBytes32("AVAX_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("BNB"), vm.envBytes32("BNB_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("FTM"), vm.envBytes32("FTM_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("OP"), vm.envBytes32("OP_PYTH_FEED"));
+        priceFeed.updateTokenIdMapping(vm.envAddress("MATIC"), vm.envBytes32("MATIC_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("MNT"), vm.envBytes32("MNT_PYTH_FEED"));
+
+        // executor address
+        priceFeed.setUpdater(vm.envAddress("EXECUTOR1"));
+        priceFeed.setUpdater(vm.envAddress("EXECUTOR2"));
+        priceFeed.setUpdater(vm.envAddress("EXECUTOR3"));
+        priceFeed.setUpdater(vm.envAddress("EXECUTOR4"));
+        priceFeed.setUpdater(vm.envAddress("EXECUTOR5"));
+        priceFeed.setUpdater(vm.envAddress("EXECUTOR6"));
+        priceFeed.setUpdater(vm.envAddress("EXECUTOR7"));
+        priceFeed.setUpdater(vm.envAddress("EXECUTOR8"));
+
         console.log("PriceFeed initialized");
         return priceFeed;
     }
@@ -145,19 +163,22 @@ contract Deployment is Script {
         vault.setTokenConfig(vm.envAddress("BTC"), 8, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("UNI"), 18, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("LINK"), 18, 0, false, false, true);
-        // vault.setTokenConfig(vm.envAddress("ARB"), 18, 0, false, false, true);
-        // vault.setTokenConfig(vm.envAddress("CRV"), 18, 0, false, false, true);
-        // vault.setTokenConfig(vm.envAddress("AVAX"), 18, 0, false, false, true);
-        // vault.setTokenConfig(vm.envAddress("BNB"), 18, 0, false, false, true);
-        // vault.setTokenConfig(vm.envAddress("FTM"), 18, 0, false, false, true);
-        // vault.setTokenConfig(vm.envAddress("OP"), 18, 0, false, false, true);
-        // vault.setTokenConfig(vm.envAddress("MATIC"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("ARB"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("CRV"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("AVAX"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("BNB"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("FTM"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("OP"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("MATIC"), 18, 0, false, false, true);
         vault.setTokenConfig(vm.envAddress("MNT"), 18, 0, false, false, true);
         vault.setMaxGlobalLongSize(vm.envAddress("USDCL"), maxGlobalLongSize);
         vault.setMaxGlobalShortSize(vm.envAddress("USDCL"), maxGlobalShortSize);
         vault.setUtils(utils);
         vault.setInManagerMode(true);
         vault.setManager(address(llpManager), true);
+        vault.setFundingRate(fundingInterval, fundingRateFactor, fundingExponent);
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser);
+        vault.setSafetyFactor(safetyFactorVault);
     }
 
     //util functions
