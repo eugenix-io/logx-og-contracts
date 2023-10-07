@@ -10,8 +10,6 @@ import "./interfaces/IRewardTracker.sol";
 import "../access/Governable.sol";
 
 contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
-    uint256 public constant BASIS_POINTS_DIVISOR = 10000;
-    uint256 public constant PRECISION = 1e30;
 
     uint8 public constant decimals = 18;
 
@@ -21,21 +19,15 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     string public symbol;
 
     mapping(address => bool) public isDepositToken;
-    mapping(address => mapping(address => uint256))
-        public
-        override depositBalances;
+    mapping(address => mapping(address => uint256)) public override depositBalances;
     mapping(address => uint256) public totalDepositSupply;
 
     uint256 public override totalSupply;
     mapping(address => uint256) public balances;
     mapping(address => mapping(address => uint256)) public allowances;
 
-    uint256 public cumulativeRewardPerToken;
     mapping(address => uint256) public override stakedAmounts;
     mapping(address => uint256) public claimableReward;
-    mapping(address => uint256) public previousCumulatedRewardPerToken;
-    mapping(address => uint256) public override cumulativeRewards;
-    mapping(address => uint256) public override averageStakedAmounts;
     mapping(address => bool) public isHandler;
     address public rewardToken;
     address admin;
@@ -302,6 +294,8 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
         _mint(_account, _amount);
     }
+    // 7253.2 * 10**18
+    // 8253.22 * 10**18
 
     function _unstake(
         address _account,
@@ -354,13 +348,16 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         updateRewards(_feeReward);
     }
 
-    function updateRewards(uint256 _feeReward) private {
-        for (uint256 i = 0; i < stakers.length; i++) {
-            _updateRewards(stakers[i], _feeReward);
+    function updateRewards(uint256 _feeReward) public {
+        onlyAdmin();
+        address[] memory _stakers = stakers;
+        for (uint256 i = 0; i < _stakers.length; i++) {
+            _updateRewards(_stakers[i], _feeReward);
         }
     }
 
-    function _updateRewards(address _account, uint256 _feeReward) private {
+    function _updateRewards(address _account, uint256 _feeReward) public {
+        onlyAdmin(); 
         uint256 stakedAmount = stakedAmounts[_account];
         uint256 accountReward = (_feeReward * stakedAmount) / (totalSupply);
         uint256 _claimableReward = claimableReward[_account] + accountReward;

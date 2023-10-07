@@ -354,6 +354,19 @@ contract OrderManagerTest is Test, Helper {
         8.7 executionFee is sent to _executionFeeReceiver successfully
         8.8 ExecuteIncreasePosition is emitted correctly
   */
+
+    function test_maxLeverageCheck() public {
+        vm.startPrank(testUserAddress);
+        IERC20(vm.envAddress("USDCL")).approve(address(orderManager), 1000*10**18);
+        bytes32 requestKey = orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDCL"), vm.envAddress("ETH"), 1000*10**18, 47500*10**30, false, acceptablePrice, 0, 0, minExecutionFeeMarketOrder);
+        mockPricesOfUSDCL(1,1);
+        mockPricesOfEth(1641,1641);
+        IERC20(vm.envAddress("USDCL")).transfer(address(vault), 60000 *10**18);
+        vault.directPoolDeposit(vm.envAddress("USDCL"));
+        bool executed = orderManager.executeIncreasePosition(requestKey, payable(address(testUserAddress))); 
+        console.log("executed", executed);
+    }
+
     function testExecuteIncreasePosition() public {
         vm.startPrank(testUserAddress);
 

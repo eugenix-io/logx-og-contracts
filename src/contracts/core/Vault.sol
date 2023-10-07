@@ -53,7 +53,7 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override ceaseTradingActivity = false;
     bool public override ceaseLPActivity = false;
 
-    uint256 public override maxLeverage = 50 * 10000; // 50x
+    uint256 public override maxLeverage = 54 * 10000; // 50x
 
     uint256 public override liquidationFeeUsd;
     uint256 public override mintBurnFeeBasisPoints = 30; // 0.3%
