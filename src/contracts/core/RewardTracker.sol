@@ -11,6 +11,11 @@ import "../access/Governable.sol";
 
 contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
+    struct Position{
+        uint stakedAmount;
+        uint entryRewardPerLPToken;
+    }
+
     uint8 public constant decimals = 18;
 
     bool public isInitialized;
@@ -26,12 +31,13 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     mapping(address => uint256) public balances;
     mapping(address => mapping(address => uint256)) public allowances;
 
-    mapping(address => uint256) public override stakedAmounts;
+    mapping(address => Position) public positions;
     mapping(address => uint256) public claimableReward;
     mapping(address => bool) public isHandler;
     address public rewardToken;
+    uint public rewardPrecision = 1000000;
     address admin;
-    address[] public stakers;
+    uint public cummulativeRewardPerLPToken = 0;
 
     event Claim(address receiver, uint256 amount);
 
@@ -71,8 +77,16 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         isDepositToken[_depositToken] = _isDepositToken;
     }
 
+    function setRewardPrecision(uint _rewardPrecision) public {
+        rewardPrecision = _rewardPrecision;
+    }
+
     function setHandler(address _handler, bool _isActive) external onlyGov {
         isHandler[_handler] = _isActive;
+    }
+
+    function setCummulativeRewardRate(uint _cummulativeRewardPerLPToken) public onlyGov {
+        cummulativeRewardPerLPToken = _cummulativeRewardPerLPToken;
     }
 
     function withdrawToken(
@@ -87,40 +101,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         address _account
     ) external view override returns (uint256) {
         return balances[_account];
-    }
-
-    function stake(
-        address _depositToken,
-        uint256 _amount
-    ) external override nonReentrant {
-        _stake(msg.sender, msg.sender, _depositToken, _amount);
-    }
-
-    function stakeForAccount(
-        address _fundingAccount,
-        address _account,
-        address _depositToken,
-        uint256 _amount
-    ) external override nonReentrant {
-        _validateHandler();
-        _stake(_fundingAccount, _account, _depositToken, _amount);
-    }
-
-    function unstake(
-        address _depositToken,
-        uint256 _amount
-    ) external override nonReentrant {
-        _unstake(msg.sender, _depositToken, _amount, msg.sender);
-    }
-
-    function unstakeForAccount(
-        address _account,
-        address _depositToken,
-        uint256 _amount,
-        address _receiver
-    ) external override nonReentrant {
-        _validateHandler();
-        _unstake(_account, _depositToken, _amount, _receiver);
     }
 
     function transfer(
@@ -179,13 +159,13 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     function claimable(
         address _account
     ) public view override returns (uint256) {
-        return claimableReward[_account];
+        Position memory position = positions[_account];
+        return ((cummulativeRewardPerLPToken -  position.entryRewardPerLPToken) * position.stakedAmount)/rewardPrecision;
     }
 
 
     function _claim(address _account, address _receiver) private returns (uint256) {
-        uint256 tokenAmount = claimableReward[_account];
-        claimableReward[_account] = 0;
+        uint tokenAmount = claimable(_account);
 
         if (tokenAmount > 0) {
             IERC20(rewardToken).transfer(_receiver, tokenAmount);
@@ -262,6 +242,23 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         require(isHandler[msg.sender], "RewardTracker: forbidden");
     }
 
+    function stake(
+        address _depositToken,
+        uint256 _amount
+    ) external override nonReentrant {
+        _stake(msg.sender, msg.sender, _depositToken, _amount);
+    }
+
+    function stakeForAccount(
+        address _fundingAccount,
+        address _account,
+        address _depositToken,
+        uint256 _amount
+    ) external override nonReentrant {
+        _validateHandler();
+        _stake(_fundingAccount, _account, _depositToken, _amount);
+    }
+
     function _stake(
         address _fundingAccount,
         address _account,
@@ -280,11 +277,16 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
             _amount
         );
 
-        if (stakedAmounts[_account] == 0) {
-            stakers.push(_account);
-        }
+        Position memory prevPosition = positions[_account];
 
-        stakedAmounts[_account] = stakedAmounts[_account] + _amount;
+        if(prevPosition.stakedAmount!=0){
+            _claim(_account, _account);
+        }
+        Position memory updatedPosition;
+
+        updatedPosition.stakedAmount = prevPosition.stakedAmount + _amount;
+        updatedPosition.entryRewardPerLPToken = cummulativeRewardPerLPToken;
+        positions[_account] = updatedPosition;
         depositBalances[_account][_depositToken] =
             depositBalances[_account][_depositToken] +
             _amount;
@@ -294,8 +296,23 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
         _mint(_account, _amount);
     }
-    // 7253.2 * 10**18
-    // 8253.22 * 10**18
+
+    function unstake(
+        address _depositToken,
+        uint256 _amount
+    ) external override nonReentrant {
+        _unstake(msg.sender, _depositToken, _amount, msg.sender);
+    }
+
+    function unstakeForAccount(
+        address _account,
+        address _depositToken,
+        uint256 _amount,
+        address _receiver
+    ) external override nonReentrant {
+        _validateHandler();
+        _unstake(_account, _depositToken, _amount, _receiver);
+    }
 
     function _unstake(
         address _account,
@@ -309,16 +326,19 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
             "RewardTracker: invalid _depositToken"
         );
 
-        uint256 stakedAmount = stakedAmounts[_account];
+        Position memory prevPosition = positions[_account];
         require(
-            stakedAmounts[_account] >= _amount,
+            prevPosition.stakedAmount >= _amount,
             "RewardTracker: _amount exceeds stakedAmount"
         );
 
-        stakedAmounts[_account] = stakedAmount - _amount;
-        if (stakedAmounts[_account] == 0) {
-            _removeStaker(_account);
-        }
+        _claim(_account, _receiver);
+
+        Position memory updatePosition;
+
+        updatePosition.stakedAmount = prevPosition.stakedAmount - _amount;
+        updatePosition.entryRewardPerLPToken = cummulativeRewardPerLPToken;
+        positions[_account] = updatePosition;
 
         uint256 depositBalance = depositBalances[_account][_depositToken];
         require(
@@ -332,45 +352,5 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
         _burn(_account, _amount);
         IERC20(_depositToken).transfer(_receiver, _amount);
-    }
-
-    function setFeeReward(uint256 _feeReward) external {
-        onlyAdmin();
-        require(_feeReward > 0, "Reward tracker Error: _feeReward too low");
-
-        uint256 prevBalance = IERC20(rewardToken).balanceOf(address(this));
-        IERC20(rewardToken).transferFrom(msg.sender, address(this), _feeReward);
-        uint256 currentBalance = IERC20(rewardToken).balanceOf(address(this));
-        require(
-            currentBalance - prevBalance >= _feeReward,
-            "Reward Tracker Error: transfered funds insufficient for fee Rewards amount"
-        );
-        updateRewards(_feeReward);
-    }
-
-    function updateRewards(uint256 _feeReward) public {
-        onlyAdmin();
-        address[] memory _stakers = stakers;
-        for (uint256 i = 0; i < _stakers.length; i++) {
-            _updateRewards(_stakers[i], _feeReward);
-        }
-    }
-
-    function _updateRewards(address _account, uint256 _feeReward) public {
-        onlyAdmin(); 
-        uint256 stakedAmount = stakedAmounts[_account];
-        uint256 accountReward = (_feeReward * stakedAmount) / (totalSupply);
-        uint256 _claimableReward = claimableReward[_account] + accountReward;
-        claimableReward[_account] = _claimableReward;
-    }
-
-    function _removeStaker(address _staker) private {
-        for (uint256 i = 0; i < stakers.length; i++) {
-            if (stakers[i] == _staker) {
-                stakers[i] = stakers[stakers.length - 1];
-                stakers.pop();
-                break;
-            }
-        }
     }
 }
