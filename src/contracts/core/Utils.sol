@@ -15,10 +15,11 @@ contract Utils is IUtils, Governable {
         uint256 collateral;
         uint256 averagePrice;
         uint256 entryBorrowingRate;
-        uint256 reserveAmount;
-        int256 realisedPnl;
-        uint256 lastIncreasedTime;
         int256 entryFundingRate;
+        uint256 reserveAmount;
+        uint256 realisedPnl;
+        bool isProfit;
+        uint256 lastIncreasedTime;
     }
 
     IVault public vault;
@@ -103,20 +104,19 @@ contract Utils is IUtils, Governable {
         address _indexToken,
         bool _isLong
     ) internal view returns (Position memory) {
-        IVault _vault = vault;
         Position memory position;
         {
             (
                 uint256 size,
                 uint256 collateral,
                 uint256 averagePrice,
-                uint256 entryBorrowingRate /* reserveAmount */ /* realisedPnl */ /* hasProfit */,
+                uint256 entryBorrowingRate,
                 int256 entryFundingRate,
                 ,
-                ,
+                , // 6
                 ,
                 uint256 lastIncreasedTime
-            ) = _vault.getPosition(
+            ) = vault.getPosition(
                     _account,
                     _collateralToken,
                     _indexToken,
@@ -126,6 +126,7 @@ contract Utils is IUtils, Governable {
             position.collateral = collateral;
             position.averagePrice = averagePrice;
             position.entryBorrowingRate = entryBorrowingRate;
+            position.entryFundingRate = entryFundingRate;
             position.lastIncreasedTime = lastIncreasedTime;
         }
         return position;
@@ -681,12 +682,16 @@ contract Utils is IUtils, Governable {
             return (0, 0);
         }
         uint nextFundingRateForLong =  (fundingRateFactor*(oiImbalance**fundingExponent))/ (globalLongSizeVault + globalShortSizeVault);
+        if(globalShortSizeVault==0){
+            return(int(nextFundingRateForLong), 0);
+        }
         if(globalLongSizeVault==0){
             return(0, int(nextFundingRateForLong));
         }
-        uint nextFundingRateForShort = nextFundingRateForLong *globalShortSizeVault/globalLongSizeVault;
+        uint nextFundingRateForShort = nextFundingRateForLong *globalLongSizeVault/globalShortSizeVault;
         if(globalLongSizeVault>globalShortSizeVault){
             return (int256(nextFundingRateForLong), -1 * int256(nextFundingRateForShort)); // chance of overflow, revisit
+            //to prevent overflow can set a maxThreshold of nextFundingRate.
         } else {
             return (-1 * int256(nextFundingRateForLong), int256(nextFundingRateForShort));
         }

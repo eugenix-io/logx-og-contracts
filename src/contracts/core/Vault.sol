@@ -603,11 +603,11 @@ contract Vault is ReentrancyGuard, IVault {
             position.collateral, // 1
             position.averagePrice, // 2
             position.entryBorrowingRate, // 3
-            position.entryFundingRate,
-            position.reserveAmount, // 4
-            realisedPnl, // 5
-            position.realisedPnl >= 0, // 6
-            position.lastIncreasedTime // 7
+            position.entryFundingRate,//4
+            position.reserveAmount, // 5
+            realisedPnl, // 6
+            position.realisedPnl >= 0, // 7
+            position.lastIncreasedTime // 8
         );
     }
 
