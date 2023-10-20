@@ -30,8 +30,8 @@ contract vaultTest is Test, Helper {
         );
         vault.setOrderManager(address(orderManager), true);
         vault.setPriceFeed(address(priceFeed));
-        mockPricesOfUSDCL(1, 1);
-        mockPricesOfEth(1650, 1650);
+        mockPricesOfToken(1, 1, "USDCL");
+        mockPricesOfToken(1650, 1650,"ETH");
     }
 
     /*     6. increasePosition
@@ -130,7 +130,7 @@ contract vaultTest is Test, Helper {
 
     // 4.3 Try a case where output usdlAmount amounts to zero, mock price to zero
     function testBuyUsdlZeroUsdl() public {
-        mockPricesOfUSDCL(0, 0);
+        mockPricesOfToken(0, 0, "USDCL");
         console.log("test");
         mockUSDCLTransfer(10 * 10 ** 18);
         vm.expectRevert("Vault: usdlAmount too low");

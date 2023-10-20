@@ -304,7 +304,7 @@ contract OrderManagerTest is Test, Helper {
             abi.encode(1*collateralSize)
         );
 
-        mockPricesOfEth(1550,1550);
+        mockPricesOfToken(1550,1550, "ETH");
         // testing a short limit order
         bool isLong = false;
         orderManager.createOrders{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDCL"), isLong, true, minExecutionFeeLimitOrder, acceptablePrice, 0, 0, false);
@@ -359,8 +359,7 @@ contract OrderManagerTest is Test, Helper {
         vm.startPrank(testUserAddress);
         IERC20(vm.envAddress("USDCL")).approve(address(orderManager), 1000*10**18);
         bytes32 requestKey = orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDCL"), vm.envAddress("ETH"), 1000*10**18, 47500*10**30, false, acceptablePrice, 0, 0, minExecutionFeeMarketOrder);
-        mockPricesOfUSDCL(1,1);
-        mockPricesOfEth(1641,1641);
+        mockPricesOfToken(1641,1641,"ETH");
         IERC20(vm.envAddress("USDCL")).transfer(address(vault), 60000 *10**18);
         vault.directPoolDeposit(vm.envAddress("USDCL"));
         bool executed = orderManager.executeIncreasePosition(requestKey, payable(address(testUserAddress))); 
@@ -377,8 +376,7 @@ contract OrderManagerTest is Test, Helper {
         IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
         bytes32 requestKey = orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize, sizeDelta, false, acceptablePrice, 0, 0, minExecutionFeeMarketOrder);
         // mockPrices
-        mockPricesOfUSDCL(1,1);
-        mockPricesOfEth(1650,1650);
+        mockPricesOfToken(1650,1650, "ETH");
         IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
         vault.directPoolDeposit(vm.envAddress("USDCL"));
 
@@ -407,7 +405,7 @@ contract OrderManagerTest is Test, Helper {
 
         IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
         bytes32 requestKey2 = orderManager.createIncreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize/2, sizeDelta/2, false, acceptablePrice, 0, 0, minExecutionFeeMarketOrder);
-        mockPricesOfEth(1590, 1610);
+        mockPricesOfToken(1590, 1610, "ETH");
         vm.expectRevert("BasePositionManager: markPrice < price");
         bool executed2 = orderManager.executeIncreasePosition(requestKey2, payable(testUserAddress)); // some random bytes key
 
@@ -515,8 +513,7 @@ contract OrderManagerTest is Test, Helper {
     }
 
     function testSuccessfulExecutionOfLimitOrder() public {
-        mockPricesOfUSDCL(1, 1);
-        mockPricesOfEth(1649, 1651); // current market price
+        mockPricesOfToken(1649, 1651,"ETH"); // current market price
         // -------------------------// Place an order to open a position and check its execution -------------------------//
         vm.startPrank(testUserAddress);
         IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
@@ -526,7 +523,7 @@ contract OrderManagerTest is Test, Helper {
         vm.stopPrank();
 
         // execute order
-        mockPricesOfEth(1599, 1599);
+        mockPricesOfToken(1599, 1599,"ETH");
         uint256 prevVaultBalance = IERC20(vm.envAddress("USDCL")).balanceOf(address(vault));
         orderManager.executeOrder(testUserAddress, orderIndex, payable(testUserAddress));
         uint256 nextVaultBalance = IERC20(vm.envAddress("USDCL")).balanceOf(address(vault));
@@ -534,8 +531,7 @@ contract OrderManagerTest is Test, Helper {
     }
 
     function testCloseOrderWithSizeGreaterThanExistingPosition() public {
-        mockPricesOfUSDCL(1, 1);
-        mockPricesOfEth(1599, 1601);
+        mockPricesOfToken(1599, 1601, "ETH");
         //-------------------------// Place a decreasing order which exceeds position size and it should get cancelled -------------------------//
         vm.startPrank(testUserAddress);
         // IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
@@ -546,13 +542,12 @@ contract OrderManagerTest is Test, Helper {
 
         vm.expectEmit(true, true, true, true, address(orderManager));
         emit CancelOrder(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), orderIndex2, collateralSize, sizeDelta*2, takeProfitPrice*PRICE_PRECISION, minExecutionFeeLimitOrder, true, true, false, false);
-        mockPricesOfEth(takeProfitPrice+1, takeProfitPrice+1);
+        mockPricesOfToken(takeProfitPrice+1, takeProfitPrice+1, "ETH");
         orderManager.executeOrder(testUserAddress, orderIndex2, payable(testUserAddress)); // this should cancel because size*2
     }
     
    function testExecuteOrder() public {
-        mockPricesOfUSDCL(1, 1);
-        mockPricesOfEth(1599, 1601);
+        mockPricesOfToken(1599, 1601,"ETH");
 
         vm.startPrank(testUserAddress);
         bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
@@ -563,7 +558,7 @@ contract OrderManagerTest is Test, Helper {
         // tested a close tp order here
         orderManager.createOrders{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDCL"), true, false, minExecutionFeeLimitOrder, 0, takeProfitPrice*10**30, 0, false);
         vm.stopPrank();
-        mockPricesOfEth(1649, 1651);
+        mockPricesOfToken(1649, 1651, "ETH");
         uint256 initialUserBal = IERC20(vm.envAddress("USDCL")).balanceOf(address(testUserAddress));
         uint256 initialFeeBal = address(testFeeReceiver).balance;
         orderManager.executeOrder(testUserAddress, orderIndex3, payable(testFeeReceiver));
@@ -606,5 +601,207 @@ contract OrderManagerTest is Test, Helper {
         6.2 check emitted event
         6.3 after updating check if values are updated for that order correctly
    */  
+
+   /* executeMultipleOrders
+        1. pass one invalid order and see if its cancelled
+        2. pass 2 valid and 1 invalid
+        3. overflow
+   */
+    
+
+   function testExecuteMultipleOrderInvalidPriceCatched() public{
+        mockPricesOfToken(1649, 1651,"ETH"); // current market price
+        vm.startPrank(testUserAddress);
+        uint256 orderIndex = orderManager.ordersIndex(testUserAddress);
+        createLongLimitOrderOnEth();
+        vm.stopPrank();
+        _addresses.push(testUserAddress);
+        _indexes.push(orderIndex);
+        // don't mock trigger price, check if invalid price revert is catched
+        // test will pass if the error is catched successfully
+        orderManager.executeMultipleOrders(_addresses, _indexes, payable(address(this))); // revert within the orderManager contract itself
+   }
+
+   function testExecuteMultipleOrderVaultFailCatch() public {
+        mockPricesOfToken(1649, 1651, "ETH"); // current market price
+        vm.startPrank(testUserAddress);
+        IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
+        vault.directPoolDeposit(vm.envAddress("USDCL"));
+        uint256 orderIndex = orderManager.ordersIndex(testUserAddress);
+        createLongLimitOrderOnEth();
+        vm.stopPrank();
+        mockPricesOfToken(1599, 1599,"ETH");
+        vm.mockCall(
+            address(utils),
+            abi.encodeWithSelector(utils.collectMarginFees.selector),
+            abi.encode(-1,-1) // to cause an arthimetic overflow/underflow
+        );
+        _addresses.push(testUserAddress);
+        _indexes.push(orderIndex);
+        // test will pass if the error is catched successfully
+       orderManager.executeMultipleOrders(_addresses, _indexes, payable(address(this))); // catch overflow from vault
+   }
+
+   function testExecuteMultipleSuccessfull() public {
+        mockPricesOfToken(1649, 1651,"ETH"); // current market price
+        vm.startPrank(testUserAddress);
+        IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
+        vault.directPoolDeposit(vm.envAddress("USDCL"));
+        uint256 orderIndex1 = orderManager.ordersIndex(testUserAddress);
+        createLongLimitOrderOnEth();
+        uint256 orderIndex2 = orderManager.ordersIndex(testUserAddress);
+        createLongLimitOrderOnEth();
+        uint256 orderIndex3 = orderManager.ordersIndex(testUserAddress);
+        createLongLimitOrderOnEth();
+        vm.stopPrank();
+
+        _addresses.push(testUserAddress);
+        _addresses.push(testUserAddress);
+        _addresses.push(testUserAddress);
+
+        _indexes.push(orderIndex1);
+        _indexes.push(orderIndex2);
+        _indexes.push(orderIndex3);
+        mockPricesOfToken(1599, 1599, "ETH");
+
+        vm.expectEmit(true, true, true, false, address(orderManager));
+        emit ExecuteOrder(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), orderIndex1, collateralSize, sizeDelta, acceptablePrice, minExecutionFeeLimitOrder,1559 * 10**30, true, false, true);
+        vm.expectEmit(true, true, true, false, address(orderManager));
+        emit ExecuteOrder(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), orderIndex2, collateralSize, sizeDelta, acceptablePrice, minExecutionFeeLimitOrder,1559 * 10**30, true, false, true);
+        vm.expectEmit(true, true, true, false, address(orderManager));
+        emit ExecuteOrder(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), orderIndex3, collateralSize, sizeDelta, acceptablePrice, minExecutionFeeLimitOrder,1559 * 10**30, true, false, true);
+        orderManager.executeMultipleOrders(_addresses, _indexes, payable(address(testUserAddress))); // expect three ExecuteOrder events
+   }
+
+   function testExecuteMultiplePartialSuccessfull() public{
+        mockPricesOfToken(1649, 1651,"ETH");
+        vm.startPrank(testUserAddress);
+        IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
+        vault.directPoolDeposit(vm.envAddress("USDCL"));
+        uint256 orderIndex1 = orderManager.ordersIndex(testUserAddress); // 1. valid order
+        createLongLimitOrderOnEth();
+        _addresses.push(testUserAddress);
+        _indexes.push(orderIndex1);
+
+        uint256 orderIndex2 = orderManager.ordersIndex(testUserAddress);
+        IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
+        orderManager.createOrders{value: minExecutionFeeLimitOrder}(collateralSize, vm.envAddress("ETH"), sizeDelta, vm.envAddress("USDCL"), true, true, minExecutionFeeLimitOrder, acceptablePrice/2, 0, 0, false); // 2. try executing this when price does not reach the trigger price, so this shoudl fail
+        
+        _addresses.push(testUserAddress);
+        _indexes.push(orderIndex2);
+
+        uint256 orderIndex3 = orderManager.ordersIndex(testUserAddress); // 3. valid order
+        createLongLimitOrderOnEth();
+        _addresses.push(testUserAddress);
+        _indexes.push(orderIndex3);
+        vm.stopPrank();
+
+        mockPricesOfToken(1599, 1599,"ETH");
+
+        vm.expectEmit(true, true, true, false, address(orderManager));
+        emit ExecuteOrder(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), orderIndex1, collateralSize, sizeDelta, acceptablePrice, minExecutionFeeLimitOrder,1559 * 10**30, true, false, true);
+        
+        vm.expectEmit(true, true, true, false, address(orderManager));
+        emit ExecuteOrder(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), orderIndex3, collateralSize, sizeDelta, acceptablePrice, minExecutionFeeLimitOrder,1559 * 10**30, true, false, true);
+        
+        orderManager.executeMultipleOrders(_addresses, _indexes, payable(address(testUserAddress))); // expect two ExecuteOrder events
+
+        {
+            uint256 _orderIndex = orderIndex1;
+            // order1 should not exist
+            (address account,
+            address collateralToken,
+            address indexToken,
+            uint256 collateralDelta,
+            uint256 sizeDelta,
+            uint256 triggerPrice,
+            uint256 executionFee,
+            bool isLong,
+            bool triggerAboveThreshold,
+            bool isIncreaseOrder,
+            bool isMaxOrder) = orderManager.orders(getOrderKey(testUserAddress, _orderIndex));
+            assertEq(account, address(0));
+            assertEq(collateralToken, address(0));
+            assertEq(indexToken, address(0));
+            assertEq(collateralDelta, 0);
+            assertEq(sizeDelta, 0);
+            assertEq(triggerPrice, 0);
+            assertEq(executionFee, 0);
+        }
+        {
+            uint256 _orderIndex = orderIndex2;
+            // order2 should exist
+            (address account,
+            address collateralToken,
+            address indexToken,
+            uint256 collateralDelta,
+            uint256 _sizeDelta,
+            uint256 triggerPrice,
+            uint256 executionFee,
+            bool isLong,
+            bool triggerAboveThreshold,
+            bool isIncreaseOrder,
+            bool isMaxOrder) = orderManager.orders(getOrderKey(testUserAddress, _orderIndex));
+            assertEq(account, address(testUserAddress));
+            assertEq(collateralToken, vm.envAddress("USDCL"));
+            assertEq(indexToken, vm.envAddress("ETH"));
+            assertEq(collateralDelta, collateralSize);
+            assertEq(_sizeDelta, sizeDelta);
+            assertEq(triggerPrice, acceptablePrice/2);
+            assertEq(executionFee, minExecutionFeeLimitOrder);
+        }
+        {
+            uint256 _orderIndex = orderIndex3;
+            // order1 should not exist
+            (address account,
+            address collateralToken,
+            address indexToken,
+            uint256 collateralDelta,
+            uint256 sizeDelta,
+            uint256 triggerPrice,
+            uint256 executionFee,
+            bool isLong,
+            bool triggerAboveThreshold,
+            bool isIncreaseOrder,
+            bool isMaxOrder) = orderManager.orders(getOrderKey(testUserAddress, _orderIndex));
+            assertEq(account, address(0));
+            assertEq(collateralToken, address(0));
+            assertEq(indexToken, address(0));
+            assertEq(collateralDelta, 0);
+            assertEq(sizeDelta, 0);
+            assertEq(triggerPrice, 0);
+            assertEq(executionFee, 0);
+        }
+    }
+
+   function testLiquidateMultiplePositionNonExistantPosition() public{
+        bytes32 randomKey1 = getPositionKey(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), true);
+        bytes32 randomKey2 = getPositionKey(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("BTC"), true);
+        bytes32 randomKey3 = getPositionKey(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), true);
+        _keys.push(randomKey1); // random keys 
+        _keys.push(randomKey2);
+        _keys.push(randomKey3);
+
+        orderManager.liquidateMultiplePositions(_keys, payable(testUserAddress)); // checks if each revert is catched successfuly and the transaction does not fail, test will pass if catched succesfully
+   }
+
+   function testLiquidateMultiplePositionPartialSuccessfull() public{
+        vm.startPrank(testUserAddress);
+        bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
+        executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+        vm.stopPrank();
+        bytes32 positionKey = getPositionKey(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), true);
+
+        bytes32 randomKey1 = getPositionKey(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("BTC"), true);
+        _keys.push(randomKey1); // invalid key
+        _keys.push(positionKey); // valid key
+
+        // TODO: MANU Fix this liquidation price 
+        mockPricesOfToken(1440, 1440, "ETH"); // position was opened at 1600, now price dropped to 1440
+        vm.expectEmit(true, true, true, false, address(vault));
+        emit UpdatePosition(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), true, 0, 0, 0, 0, 0, 0, 0);
+        orderManager.liquidateMultiplePositions(_keys, payable(testUserAddress));
+   }
+
 
 }

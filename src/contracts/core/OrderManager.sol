@@ -1231,14 +1231,14 @@ contract OrderManager is
     function executeMultipleOrders(address[] calldata accountAddresses, uint[] calldata orderIndices, address payable _feeReceiver) public onlyOrderKeeper {
         uint length = accountAddresses.length;
         for(uint i=0;i<length;i++){
-            executeOrder(accountAddresses[i], orderIndices[i],_feeReceiver);
+            try this.executeOrder(accountAddresses[i], orderIndices[i], _feeReceiver){} catch {}
         }
     }
 
     function liquidateMultiplePositions(bytes32[] calldata keys, address payable _feeReceiver) public onlyLiquidator {
         uint length = keys.length;
         for(uint i=0;i<length;i++){
-            IVault(vault).liquidatePosition(keys[i],_feeReceiver); 
+            try IVault(vault).liquidatePosition(keys[i],_feeReceiver){} catch{}
         }
     }
 

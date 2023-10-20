@@ -37,6 +37,9 @@ contract Helper is Test {
     uint256 constant takeProfitPrice = 1650;
     uint256 constant stopLossPrice = 1550;
     uint256 constant PRICE_PRECISION = 10 ** 30;
+    address[] _addresses;
+    uint[] _indexes;
+    bytes32[] _keys;
 
     event CreateIncreasePosition(
         address indexed account,
@@ -52,6 +55,20 @@ contract Helper is Test {
         uint256 blockNumber,
         uint256 blockTime,
         uint256 gasPrice
+    );
+
+    event UpdatePosition(
+        address indexed account,
+        address indexed collateralToken,
+        address indexed indexToken,
+        bool isLong,
+        uint256 size,
+        uint256 collateral,
+        uint256 averagePrice,
+        uint256 entryBorrowingRate,
+        uint256 reserveAmount,
+        int256 realisedPnl,
+        uint256 markPrice
     );
 
     event CreateOrder(
@@ -81,6 +98,20 @@ contract Helper is Test {
         bool triggerAboveThreshold,
         bool indexed isIncreaseOrder,
         bool isMaxOrder
+    );
+    event ExecuteOrder(
+        address indexed account,
+        address collateralToken,
+        address indexToken,
+        uint256 orderIndex,
+        uint256 collateralDelta,
+        uint256 sizeDelta,
+        uint256 triggerPrice,
+        uint256 executionFee,
+        uint256 executionPrice,
+        bool isLong,
+        bool triggerAboveThreshold,
+        bool indexed isIncreaseOrder
     );
     event ExecuteIncreasePosition(
         address indexed account,
@@ -189,34 +220,21 @@ contract Helper is Test {
         return keccak256(abi.encodePacked(_account, index));
     }
 
-    function mockPricesOfUSDCL(uint usdclMinPrice, uint usdclMaxPrice) public {
+    function mockPricesOfToken(uint minPrice, uint maxPrice, string memory token) public {
         vm.mockCall(
             address(address(priceFeed)),
-            abi.encodeWithSelector(priceFeed.getMaxPriceOfToken.selector, address(vm.envAddress("USDCL"))),
-            abi.encode(usdclMaxPrice * 10**30)
+            abi.encodeWithSelector(priceFeed.getMaxPriceOfToken.selector, address(vm.envAddress(token))),
+            abi.encode(maxPrice * 10**30)
         );
         vm.mockCall(
             address(address(priceFeed)),
-            abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress("USDCL"))),
-            abi.encode(usdclMinPrice * 10**30)
-        );
-    }
-
-    function mockPricesOfEth(uint ethMinPrice, uint ethMaxPrice) public {
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(priceFeed.getMaxPriceOfToken.selector, address(vm.envAddress("ETH"))),
-            abi.encode(ethMaxPrice * 10**30)
+            abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress(token))),
+            abi.encode(minPrice * 10**30)
         );
         vm.mockCall(
             address(address(priceFeed)),
-            abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress("ETH"))),
-            abi.encode(ethMinPrice * 10**30)
-        );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(priceFeed.getPriceOfToken.selector, address(vm.envAddress("ETH"))),
-            abi.encode((ethMinPrice * 10**30 + ethMaxPrice* 10**30)/2)
+            abi.encodeWithSelector(priceFeed.getPriceOfToken.selector, address(vm.envAddress(token))),
+            abi.encode((minPrice * 10**30 + maxPrice * 10**30)/2)
         );
 
     }
@@ -262,7 +280,7 @@ contract Helper is Test {
     //TODO: technically move  mock prices and adding liquidity to pool to different function.
     function executeIncreaseLongPositionOnEth(bytes32 requestKey, uint minPrice, uint maxPrice) public {
         // mockPrices
-        mockPricesOfEth(minPrice,maxPrice);
+        mockPricesOfToken(minPrice,maxPrice,"ETH");
         IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
         //TODO: replace pool deposit with proper add liquidity to pool.
         vault.directPoolDeposit(vm.envAddress("USDCL"));
@@ -277,7 +295,7 @@ contract Helper is Test {
     }
 
     function executeDecreaseLongPositionOnEth(bytes32 requestKey, uint minPrice, uint maxPrice) public {
-        mockPricesOfEth(minPrice, maxPrice);
+        mockPricesOfToken(minPrice, maxPrice,"ETH");
         orderManager.executeDecreasePosition(requestKey, payable(address(testUserAddress)));
     }
 
@@ -296,7 +314,7 @@ contract Helper is Test {
         orderManager = new OrderManager(address(vault), address(utils), address(priceFeed), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxLongMultiplier, maxShortMultiplier);
         initializeOrderManager();
         initializeVault();
-        mockPricesOfUSDCL(1,1);
+        mockPricesOfToken(1,1,"USDCL");
     }
 
     function initializeVault() public {
@@ -312,6 +330,24 @@ contract Helper is Test {
 
     function initializeOrderManager() public {
         orderManager.setOrderKeeper(address(this), true);
+        orderManager.setOrderKeeper(address(orderManager), true); // Discuss with Anirudh
         orderManager.setDelayValues(0, 0, 3600);
+        orderManager.setLiquidator(address(this), true);
+    }
+    function getPositionKey(
+        address _account,
+        address _collateralToken,
+        address _indexToken,
+        bool _isLong
+    ) public pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(
+                    _account,
+                    _collateralToken,
+                    _indexToken,
+                    _isLong
+                )
+            );
     }
 }

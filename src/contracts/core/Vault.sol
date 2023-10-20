@@ -630,7 +630,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     
 
-    function liquidatePosition(address _account, address _collateralToken, address _indexToken, bool _isLong, address _feeReceiver) external override nonReentrant {
+    function liquidatePosition(address _account, address _collateralToken, address _indexToken, bool _isLong, address _feeReceiver) external override {
         bytes32 positionKey = getPositionKey(_account, _collateralToken, _indexToken, _isLong);
         liquidatePosition(positionKey, _feeReceiver);
     }
@@ -646,11 +646,11 @@ contract Vault is ReentrancyGuard, IVault {
         {
         position = positions[key];
         }
+        _validate(position.size > 0, "Vault: no position found");
         updateCumulativeBorrowingRate(position.collateralToken);
         updateCumulativeFundingRate(position.indexToken);
 
         
-        _validate(position.size > 0, "Vault: no position found");
         uint256 markPrice = position.isLong ? getMinPriceOfToken(position.indexToken) : getMaxPriceOfToken(position.indexToken);
 
 
