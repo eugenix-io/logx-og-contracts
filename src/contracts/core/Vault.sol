@@ -53,7 +53,7 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override ceaseTradingActivity = false;
     bool public override ceaseLPActivity = false;
 
-    uint256 public override maxLeverage = 54 * 10000; // 50x
+    mapping(address=>uint256) public override maxLeverage;
 
     uint256 public override liquidationFeeUsd;
     uint256 public override mintBurnFeeBasisPoints = 30; // 0.3%
@@ -321,10 +321,10 @@ contract Vault is ReentrancyGuard, IVault {
         priceFeed = _priceFeed;
     }
 
-    function setMaxLeverage(uint256 _maxLeverage) external override {
+    function setMaxLeverage(uint256 _maxLeverage, address _token) external override {
         _onlyGov();
         _validate(_maxLeverage > MIN_LEVERAGE, "Vault: maxLeverage too low");
-        maxLeverage = _maxLeverage;
+        maxLeverage[_token] = _maxLeverage;
     }
 
     function setMaxGlobalShortSize(

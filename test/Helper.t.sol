@@ -326,6 +326,8 @@ contract Helper is Test {
         vault.setSafetyFactor(100);
         vault.setFundingRate(3600, 100, 1);
         vault.setBorrowingRate(3600, 100);
+        vault.setMaxLeverage(54*10000, vm.envAddress("BTC"));
+        vault.setMaxLeverage(54*10000, vm.envAddress("ETH"));
     }   
 
     function initializeOrderManager() public {

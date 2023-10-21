@@ -9,7 +9,7 @@ interface IVault {
     function setUtils(IUtils _utils) external;
 
     function usdl() external view returns (address);
-    function maxLeverage() external view returns (uint256);
+    function maxLeverage(address _token) external view returns (uint256);
     function gov() external view returns (address);
 
     function ceaseTradingActivity() external view returns(bool);
@@ -35,7 +35,7 @@ interface IVault {
     function lastBorrowingTimes(address _token) external view returns (uint256);
     function lastFundingTimes(address _token) external view returns (uint256);
 
-    function setMaxLeverage(uint256 _maxLeverage) external;
+    function setMaxLeverage(uint256 _maxLeverage, address _token) external;
     function setInManagerMode(bool _inManagerMode) external;
     function setManager(address _manager, bool _isManager) external;
     function setMaxGasPrice(uint256 _maxGasPrice) external;

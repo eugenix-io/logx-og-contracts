@@ -211,7 +211,7 @@ contract Utils is IUtils, Governable {
         }
 
         if (
-            remainingCollateral * (_vault.maxLeverage()) * _vault.safetyFactor() <
+            remainingCollateral * (_vault.maxLeverage(_indexToken)) * _vault.safetyFactor() <
             position.size * (BASIS_POINTS_DIVISOR) * 100
         ) {
             if (_raise) {

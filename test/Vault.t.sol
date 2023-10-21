@@ -18,6 +18,8 @@ contract vaultTest is Test, Helper {
         vault.setUsdl(address(usdl));
         vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
+        vault.setMaxLeverage(54*10000, vm.envAddress("ETH"));
+        vault.setMaxLeverage(54*10000, vm.envAddress("BTC"));
         orderManager = new OrderManager(
             address(vault),
             address(utils),

@@ -144,9 +144,9 @@ contract Timelock is ITimelock {
         buffer = _buffer;
     }
 
-    function setMaxLeverage(address _vault, uint256 _maxLeverage) external onlyAdmin {
+    function setMaxLeverage(address _vault, uint256 _maxLeverage, address _token) external onlyAdmin {
       require(_maxLeverage > MAX_LEVERAGE_VALIDATION, "Timelock: invalid _maxLeverage");
-      IVault(_vault).setMaxLeverage(_maxLeverage);
+      IVault(_vault).setMaxLeverage(_maxLeverage, _token);
     }
 
     function setBorrowingRate(address _vault, uint256 _borrowingInterval, uint256 _borrowingRateFactor) external onlyKeeperAndAbove {
