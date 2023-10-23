@@ -203,7 +203,7 @@ contract Utils is IUtils, Governable {
             remainingCollateral = remainingCollateral - uint(marginFees);
         }
 
-        if (remainingCollateral < (_vault.liquidationFeeUsd())) {
+        if (remainingCollateral < calcLiquidationFee(position.size, _indexToken)) {
             if (_raise) {
                 revert("Vault: liquidation fees exceed collateral");
             }
@@ -813,6 +813,16 @@ contract Utils is IUtils, Governable {
 
     function getTPPrice(uint256 /*sizeDelta*/, address /*indexToken*/, address /*collateralToken*/, bool /*isLong*/, uint256 markPrice) pure public returns(uint256) {
         return markPrice;
+    }
+
+    function calcLiquidationFee(uint size, address indexToken) view public returns(uint) {
+        uint liqFeeBasedOnSize = size*vault.liquidationFactor()/BASIS_POINTS_DIVISOR;
+        if(liqFeeBasedOnSize>vault.liquidationFeeUsd()){
+            return liqFeeBasedOnSize;
+        } else{
+            return vault.liquidationFeeUsd();
+        }
+        
     }
 
 }

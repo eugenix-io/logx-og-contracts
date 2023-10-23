@@ -80,5 +80,6 @@ interface IUtils {
         int256 _entryFundingRate
     ) external returns (uint256 feeTokens, int256 feeUsd);
     function getTPPrice(uint256 sizeDelta, address indexToken, address collateraToken, bool isLong, uint256 markPrice) external returns(uint256);
+    function calcLiquidationFee(uint256 size, address indexToken) external returns(uint);
 
 }

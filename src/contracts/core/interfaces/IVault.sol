@@ -52,6 +52,7 @@ interface IVault {
         uint256 _mintBurnFeeBasisPoints,
         uint256 _marginFeeBasisPoints,
         uint256 _liquidationFeeUsd,
+        uint256 liquidationFactor,
         uint256 _minProfitTime,
         bool _hasDynamicFees
     ) external;
@@ -85,6 +86,7 @@ interface IVault {
     function cumulativeFundingRatesForShorts(address _token) external view returns (int);
 
     function liquidationFeeUsd() external view returns (uint256);
+    function liquidationFactor() external view returns (uint256);
     function mintBurnFeeBasisPoints() external view returns (uint256);
     function marginFeeBasisPoints() external view returns (uint256);
 

@@ -56,6 +56,7 @@ contract Vault is ReentrancyGuard, IVault {
     mapping(address=>uint256) public override maxLeverage;
 
     uint256 public override liquidationFeeUsd;
+    uint256 public override liquidationFactor;
     uint256 public override mintBurnFeeBasisPoints = 30; // 0.3%
     uint256 public override marginFeeBasisPoints = 10; // 0.1%
 
@@ -175,6 +176,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 collateral,
         uint256 averagePrice,
         uint256 entryBorrowingRate,
+        int256 entryFundingRate,
         uint256 reserveAmount,
         int256 realisedPnl,
         uint256 markPrice
@@ -208,6 +210,7 @@ contract Vault is ReentrancyGuard, IVault {
         address _usdl,
         address _priceFeed,
         uint256 _liquidationFeeUsd,
+        uint256 _liquidationFactor,
         uint256 _borrowingRateFactor,
         address _usdc
     ) external {
@@ -218,6 +221,7 @@ contract Vault is ReentrancyGuard, IVault {
         usdl = _usdl;
         priceFeed = _priceFeed;
         liquidationFeeUsd = _liquidationFeeUsd;
+        liquidationFactor = _liquidationFactor;
         borrowingRateFactor = _borrowingRateFactor;
         usdc = _usdc;
     }
@@ -347,6 +351,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _mintBurnFeeBasisPoints,
         uint256 _marginFeeBasisPoints,
         uint256 _liquidationFeeUsd,
+        uint256 _liquidationFactor,
         uint256 _minProfitTime,
         bool _hasDynamicFees
     ) external override {
@@ -357,6 +362,7 @@ contract Vault is ReentrancyGuard, IVault {
         mintBurnFeeBasisPoints = _mintBurnFeeBasisPoints;
         marginFeeBasisPoints = _marginFeeBasisPoints;
         liquidationFeeUsd = _liquidationFeeUsd;
+        liquidationFactor = _liquidationFactor;
         minProfitTime = _minProfitTime;
         hasDynamicFees = _hasDynamicFees;
     }
@@ -699,6 +705,7 @@ contract Vault is ReentrancyGuard, IVault {
             0,
             0,
             0,
+            0,
             position.realisedPnl,
             0
         );
@@ -728,11 +735,11 @@ contract Vault is ReentrancyGuard, IVault {
         // the liquidation fees
         _decreasePoolAmount(
             position.collateralToken,
-            utils.usdToTokenMin(position.collateralToken, liquidationFeeUsd)
+            utils.usdToTokenMin(position.collateralToken, utils.calcLiquidationFee(position.size, position.indexToken))
         );
         _transferOut(
             position.collateralToken,
-            utils.usdToTokenMin(position.collateralToken, liquidationFeeUsd),
+            utils.usdToTokenMin(position.collateralToken, utils.calcLiquidationFee(position.size, position.indexToken)),
             _feeReceiver
         );
 
@@ -905,9 +912,11 @@ contract Vault is ReentrancyGuard, IVault {
         );
 
         // reserve tokens to pay profits on the position
+        {
         uint256 reserveDelta = utils.usdToTokenMax(_collateralToken, _sizeDelta);
         position.reserveAmount = position.reserveAmount + (reserveDelta);
         _increaseReservedAmount(_collateralToken, reserveDelta);
+        }
 
         if (_isLong) {
             if(globalLongSizes[_indexToken] ==0){
@@ -946,6 +955,7 @@ contract Vault is ReentrancyGuard, IVault {
             position.collateral,
             position.averagePrice,
             position.entryBorrowingRate,
+            position.entryFundingRate,
             position.reserveAmount,
             position.realisedPnl,
             price
@@ -1154,6 +1164,7 @@ contract Vault is ReentrancyGuard, IVault {
                 position.collateral,
                 position.averagePrice,
                 position.entryBorrowingRate,
+                position.entryFundingRate,
                 position.reserveAmount,
                 position.realisedPnl,
                 price
