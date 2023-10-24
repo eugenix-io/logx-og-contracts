@@ -144,14 +144,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         return true;
     }
 
-    function claim(
-        address _receiver
-    ) external override nonReentrant returns (uint256) {
-        uint claimedAmount = _claim(msg.sender, _receiver);
-        positions[msg.sender].entryRewardPerLPToken = cummulativeRewardPerLPToken;
-        return claimedAmount;
-    }
-
     function claimForAccount(
         address _account,
         address _receiver
@@ -248,13 +240,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         require(isHandler[msg.sender], "RewardTracker: forbidden");
     }
 
-    function stake(
-        address _depositToken,
-        uint256 _amount
-    ) external override nonReentrant {
-        _stake(msg.sender, msg.sender, _depositToken, _amount);
-    }
-
     function stakeForAccount(
         address _fundingAccount,
         address _account,
@@ -304,13 +289,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         emit Stakellp(_fundingAccount, _account, _amount);
     }
 
-    function unstake(
-        address _depositToken,
-        uint256 _amount
-    ) external override nonReentrant {
-        _unstake(msg.sender, _depositToken, _amount, msg.sender);
-    }
-
     function unstakeForAccount(
         address _account,
         address _depositToken,
@@ -353,9 +331,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
             "RewardTracker: _amount exceeds depositBalance"
         );
         depositBalances[_account][_depositToken] = depositBalance - _amount;
-        totalDepositSupply[_depositToken] =
-            totalDepositSupply[_depositToken] -
-            _amount;
+        totalDepositSupply[_depositToken] = totalDepositSupply[_depositToken] - _amount;
 
         _burn(_account, _amount);
         IERC20(_depositToken).transfer(_receiver, _amount);
