@@ -21,8 +21,6 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
 
     address public override feeLlpTracker;
 
-    event Stakellp(address indexed account, uint256 amount);
-    event Unstakellp(address indexed account, uint256 amount);
     event Mintllp(address indexed account, uint256 amount);
     event Burnllp(address indexed account, uint256 amount);
 
@@ -78,14 +76,15 @@ contract RewardRouter is IRewardRouter, ReentrancyGuard, Governable {
         require(llpAmount > 0, "RewardRouter: llpAmount too low");
         address account = msg.sender;
         IRewardTracker(feeLlpTracker).stakeForAccount(account, account, llp, llpAmount);
-        emit Stakellp(account, llpAmount);
     }
 
     function unstakeLlp(uint256 amount) external nonReentrant {
         address account = msg.sender;
         IRewardTracker(feeLlpTracker).unstakeForAccount(account, llp, amount, account);
-        // claim the reward for the user claimForAccount
+    }
+
+    function claimStakeRewards() external nonReentrant {
+        address account = msg.sender;
         IRewardTracker(feeLlpTracker).claimForAccount(account, account);
-        emit Unstakellp(account, amount);
     }
 }

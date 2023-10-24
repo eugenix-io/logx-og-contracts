@@ -39,7 +39,9 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     address admin;
     uint public cummulativeRewardPerLPToken = 0;
 
-    event Claim(address receiver, uint256 amount);
+    event Claim(address indexed fundingAccount, address indexed receiver, uint256 amount);
+    event Stakellp(address indexed fundingAccount, address indexed receiver, uint256 amount);
+    event Unstakellp(address indexed fundingAccount, address indexed receiver, uint256 amount);
 
     constructor(string memory _name, string memory _symbol) {
         name = _name;
@@ -145,7 +147,9 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     function claim(
         address _receiver
     ) external override nonReentrant returns (uint256) {
-        return _claim(msg.sender, _receiver);
+        uint claimedAmount = _claim(msg.sender, _receiver);
+        positions[msg.sender].entryRewardPerLPToken = cummulativeRewardPerLPToken;
+        return claimedAmount;
     }
 
     function claimForAccount(
@@ -153,7 +157,9 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         address _receiver
     ) external override nonReentrant returns (uint256) {
         _validateHandler();
-        return _claim(_account, _receiver);
+        uint claimedAmount = _claim(_account, _receiver);
+        positions[_account].entryRewardPerLPToken = cummulativeRewardPerLPToken;
+        return claimedAmount;
     }
 
     function claimable(
@@ -169,7 +175,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
         if (tokenAmount > 0) {
             IERC20(rewardToken).transfer(_receiver, tokenAmount);
-            emit Claim(_account, tokenAmount);
+            emit Claim(_account, _receiver, tokenAmount);
         }
 
         return tokenAmount;
@@ -295,6 +301,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
             _amount;
 
         _mint(_account, _amount);
+        emit Stakellp(_fundingAccount, _account, _amount);
     }
 
     function unstake(
@@ -352,5 +359,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
 
         _burn(_account, _amount);
         IERC20(_depositToken).transfer(_receiver, _amount);
+        emit Unstakellp(_account, _receiver, _amount);
     }
 }
