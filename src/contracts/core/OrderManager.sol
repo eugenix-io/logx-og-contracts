@@ -275,6 +275,10 @@ contract OrderManager is
         minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
     }
 
+    function setPriceFeed(address _priceFeed) override external onlyAdmin {
+        pricefeed = _priceFeed;
+    }
+
     function setDelayValues(
         uint256 _minBlockDelayKeeper,
         uint256 _minTimeDelayPublic,
@@ -1240,20 +1244,6 @@ contract OrderManager is
         for(uint i=0;i<length;i++){
             try IVault(vault).liquidatePosition(keys[i],_feeReceiver){} catch{}
         }
-    }
-
-    // to help users who accidentally send their tokens to this contract or
-    // to withdraw any MNT struck in orderManager
-    function withdrawNative(uint value, address receiver) public onlyAdmin {
-        require(value <= address(this).balance,"OrderManager: requested token value exceeds balance");
-        (bool success, ) = payable(receiver).call{value: value}("");
-        require(success, "OrderManager: Transfer failed!");
-    }
-
-    // to help users who accidentally send their tokens to this contract
-    function withdrawToken(address _token, address _account, uint256 _amount) external onlyAdmin {
-        bool transferStatus = IERC20(_token).transfer(_account, _amount);
-        require(transferStatus, "OrderManager: token transfer failed!");
     }
 
     function checkSufficientPositionExists(address account, address collateralToken, address indexToken, bool isLong, uint sizeDelta) private view returns(bool) {

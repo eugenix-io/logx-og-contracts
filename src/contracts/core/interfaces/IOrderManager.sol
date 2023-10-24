@@ -21,4 +21,5 @@ interface IOrderManager{
 
     function executeOrder(address, uint256, address payable) external;
     function setOrderKeeper(address _account, bool _isActive) external;
+    function setPriceFeed(address _priceFeed) external;
 }

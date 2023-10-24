@@ -15,11 +15,13 @@ import './interfaces/IAdmin.sol';
 import './interfaces/ITimelockTarget.sol';
 import './interfaces/IYieldToken.sol';
 import '../libraries/token/IBaseToken.sol';
+import '../core/interfaces/IOrderManager.sol';
 
 contract Timelock is ITimelock {
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     uint256 public constant MAX_BUFFER = 5 days;
     uint256 public constant MAX_BORROWING_RATE_FACTOR = 200; // 0.02%
+    uint256 public constant MAX_FUNDING_RATE_FACTOR = 200;
     uint256 public constant MAX_LEVERAGE_VALIDATION = 500000; // 50x
 
     uint256 public buffer;
@@ -31,8 +33,6 @@ contract Timelock is ITimelock {
     address public rewardRouter;
     uint256 public maxTokenSupply;
 
-    uint256 public marginFeeBasisPoints;
-
     mapping (bytes32 => uint256) public pendingActions;
 
     mapping (address => bool) public isHandler;
@@ -41,7 +41,6 @@ contract Timelock is ITimelock {
     event SignalPendingAction(bytes32 action);
     event SignalApprove(address token, address spender, uint256 amount, bytes32 action);
     event SignalWithdrawToken(address target, address token, address receiver, uint256 amount, bytes32 action);
-    event SignalMint(address token, address receiver, uint256 amount, bytes32 action);
     event SignalSetGov(address target, address gov, bytes32 action);
     event SignalSetHandler(address target, address handler, bool isActive, bytes32 action);
     event SignalSetPriceFeed(address vault, address priceFeed, bytes32 action);
@@ -86,8 +85,7 @@ contract Timelock is ITimelock {
         address _mintReceiver,
         address _llpManager,
         address _rewardRouter,
-        uint256 _maxTokenSupply,
-        uint256 _marginFeeBasisPoints
+        uint256 _maxTokenSupply
     ) {
         require(_buffer <= MAX_BUFFER, "Timelock: invalid _buffer");
         admin = _admin;
@@ -97,8 +95,6 @@ contract Timelock is ITimelock {
         llpManager = _llpManager;
         rewardRouter = _rewardRouter;
         maxTokenSupply = _maxTokenSupply;
-
-        marginFeeBasisPoints = _marginFeeBasisPoints;
     }
 
     function setAdmin(address _admin) external override onlyTokenManager {
@@ -112,26 +108,6 @@ contract Timelock is ITimelock {
 
     function setContractHandler(address _handler, bool _isActive) external onlyAdmin {
         isHandler[_handler] = _isActive;
-    }
-
-    function initLlpManager() external onlyAdmin {
-        ILlpManager _llpManager = ILlpManager(llpManager);
-
-        IMintable llp = IMintable(_llpManager.llp());
-        llp.setMinter(llpManager, true);
-
-        IUSDL usdl = IUSDL(_llpManager.usdl());
-        usdl.addVault(llpManager);
-
-        IVault vault = _llpManager.vault();
-        vault.setManager(llpManager, true);
-    }
-
-    function initRewardRouter() external onlyAdmin {
-        IRewardRouter _rewardRouter = IRewardRouter(rewardRouter);
-
-        IHandlerTarget(_rewardRouter.feeLlpTracker()).setHandler(rewardRouter, true);
-        IHandlerTarget(llpManager).setHandler(rewardRouter, true);
     }
 
     function setKeeper(address _keeper, bool _isActive) external onlyAdmin {
@@ -154,14 +130,16 @@ contract Timelock is ITimelock {
         IVault(_vault).setBorrowingRate(_borrowingInterval, _borrowingRateFactor);
     }
 
-    function setMarginFeeBasisPoints(uint256 _marginFeeBasisPoints) external onlyHandlerAndAbove {
-        marginFeeBasisPoints = _marginFeeBasisPoints;
+    function setFundingRate(address _vault, uint256 _fundingInterval, uint256 _fundingRateFactor, uint256 _fundingExponent) external onlyKeeperAndAbove {
+        require(_fundingRateFactor < MAX_FUNDING_RATE_FACTOR, "Timelock: invalid _fundingRateFactor");
+        IVault(_vault).setFundingRate(_fundingInterval, _fundingRateFactor, _fundingExponent);
     }
 
     function setTokenConfig(
         address _vault,
         address _token,
-        uint256 _minProfitBps
+        uint256 _minProfitBps,
+        uint _maxLeverage
     ) external onlyKeeperAndAbove {
         require(_minProfitBps <= 500, "Timelock: invalid _minProfitBps");
 
@@ -179,10 +157,9 @@ contract Timelock is ITimelock {
             _minProfitBps,
             isStable,
             canBeCollateralToken,
-            canBeIndexToken
+            canBeIndexToken,
+            _maxLeverage
         );
-
-
     }
 
     function updateUsdlSupply(uint256 usdlAmount) external onlyKeeperAndAbove {
@@ -273,20 +250,6 @@ contract Timelock is ITimelock {
         IBaseToken(_target).withdrawToken(_token, _receiver, _amount);
     }
 
-    function signalMint(address _token, address _receiver, uint256 _amount) external onlyAdmin {
-        bytes32 action = keccak256(abi.encodePacked("mint", _token, _receiver, _amount));
-        _setPendingAction(action);
-        emit SignalMint(_token, _receiver, _amount, action);
-    }
-
-    function processMint(address _token, address _receiver, uint256 _amount) external onlyAdmin {
-        bytes32 action = keccak256(abi.encodePacked("mint", _token, _receiver, _amount));
-        _validateAction(action);
-        _clearAction(action);
-
-        _mint(_token, _receiver, _amount);
-    }
-
     function signalSetGov(address _target, address _gov) external override onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked("setGov", _target, _gov));
         _setPendingAction(action);
@@ -313,17 +276,19 @@ contract Timelock is ITimelock {
         IHandlerTarget(_target).setHandler(_handler, _isActive);
     }
 
-    function signalSetPriceFeed(address _vault, address _priceFeed) external onlyAdmin {
-        bytes32 action = keccak256(abi.encodePacked("setPriceFeed", _vault, _priceFeed));
+    function signalSetPriceFeed(address _vault, address _orderManager, address _utils, address _priceFeed) external onlyAdmin {
+        bytes32 action = keccak256(abi.encodePacked("setPriceFeed", _vault, _orderManager, _utils, _priceFeed));
         _setPendingAction(action);
         emit SignalSetPriceFeed(_vault, _priceFeed, action);
     }
 
-    function setPriceFeed(address _vault, address _priceFeed) external onlyAdmin {
-        bytes32 action = keccak256(abi.encodePacked("setPriceFeed", _vault, _priceFeed));
+    function setPriceFeed(address _vault, address _orderManager, address _utils, address _priceFeed) external onlyAdmin {
+        bytes32 action = keccak256(abi.encodePacked("setPriceFeed", _vault, _orderManager, _utils, _priceFeed));
         _validateAction(action);
         _clearAction(action);
         IVault(_vault).setPriceFeed(_priceFeed);
+        IOrderManager(_orderManager).setPriceFeed(_priceFeed);
+        IUtils(_utils).setPriceFeed(_priceFeed);
     }
 
     function signalRedeemUsdl(address _vault, address _token, uint256 _amount) external onlyAdmin {
@@ -398,7 +363,8 @@ contract Timelock is ITimelock {
         uint256 _maxUsdlAmount,
         bool _isStable, 
         bool canBeCollateralToken,
-        bool canBeIndexToken
+        bool canBeIndexToken,
+        uint _maxLeverage
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
@@ -420,23 +386,21 @@ contract Timelock is ITimelock {
             _minProfitBps,
             _isStable,
             canBeCollateralToken,
-            canBeIndexToken
+            canBeIndexToken,
+            _maxLeverage
         );
+    }
+
+    function setCeaseTradingActivity(address _vault, bool _ceaseTradingActivity) external {
+        IVault(_vault).setCeaseTradingActivity(_ceaseTradingActivity);
+    }
+
+    function setCeaseLPActivity(address _vault, bool _ceaseLPActivity) external {
+        IVault(_vault).setCeaseLPActivity(_ceaseLPActivity);
     }
 
     function cancelAction(bytes32 _action) external onlyAdmin {
         _clearAction(_action);
-    }
-
-    function _mint(address _token, address _receiver, uint256 _amount) private {
-        IMintable mintable = IMintable(_token);
-
-        if (!mintable.isMinter(address(this))) {
-            mintable.setMinter(address(this), true);
-        }
-
-        mintable.mint(_receiver, _amount);
-        require(IERC20(_token).totalSupply() <= maxTokenSupply, "Timelock: maxTokenSupply exceeded");
     }
 
     function _setPendingAction(bytes32 _action) private {

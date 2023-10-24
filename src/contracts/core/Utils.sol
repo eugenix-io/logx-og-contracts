@@ -48,8 +48,8 @@ contract Utils is IUtils, Governable {
     function setVault(IVault _vault) external onlyGov {
         vault = _vault;
     }
-    function setPriceFeed(IPriceFeed _pricefeed) external onlyGov {
-        priceFeed = _pricefeed;
+    function setPriceFeed(address _pricefeed) external onlyGov {
+        priceFeed = IPriceFeed(_pricefeed);
     }
     function setBorrowingRatePrecision(uint256 _precision) external onlyGov{
         BORROWING_RATE_PRECISION = _precision;

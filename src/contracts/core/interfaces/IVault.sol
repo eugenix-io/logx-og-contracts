@@ -63,8 +63,12 @@ interface IVault {
         uint256 _minProfitBps,
         bool _isStable,
         bool _canBeCollateralToken,
-        bool _canBeIndexToken
+        bool _canBeIndexToken,
+        uint _maxLeverage
     ) external;
+
+    function setCeaseLPActivity(bool _cease) external;
+    function setCeaseTradingActivity(bool _cease) external;
 
     function setPriceFeed(address _priceFeed) external;
     function withdrawFees(address _token, address _receiver) external returns (uint256);

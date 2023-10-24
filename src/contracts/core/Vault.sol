@@ -53,8 +53,6 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override ceaseTradingActivity = false;
     bool public override ceaseLPActivity = false;
 
-    mapping(address=>uint256) public override maxLeverage;
-
     uint256 public override liquidationFeeUsd;
     uint256 public override liquidationFactor;
     uint256 public override mintBurnFeeBasisPoints = 30; // 0.3%
@@ -90,6 +88,7 @@ contract Vault is ReentrancyGuard, IVault {
     mapping(address => uint256) public override tokenDecimals;
     mapping(address => uint256) public override minProfitBasisPoints;
     mapping(address => bool) public override stableTokens;
+    mapping(address=>uint256) public override maxLeverage;
 
     // tokenBalances is used only to determine _transferIn values
     mapping(address => uint256) public override tokenBalances;
@@ -242,12 +241,12 @@ contract Vault is ReentrancyGuard, IVault {
         maxOIImbalance = _maxOIImbalance;
     }
 
-    function setCeaseTradingActivity(bool _cease) external {
+    function setCeaseTradingActivity(bool _cease) external override {
         _onlyGov();
         ceaseTradingActivity = _cease;
     }
 
-    function setCeaseLPActivity(bool _cease) external {
+    function setCeaseLPActivity(bool _cease) external override{
         _onlyGov();
         ceaseLPActivity = _cease;
     }
@@ -406,7 +405,8 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _minProfitBps,
         bool _isStable, 
         bool _canBeCollateralToken,
-        bool _canBeIndexToken
+        bool _canBeIndexToken,
+        uint _maxLeverage
     ) external override {
         _onlyGov();
         // decimal check
@@ -423,6 +423,7 @@ contract Vault is ReentrancyGuard, IVault {
         stableTokens[_token] = _isStable;
         canBeCollateralToken[_token] = _canBeCollateralToken;
         canBeIndexToken[_token] = _canBeIndexToken;
+        maxLeverage[_token] = _maxLeverage;
     }
 
     function _transferIn(address _token) private returns (uint256) {
@@ -1313,21 +1314,5 @@ contract Vault is ReentrancyGuard, IVault {
     }
     function getMaxPriceOfToken(address _token) public view returns(uint256){
         return IPriceFeed(priceFeed).getMaxPriceOfToken(_token);
-    }
-
-    //function is added only for testing purposes to prevent locking of funds. 
-    //Main-net will not have this function.
-    function withdrawFunds(address _token, uint256 _amount) external {
-        _onlyGov();
-        uint balance  = IERC20(_token).balanceOf(address(this));
-        require(_amount <= balance, "Vault: Requested amount greater than vault balance");
-        IERC20(_token).transfer(gov, _amount);
-    }
-
-    function withdrawNative(uint value, address receiver) public {
-        _onlyGov();
-        require(value <= address(this).balance,"Vault: requested token value exceeds balance");
-        (bool success, ) = payable(receiver).call{value: value}("");
-        require(success, "Vault: Transfer failed!");
     }
 }

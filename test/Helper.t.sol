@@ -319,8 +319,8 @@ contract Helper is Test {
 
     function initializeVault() public {
         vault.setOrderManager(address(orderManager), true);
-        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false);
-        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true);
+        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000);
+        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000);
         vault.setUtils(utils);
         vault.setPriceFeed(address(priceFeed));
         vault.setSafetyFactor(100);
