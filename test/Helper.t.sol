@@ -194,7 +194,7 @@ contract Helper is Test {
     }
 
     function deployAndInitializePriceFeed() public returns (PriceFeed){
-        PriceFeed _priceFeed = new PriceFeed(maxAllowedDelayPriceFeed, vm.envAddress("PYTH_CONTRACT"), vm.envAddress("UPDATER"));
+        PriceFeed _priceFeed = new PriceFeed(maxAllowedDelayPriceFeed, vm.envAddress("PYTH_CONTRACT"), vm.envAddress("UPDATER"), 15);
         console.log("PriceFeed deployed at address: ", address(_priceFeed));
         _priceFeed.updateTokenIdMapping(vm.envAddress("MNT"), vm.envBytes32("MNT_PYTH_FEED"));
         _priceFeed.updateTokenIdMapping(vm.envAddress("ETH"), vm.envBytes32("ETH_PYTH_FEED"));
@@ -231,11 +231,11 @@ contract Helper is Test {
             abi.encodeWithSelector(priceFeed.getMinPriceOfToken.selector, address(vm.envAddress(token))),
             abi.encode(minPrice * 10**30)
         );
-        vm.mockCall(
-            address(address(priceFeed)),
-            abi.encodeWithSelector(priceFeed.getPriceOfToken.selector, address(vm.envAddress(token))),
-            abi.encode((minPrice * 10**30 + maxPrice * 10**30)/2)
-        );
+        // vm.mockCall(
+        //     address(address(priceFeed)),
+        //     abi.encodeWithSelector(priceFeed.getPriceOfToken.selector, address(vm.envAddress(token))),
+        //     abi.encode((minPrice * 10**30 + maxPrice * 10**30)/2)
+        // );
 
     }
 

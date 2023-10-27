@@ -949,7 +949,6 @@ contract OrderManager is
         } else{
             require(_executionFee >= minExecutionFeeLimitOrder, "OrderManager: Insufficient execution fee for limit order");
         }
-        uint256 currMarketPrice = IPriceFeed(pricefeed).getPriceOfToken(indexToken);
 
         {
             uint256 _collateralDelta = collateralDelta;
@@ -964,6 +963,7 @@ contract OrderManager is
             uint256 _slPrice= slPrice;
 
             if(limitPrice != 0){
+                uint256 currMarketPrice = _isLong? IPriceFeed(pricefeed).getMaxPriceOfToken(_indexToken):IPriceFeed(pricefeed).getMinPriceOfToken(_indexToken);
                     _validateLimitOrderPrices(currMarketPrice, _isLong, _limitPrice);
         
                     IERC20(_collateralToken).transferFrom(msg.sender, address(this), _collateralDelta);
@@ -972,6 +972,7 @@ contract OrderManager is
                     _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _limitPrice, !_isLong, minExecutionFeeLimitOrder, _isIncreaseOrder, _maxOrder);
             }else{
                 // tpsl order or limit order when closing position
+                uint256 currMarketPrice = !_isLong? IPriceFeed(pricefeed).getMaxPriceOfToken(_indexToken):IPriceFeed(pricefeed).getMinPriceOfToken(_indexToken);
                 _validateTPSLOrderPrices(currMarketPrice, _isLong, _tpPrice, _slPrice);
                 if(tpPrice != 0){
                     _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _tpPrice, _isLong, minExecutionFeeLimitOrder, _isIncreaseOrder, _maxOrder);

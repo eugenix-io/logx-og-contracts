@@ -120,7 +120,7 @@ contract Deployment is Script {
     }
 
     function deployAndInitializePriceFeed() public returns (PriceFeed){
-        PriceFeed priceFeed = new PriceFeed(maxAllowedDelayPriceFeed, vm.envAddress("PYTH_CONTRACT"), vm.envAddress("UPDATER"));
+        PriceFeed priceFeed = new PriceFeed(maxAllowedDelayPriceFeed, vm.envAddress("PYTH_CONTRACT"), vm.envAddress("UPDATER"), 15);
         console.log("PriceFeed deployed at address: ", address(priceFeed));
         priceFeed.updateTokenIdMapping(vm.envAddress("USDCL"), vm.envBytes32("USDC_PYTH_FEED"));
         priceFeed.updateTokenIdMapping(vm.envAddress("ETH"), vm.envBytes32("ETH_PYTH_FEED"));
