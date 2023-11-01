@@ -21,8 +21,8 @@ contract Deployment is Script {
     uint constant minExecutionFeeMarketOrder = 37 * 10 ** 16;
     uint constant minExecutionFeeLimitOrder = 37 * 10 ** 16;
     uint constant llpCooldownDuration = 1 hours;
-    uint constant maxGlobalLongSize = 10**24;
-    uint constant maxGlobalShortSize = 10**24;
+    uint constant maxGlobalLongSize = 2000;
+    uint constant maxGlobalShortSize = 2000;
     uint constant minPurchaseTokenAmountUsd = 0;
     uint constant depositFee = 10;
     address constant executor = 0x143328D5d7C84515b3c8b3f8891471ff872C0015;
@@ -173,6 +173,8 @@ contract Deployment is Script {
         vault.setTokenConfig(vm.envAddress("OP"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
         vault.setTokenConfig(vm.envAddress("MATIC"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
         vault.setTokenConfig(vm.envAddress("MNT"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        //TODO: maxGlobalLongSize is not needed for collateral token it is needed only for indextokens but 
+        // we are not setting it here.
         vault.setMaxGlobalLongSize(vm.envAddress("USDCL"), maxGlobalLongSize);
         vault.setMaxGlobalShortSize(vm.envAddress("USDCL"), maxGlobalShortSize);
         vault.setUtils(utils);

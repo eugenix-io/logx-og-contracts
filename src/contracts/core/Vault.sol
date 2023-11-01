@@ -29,16 +29,15 @@ contract Vault is ReentrancyGuard, IVault {
     }
 // ------------------------- LOGIC
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
-    uint256 public constant BORROWING_RATE_PRECISION = 1000000;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     uint256 public constant MIN_LEVERAGE = 10000; // 1x
     uint256 public constant USDL_DECIMALS = 18;
     uint256 public constant MAX_FEE_BASIS_POINTS = 500; // 5%
     uint256 public constant MAX_LIQUIDATION_FEE_USD = 100 * PRICE_PRECISION; // 100 USD
-    uint256 public constant MIN_BORROWING_RATE_INTERVAL = 1 hours;
-    uint256 public constant MIN_FUNDING_RATE_INTERVAL = 1 hours;
-    uint256 public constant MAX_BORROWING_RATE_FACTOR = 10000; // 1%
-    uint256 public constant MAX_FUNDING_RATE_FACTOR = 10000; // 1%
+    uint256 public constant MIN_BORROWING_RATE_INTERVAL = 1 seconds;
+    uint256 public constant MIN_FUNDING_RATE_INTERVAL = 1 seconds;
+    uint256 public constant MAX_BORROWING_RATE_FACTOR = 100000000; // 1%
+    uint256 public constant MAX_FUNDING_RATE_FACTOR = 100000000; // 1%
 
     bool public override isInitialized;
     address public usdc;
@@ -61,9 +60,9 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override minProfitTime;
     bool public override hasDynamicFees = false;
 
-    uint256 public override borrowingInterval = 1 hours;
+    uint256 public override borrowingInterval = 1 minutes;
     uint256 public override borrowingRateFactor;
-    uint256 public override fundingInterval = 1 hours;
+    uint256 public override fundingInterval = 1 minutes;
     uint256 public override fundingRateFactor;
 
     bool public override inManagerMode = false;
@@ -126,6 +125,8 @@ contract Vault is ReentrancyGuard, IVault {
     mapping(address => uint256) public override globalLongSizes;
     mapping(address => uint256) public override globalShortAveragePrices;
     mapping(address => uint256) public override globalLongAveragePrices;
+    //maxGlobalLongSizes and maxGlobalShortSizes are stored in bps the true value of 
+    //maxGlobalSize is obtained by multiplying these bps values with AUM.
     mapping(address => uint256) public override maxGlobalShortSizes;
     mapping(address => uint256) public override maxGlobalLongSizes;
 
@@ -997,13 +998,11 @@ contract Vault is ReentrancyGuard, IVault {
         uint globalShortSize = globalShortSizes[_token];
         globalShortSize = globalShortSize + (_amount);
 
-        uint256 maxSize = maxGlobalShortSizes[_token];
-        if (maxSize != 0) {
-            require(
-                globalShortSize <= maxSize,
-                "Vault: max shorts exceeded"
-            );
-        }
+        uint256 maxSize = maxGlobalShortSizes[_token]*IUtils(utils).getAum(false)/BASIS_POINTS_DIVISOR;
+        require(
+            globalShortSize <= maxSize,
+            "Vault: max shorts exceeded"
+        );
         validateOIImbalance(globalLongSizes[_token], globalShortSize, _token);
         globalShortSizes[_token] = globalShortSize;
     }
@@ -1032,13 +1031,11 @@ contract Vault is ReentrancyGuard, IVault {
         uint globalLongSize = globalLongSizes[_token];
         globalLongSize = globalLongSize + (_amount);
 
-        uint256 maxSize = maxGlobalLongSizes[_token];
-        if (maxSize != 0) {
-            require(
-                globalLongSize <= maxSize,
-                "Vault: max longs exceeded"
-            );
-        }
+        uint256 maxSize = maxGlobalLongSizes[_token]*IUtils(utils).getAum(false)/BASIS_POINTS_DIVISOR;
+        require(
+            globalLongSize <= maxSize,
+            "Vault: max longs exceeded"
+        );
         validateOIImbalance(globalLongSize, globalShortSizes[_token], _token);
         globalLongSizes[_token] = globalLongSize;
 

@@ -28,8 +28,8 @@ contract Utils is IUtils, Governable {
     uint256 public constant MAX_INT256 = uint256(type(int256).max);
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
-    uint256 public BORROWING_RATE_PRECISION = 1000000;
-    int256 public FUNDING_RATE_PRECISION = 1000000;
+    uint256 public BORROWING_RATE_PRECISION = 10000000000;
+    int256 public FUNDING_RATE_PRECISION = 10000000000;
     uint256 public constant USDL_DECIMALS = 18;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     bool public isValidate = true;
