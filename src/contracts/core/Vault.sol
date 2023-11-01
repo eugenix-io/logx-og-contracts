@@ -70,8 +70,8 @@ contract Vault is ReentrancyGuard, IVault {
     bool public override inPrivateLiquidationMode = false;
 
     uint256 public override maxGasPrice;
-    uint256 public maxOIImbalance = 10**36;
-    uint256 public maxLiquidityPerUser;
+    mapping (address=>uint256) public maxOIImbalance;
+    mapping (address=>uint256) public maxLiquidityPerUser;
     uint256 public safetyFactor;
     
 
@@ -236,9 +236,9 @@ contract Vault is ReentrancyGuard, IVault {
         gov = newGov;
     }
 
-    function setMaxOIImbalance(uint256 _maxOIImbalance) external {
+    function setMaxOIImbalance(uint256 _maxOIImbalance, address _token) external {
         _onlyGov();
-        maxOIImbalance = _maxOIImbalance;
+        maxOIImbalance[_token] = _maxOIImbalance;
     }
 
     function setCeaseTradingActivity(bool _cease) external override {
@@ -261,9 +261,9 @@ contract Vault is ReentrancyGuard, IVault {
         usdl = newUsdl;
     }
 
-    function setMaxLiquidityPerUser(uint256 _maxLiquidityPerUser) public  {
+    function setMaxLiquidityPerUser(uint256 _maxLiquidityPerUser, address _token) public  {
         _onlyGov();
-        maxLiquidityPerUser = _maxLiquidityPerUser;
+        maxLiquidityPerUser[_token] = _maxLiquidityPerUser;
         
     }
 
@@ -406,7 +406,9 @@ contract Vault is ReentrancyGuard, IVault {
         bool _isStable, 
         bool _canBeCollateralToken,
         bool _canBeIndexToken,
-        uint _maxLeverage
+        uint _maxLeverage,
+        uint256 _maxLiquidity,
+        uint256 _maxOiImbalance
     ) external override {
         _onlyGov();
         // decimal check
@@ -424,6 +426,8 @@ contract Vault is ReentrancyGuard, IVault {
         canBeCollateralToken[_token] = _canBeCollateralToken;
         canBeIndexToken[_token] = _canBeIndexToken;
         maxLeverage[_token] = _maxLeverage;
+        maxLiquidityPerUser[_token] = _maxLiquidity;
+        maxOIImbalance[_token] = _maxOiImbalance;
     }
 
     function _transferIn(address _token) private returns (uint256) {
@@ -1000,7 +1004,7 @@ contract Vault is ReentrancyGuard, IVault {
                 "Vault: max shorts exceeded"
             );
         }
-        validateOIImbalance(globalLongSizes[_token], globalShortSize);
+        validateOIImbalance(globalLongSizes[_token], globalShortSize, _token);
         globalShortSizes[_token] = globalShortSize;
     }
     function _decreaseGlobalShortSize(address _token, uint256 _amount) private {
@@ -1010,15 +1014,14 @@ contract Vault is ReentrancyGuard, IVault {
         } else {
             size = size - (_amount);
         }
-        validateOIImbalance(globalLongSizes[_token], size);
         globalShortSizes[_token] = size;
     }
 
-    function validateOIImbalance(uint globalLongSize, uint globalShortSize) view private {
+    function validateOIImbalance(uint globalLongSize, uint globalShortSize, address _token) view private {
         if(globalLongSize>globalShortSize){
-            require(globalLongSize< globalShortSize + maxOIImbalance, "Vault: Max OI breached!");
+            require(globalLongSize< globalShortSize + maxOIImbalance[_token], "Vault: Max OI breached!");
         } else {
-            require(globalShortSize< globalLongSize + maxOIImbalance, "Vault: Max OI breached!");
+            require(globalShortSize< globalLongSize + maxOIImbalance[_token], "Vault: Max OI breached!");
         }
     }
 
@@ -1036,7 +1039,7 @@ contract Vault is ReentrancyGuard, IVault {
                 "Vault: max longs exceeded"
             );
         }
-        validateOIImbalance(globalLongSize, globalShortSizes[_token]);
+        validateOIImbalance(globalLongSize, globalShortSizes[_token], _token);
         globalLongSizes[_token] = globalLongSize;
 
     }
@@ -1048,7 +1051,6 @@ contract Vault is ReentrancyGuard, IVault {
         } else {
             size = size - (_amount);
         }
-        validateOIImbalance(size, globalShortSizes[_token]);
         globalLongSizes[_token] = size;
     }
 

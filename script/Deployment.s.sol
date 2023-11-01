@@ -33,6 +33,7 @@ contract Deployment is Script {
     uint256 public fundingRateFactor = 100;
     uint256 public fundingExponent = 1;
     uint256 public maxLiquidityPerUser = 10;
+    uint256 public maxOIImbalance = 10**36;
     uint256 public safetyFactorVault = 90;
 
 
@@ -159,26 +160,38 @@ contract Deployment is Script {
     function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, Utils utils, LlpManager llpManager) public {
         usdl.addVault(address(vault));
         vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd,liquidationFactor, borrowingRateFactor, vm.envAddress("USDCL"));
-        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000);
-        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("BTC"), 8, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("UNI"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("LINK"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("ARB"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("CRV"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("AVAX"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("BNB"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("FTM"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("OP"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("MATIC"), 18, 0, false, false, true, 540000);
-        vault.setTokenConfig(vm.envAddress("MNT"), 18, 0, false, false, true, 540000);
+        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("BTC"), 8, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("UNI"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("LINK"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("ARB"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("CRV"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("AVAX"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("BNB"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("FTM"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("OP"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("MATIC"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("MNT"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
         vault.setMaxGlobalLongSize(vm.envAddress("USDCL"), maxGlobalLongSize);
         vault.setMaxGlobalShortSize(vm.envAddress("USDCL"), maxGlobalShortSize);
         vault.setUtils(utils);
         vault.setInManagerMode(true);
         vault.setManager(address(llpManager), true);
         vault.setFundingRate(fundingInterval, fundingRateFactor, fundingExponent);
-        vault.setMaxLiquidityPerUser(maxLiquidityPerUser);
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("ETH"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("BTC"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("UNI"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("LINK"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("ARB"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("CRV"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("AVAX"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("BNB"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("FTM"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("OP"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("MATIC"));
+        vault.setMaxLiquidityPerUser(maxLiquidityPerUser, vm.envAddress("MNT"));
+
         vault.setSafetyFactor(safetyFactorVault);
     }
 

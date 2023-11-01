@@ -28,7 +28,8 @@ contract Helper is Test {
     uint constant depositFee = 10; //0.1%
     uint constant maxLongMultiplier = 8;
     uint constant maxShortMultiplier = 8;
-
+    uint256 public maxLiquidityPerUser = 10;
+    uint256 public maxOIImbalance = 10**36;
 
     uint256 constant collateralSize = 10 * 10**18;
     uint256 constant sizeDelta = 100 * 10**30;
@@ -276,9 +277,22 @@ contract Helper is Test {
         IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
         return orderManager.createIncreasePosition{value: fee}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, acceptablePrice, 0, 0, fee);
     }
+    function createShortIncreasePositionOnEth(uint fee) public returns(bytes32) {
+        IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
+        return orderManager.createIncreasePosition{value: fee}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize, sizeDelta, false, acceptablePrice, 0, 0, fee);
+    }
+    function createLongDecreasePositionOnEth(uint fee) public returns(bytes32) {
+        IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
+        return orderManager.createDecreasePosition{value: fee}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, fee);
+    }
+    function createShortDecreasePositionOnEth(uint fee) public returns(bytes32) {
+        IERC20(vm.envAddress("USDCL")).approve(address(orderManager), collateralSize);
+        return orderManager.createDecreasePosition{value: fee}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize, sizeDelta, false, testUserAddress, acceptablePrice, fee);
+    }
+    
 
     //TODO: technically move  mock prices and adding liquidity to pool to different function.
-    function executeIncreaseLongPositionOnEth(bytes32 requestKey, uint minPrice, uint maxPrice) public {
+    function executeIncreasePositionOnEth(bytes32 requestKey, uint minPrice, uint maxPrice) public {
         // mockPrices
         mockPricesOfToken(minPrice,maxPrice,"ETH");
         IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
@@ -294,7 +308,7 @@ contract Helper is Test {
         return orderManager.createDecreasePosition{value: fee}(vm.envAddress("USDCL"), vm.envAddress("ETH"), 0, sizeDelta, true, address(testUserAddress), acceptablePrice, fee);
     }
 
-    function executeDecreaseLongPositionOnEth(bytes32 requestKey, uint minPrice, uint maxPrice) public {
+    function executeDecreasePositionOnEth(bytes32 requestKey, uint minPrice, uint maxPrice) public {
         mockPricesOfToken(minPrice, maxPrice,"ETH");
         orderManager.executeDecreasePosition(requestKey, payable(address(testUserAddress)));
     }
@@ -319,8 +333,8 @@ contract Helper is Test {
 
     function initializeVault() public {
         vault.setOrderManager(address(orderManager), true);
-        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000);
-        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000);
+        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
         vault.setUtils(utils);
         vault.setPriceFeed(address(priceFeed));
         vault.setSafetyFactor(100);

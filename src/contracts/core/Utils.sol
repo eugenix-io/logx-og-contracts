@@ -83,7 +83,7 @@ contract Utils is IUtils, Governable {
             uint256 price = getMinPrice(token);
             availableLiquidityInUsd += vault.poolAmounts(token) * price;
         }
-        require(sizeAfterUpdate*100/(availableLiquidityInUsd) < vault.maxLiquidityPerUser(), "Utils: Huge liquidity captured for single user");
+        require(sizeAfterUpdate*100/(availableLiquidityInUsd) < vault.maxLiquidityPerUser(_indexToken), "Utils: Huge liquidity captured for single user");
     }
 
     // Will we be implementing this validation function

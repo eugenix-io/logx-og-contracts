@@ -249,7 +249,7 @@ contract OrderManagerTest is Test, Helper {
     orderManager.createDecreasePosition{value: 0}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder);
     
     bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
-    executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+    executeIncreasePositionOnEth(requestKey, 1600, 1600);
     console.log("executed");
 
     uint256 prevPositionIndex = orderManager.decreasePositionsIndex(testUserAddress);
@@ -443,7 +443,7 @@ contract OrderManagerTest is Test, Helper {
         // 1. create a open position 
         bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
         // 2. Execute increase position
-        executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
         // 3. create a decrease position request for open position
         bytes32 decRequestKey = orderManager.createDecreasePosition{value: minExecutionFeeMarketOrder}(vm.envAddress("USDCL"), vm.envAddress("ETH"), collateralSize, sizeDelta, true, testUserAddress, acceptablePrice, minExecutionFeeMarketOrder);
         
@@ -551,7 +551,7 @@ contract OrderManagerTest is Test, Helper {
 
         vm.startPrank(testUserAddress);
         bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
-        executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
     
         //-------------------------// Place another decreasing order this time with right values and it shoudl execute -------------------------//-------------------------//-------------------------
         uint256 orderIndex3 = orderManager.ordersIndex(testUserAddress);
@@ -788,7 +788,7 @@ contract OrderManagerTest is Test, Helper {
    function testLiquidateMultiplePositionPartialSuccessfull() public{
         vm.startPrank(testUserAddress);
         bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
-        executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
         vm.stopPrank();
         bytes32 positionKey = getPositionKey(testUserAddress, vm.envAddress("USDCL"), vm.envAddress("ETH"), true);
 

@@ -23,7 +23,7 @@ interface IVault {
     function inPrivateLiquidationMode() external view returns (bool);
 
     function maxGasPrice() external view returns (uint256);
-    function maxLiquidityPerUser() external view returns (uint256);
+    function maxLiquidityPerUser(address _token) external view returns (uint256);
     function safetyFactor() external view returns (uint256);
 
 
@@ -64,7 +64,9 @@ interface IVault {
         bool _isStable,
         bool _canBeCollateralToken,
         bool _canBeIndexToken,
-        uint _maxLeverage
+        uint _maxLeverage,
+        uint256 _maxLiquidity,
+        uint256 _maxOiImbalance
     ) external;
 
     function setCeaseLPActivity(bool _cease) external;

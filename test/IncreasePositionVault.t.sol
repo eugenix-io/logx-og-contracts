@@ -18,7 +18,7 @@ contract IncreasePositionVault is Test, Helper{
         vm.startPrank(testUserAddress);
         vm.warp(3600);
         bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
-        executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
         (uint256 size,
         uint256 collateral,
         uint256 averagePrice,
@@ -48,7 +48,7 @@ contract IncreasePositionVault is Test, Helper{
         vm.startPrank(testUserAddress);
         vm.warp(3600);
         bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
-        executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
         vm.warp(10800);
         vault.updateCumulativeFundingRate(vm.envAddress("ETH"));
         vault.updateCumulativeBorrowingRate(vm.envAddress("USDCL"));
@@ -59,11 +59,60 @@ contract IncreasePositionVault is Test, Helper{
         vm.stopPrank();
     }
 
+    function testValidateOiImbalanceIncreaseGlobalLong() public {
+        vault.setMaxOIImbalance(sizeDelta, vm.envAddress("ETH")); // reduce maxOI to sizeDelta you are trying to open a position for
+        // try to increase global long by a value greater than current permissible delta
+        vm.startPrank(testUserAddress);
+        bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
+        // execute position
+        mockPricesOfToken(1600,1600,"ETH");
+        IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
+        vault.directPoolDeposit(vm.envAddress("USDCL"));
+        vm.expectRevert("Vault: Max OI breached!");
+        bool executed = orderManager.executeIncreasePosition(requestKey, payable(address(testUserAddress))); 
+    }
+    function testValidateOiImbalanceIncreaseGlobalShort() public {
+        vault.setMaxOIImbalance(sizeDelta, vm.envAddress("ETH")); // reduce maxOI to sizeDelta you are trying to open a position for
+        // try to increase global long by a value greater than current permissible delta
+        vm.startPrank(testUserAddress);
+        bytes32 requestKey = createShortIncreasePositionOnEth(minExecutionFeeMarketOrder);
+        // execute position
+        mockPricesOfToken(1600,1600,"ETH");
+        IERC20(vm.envAddress("USDCL")).transfer(address(vault), 1000 *10**18);
+        vault.directPoolDeposit(vm.envAddress("USDCL"));
+        vm.expectRevert("Vault: Max OI breached!");
+        bool executed = orderManager.executeIncreasePosition(requestKey, payable(address(testUserAddress))); 
+    }
+    function testValidateOiImbalanceDecreaseGlobalLong() public {
+        vm.startPrank(testUserAddress);
+        bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
+        vm.stopPrank();
+        vault.setMaxOIImbalance(sizeDelta, vm.envAddress("ETH")); // oi Imbalance reduced after opening the position
+        // now try to decrease the position       
+        vm.startPrank(testUserAddress);
+        bytes32 decreaseRequestKey = createLongDecreasePositionOnEth(minExecutionFeeMarketOrder);
+        executeDecreasePositionOnEth(decreaseRequestKey, 1600, 1600);
+    }
+    function testValidateOiImbalanceDecreaseGlobalShort() public {
+        vm.startPrank(testUserAddress);
+        bytes32 requestKey = createShortIncreasePositionOnEth(minExecutionFeeMarketOrder);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
+        vm.stopPrank();
+        vault.setMaxOIImbalance(sizeDelta, vm.envAddress("ETH")); // oi Imbalance reduced after opening the position
+        // now try to decrease the position       
+        vm.startPrank(testUserAddress);
+        bytes32 decreaseRequestKey = createShortDecreasePositionOnEth(minExecutionFeeMarketOrder);
+        executeDecreasePositionOnEth(decreaseRequestKey, 1600, 1600);
+    }
+
+
+
     function testIncreaseThenDecrease25PercentWithProfit() public {
         vm.startPrank(testUserAddress);
         vm.warp(3600);
         bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
-        executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
         vm.warp(10800);
 
         vm.stopPrank();
@@ -73,7 +122,7 @@ contract IncreasePositionVault is Test, Helper{
         vm.startPrank(testUserAddress);
         vm.warp(3600);
         bytes32 requestKey = createLongIncreasePositionOnEth(minExecutionFeeMarketOrder);
-        executeIncreaseLongPositionOnEth(requestKey, 1600, 1600);
+        executeIncreasePositionOnEth(requestKey, 1600, 1600);
         vm.warp(10800);
         vm.stopPrank();
     }  
