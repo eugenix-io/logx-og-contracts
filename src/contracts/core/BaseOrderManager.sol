@@ -9,7 +9,6 @@ import './interfaces/ITimeLock.sol';
 import '../access/Governable.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
 import './interfaces/IPriceFeed.sol';
-import "forge-std/console.sol";
 
 
 contract BaseOrderManager{
@@ -19,18 +18,9 @@ contract BaseOrderManager{
     address public pricefeed;
 
     uint256 public constant BASIS_POINTS_DIVISOR = 10000;
-    mapping (address => uint256) public maxGlobalLongSizes;
-    mapping (address => uint256) public maxGlobalShortSizes;
     uint256 public increasePositionBufferBps = 100;
     mapping (address => uint256) public feeReserves;
     uint public depositFee;
-
-
-    event SetMaxGlobalSizes(
-        address[] tokens,
-        uint256[] longSizes,
-        uint256[] shortSizes
-    );
 
     event LeverageDecreased(
         uint256 collateralDelta,
@@ -74,40 +64,7 @@ contract BaseOrderManager{
         depositFee = _fee;
     }
 
-    function setMaxGlobalSizes(
-        address[] memory _tokens,
-        uint256[] memory _longSizes,
-        uint256[] memory _shortSizes
-    ) external onlyAdmin {
-        for (uint256 i = 0; i < _tokens.length; i++) {
-            address token = _tokens[i];
-            maxGlobalLongSizes[token] = _longSizes[i];
-            maxGlobalShortSizes[token] = _shortSizes[i];
-        }
-
-        emit SetMaxGlobalSizes(_tokens, _longSizes, _shortSizes);
-    }
-
-    function _validateMaxGlobalSize(address _indexToken, bool _isLong, uint256 _sizeDelta) internal view {
-        if (_sizeDelta == 0) {
-            return;
-        }
-
-        if (_isLong) {
-            uint256 maxGlobalLongSize = maxGlobalLongSizes[_indexToken];
-            if (maxGlobalLongSize > 0 && IVault(vault).globalLongSizes(_indexToken)+(_sizeDelta) > maxGlobalLongSize) {
-                revert("BasePositionManager: max longs exceeded");
-            }
-        } else {
-            uint256 maxGlobalShortSize = maxGlobalShortSizes[_indexToken];
-            if (maxGlobalShortSize > 0 && IVault(vault).globalShortSizes(_indexToken)+(_sizeDelta) > maxGlobalShortSize) {
-                revert("BasePositionManager: max shorts exceeded");
-            }
-        }
-    }
-
     function _increasePosition(address _account, address _collateralToken, address _indexToken, uint256 _sizeDelta, bool _isLong, uint256 acceptablePrice) internal {
-        _validateMaxGlobalSize(_indexToken, _isLong, _sizeDelta);
 
         uint256 markPrice = _isLong ? IPriceFeed(pricefeed).getMaxPriceOfToken(_indexToken) : IPriceFeed(pricefeed).getMinPriceOfToken(_indexToken);
         if (_isLong) {

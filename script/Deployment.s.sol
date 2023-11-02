@@ -26,8 +26,7 @@ contract Deployment is Script {
     uint constant minPurchaseTokenAmountUsd = 0;
     uint constant depositFee = 10;
     address constant executor = 0x143328D5d7C84515b3c8b3f8891471ff872C0015;
-    uint public maxLongMultiplier = 9;
-    uint public maxShortMultiplier = 9;
+    uint public maxProfitMultiplier = 9;
     address[] rewardTrackerDepositToken;
     uint256 public fundingInterval = 3600;
     uint256 public fundingRateFactor = 100;
@@ -35,6 +34,8 @@ contract Deployment is Script {
     uint256 public maxLiquidityPerUser = 10;
     uint256 public maxOIImbalance = 10**36;
     uint256 public safetyFactorVault = 90;
+    uint256 public oiImbalancethreshold = 2000;
+
 
 
     function run() external{  
@@ -60,7 +61,7 @@ contract Deployment is Script {
     }
 
     function deployOrderManager(Vault vault, PriceFeed priceFeed, Utils utils) public returns (OrderManager){
-        OrderManager orderManager = new OrderManager(address(vault), address(utils), address(priceFeed),minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxLongMultiplier, maxShortMultiplier);
+        OrderManager orderManager = new OrderManager(address(vault), address(utils), address(priceFeed),minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxProfitMultiplier);
         console.log("OrderManager deployed at address: ", address(orderManager));
         orderManager.setPositionKeeper(address(priceFeed), true);
         orderManager.setMinExecutionFeeLimitOrder(minExecutionFeeLimitOrder);

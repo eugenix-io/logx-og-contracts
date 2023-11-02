@@ -10,6 +10,7 @@ interface IVault {
 
     function usdl() external view returns (address);
     function maxLeverage(address _token) external view returns (uint256);
+    function oiImbalanceThreshold(address _token) external view returns (uint256);
     function gov() external view returns (address);
 
     function ceaseTradingActivity() external view returns(bool);
@@ -18,6 +19,7 @@ interface IVault {
     function hasDynamicFees() external view returns (bool);
     function borrowingInterval() external view returns (uint256);
     function fundingInterval() external view returns (uint256);
+    function maxFundingRateFactor() external view returns (uint256);
 
     function inManagerMode() external view returns (bool);
     function inPrivateLiquidationMode() external view returns (bool);

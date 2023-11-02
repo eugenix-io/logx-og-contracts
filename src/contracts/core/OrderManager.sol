@@ -64,8 +64,7 @@ contract OrderManager is
     mapping (address => uint256) public ordersIndex;
     mapping (address => bool) public isOrderKeeper;
     mapping (address => bool) public isLiquidator;
-    uint public maxLongMultiplier;
-    uint public maxShortMultiplier;
+    uint public maxProfitMultiplier;
 
     uint256 public minPurchaseTokenAmountUsd;
 
@@ -230,13 +229,11 @@ contract OrderManager is
         uint256 _minExecutionFeeMarketOrder, 
         uint256 _minExecutionFeeLimitOrder,
         uint _depositFee,
-        uint _maxLongMultiplier,
-        uint _maxShortMultiplier
+        uint _maxProfitMultiplier
     ) BaseOrderManager(_vault, _utils, _pricefeed, _depositFee) {
         minExecutionFeeMarketOrder = _minExecutionFeeMarketOrder;
         minExecutionFeeLimitOrder = _minExecutionFeeLimitOrder;
-        maxLongMultiplier = _maxLongMultiplier;
-        maxShortMultiplier = _maxShortMultiplier;
+        maxProfitMultiplier = _maxProfitMultiplier;
     }
 
     modifier onlyPositionKeeper() {
@@ -262,9 +259,8 @@ contract OrderManager is
         emit SetPositionKeeper(_account, _isActive);
     }
 
-    function setMaxTPMultiplier(uint _maxLongMultiplier, uint _maxShortMultiplier) external onlyAdmin {
-        maxLongMultiplier = _maxLongMultiplier;
-        maxShortMultiplier = _maxShortMultiplier;
+    function setMaxTPMultiplier(uint _maxProfitMultiplier) external onlyAdmin {
+        maxProfitMultiplier = _maxProfitMultiplier;
     }
 
     function setMinExecutionFeeMarketOrder(uint256 _minExecutionFeeMarketOrder) external onlyAdmin {
@@ -348,15 +344,18 @@ contract OrderManager is
         if(stopLossPrice !=0){
             _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, stopLossPrice, !_isLong, minExecutionFeeLimitOrder, false , false);
         }
-        if(_isLong){
-            uint256 tpPrice = IUtils(utils).getTPPrice(_sizeDelta, _indexToken, _collateralToken, true, _acceptablePrice);
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, tpPrice*maxLongMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
+        uint256 tpPrice;
+        {
+            uint256 collateralAmount = _amountIn;
+            bool isLong = _isLong;
+            address collateralToken = _collateralToken;
+            address indexToken = _indexToken;
+            uint256 sizeDelta = _sizeDelta;
+            tpPrice = IUtils(utils).getTPPrice(_sizeDelta, true, _acceptablePrice, collateralAmount * maxProfitMultiplier, collateralToken);
+            _createOrder(msg.sender, 0, collateralToken, indexToken, sizeDelta, isLong, tpPrice, isLong, minExecutionFeeLimitOrder, false , true);
+            return positionKey;
         }
-        else{
-            uint256 tpPrice = IUtils(utils).getTPPrice(_sizeDelta, _indexToken, _collateralToken, false, _acceptablePrice);
-            _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, tpPrice/maxShortMultiplier, _isLong, minExecutionFeeLimitOrder, false , true);
-        }
-        return positionKey;
+        
     }
 
     function _createIncreasePosition(
@@ -1138,23 +1137,6 @@ contract OrderManager is
         );
     }
 
-    function _validateIncreaseOrder(address _account, uint256 _orderIndex) internal view {
-        (
-            ,//address _collateralToken,
-            ,//amountIn
-            address _indexToken,
-            uint256 _sizeDelta,
-            bool _isLong,
-            , // triggerPrice
-            , // triggerAboveThreshold
-            // executionFee
-            , // isIncreaseOrder
-        ) = getOrder(_account, _orderIndex);
-
-        _validateMaxGlobalSize(_indexToken, _isLong, _sizeDelta);
-
-    }
-
     function executeOrder(address _address, uint256 _orderIndex, address payable _feeReceiver) override public nonReentrant onlyOrderKeeper {
         bytes32 orderKey = getOrderKey(_address,_orderIndex);
         Order memory order = orders[orderKey];
@@ -1170,7 +1152,6 @@ contract OrderManager is
         );
 
         if(order.isIncreaseOrder){
-            _validateIncreaseOrder(_address, _orderIndex);
             IERC20(order.collateralToken).transfer(vault, order.collateralDelta);
             IVault(vault).increasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 

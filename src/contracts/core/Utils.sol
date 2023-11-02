@@ -352,9 +352,7 @@ contract Utils is IUtils, Governable {
     ) public view returns (bool, uint256) {
         _validate(_averagePrice > 0, "Vault: averagePrice should be > 0");
         uint256 price = _nextPrice;
-        uint256 priceDelta = _averagePrice > price
-            ? _averagePrice - (price)
-            : price - (_averagePrice);
+        uint256 priceDelta = _averagePrice > price ? _averagePrice - (price) : price - (_averagePrice);
         uint256 delta = (_size * (priceDelta)) / (_averagePrice);
 
         bool hasProfit;
@@ -544,12 +542,9 @@ contract Utils is IUtils, Governable {
         address _tokenDiv,
         address _tokenMul
     ) public view returns (uint256) {
-        uint256 decimalsDiv = _tokenDiv == vault.usdl()
-            ? USDL_DECIMALS
-            : vault.tokenDecimals(_tokenDiv);
-        uint256 decimalsMul = _tokenMul == vault.usdl()
-            ? USDL_DECIMALS
-            : vault.tokenDecimals(_tokenMul);
+        uint256 decimalsDiv = _tokenDiv == vault.usdl() ? USDL_DECIMALS : vault.tokenDecimals(_tokenDiv);
+        uint256 decimalsMul = _tokenMul == vault.usdl() ? USDL_DECIMALS : vault.tokenDecimals(_tokenMul);
+
         return (_amount * (10 ** decimalsMul)) / (10 ** decimalsDiv);
     }
 
@@ -681,7 +676,8 @@ contract Utils is IUtils, Governable {
         if(globalLongSizeVault + globalShortSizeVault == 0){
             return (0, 0);
         }
-        uint nextFundingRateForLong =  (fundingRateFactor*(oiImbalance**fundingExponent))/ (globalLongSizeVault + globalShortSizeVault);
+        (uint adaptiveFundingRateFactor, uint adaptiveFundingExponent) = calculateAdaptiveFundingRate(fundingRateFactor, fundingExponent, _indexToken); 
+        uint nextFundingRateForLong =  (adaptiveFundingRateFactor*(oiImbalance**adaptiveFundingExponent))/ (globalLongSizeVault + globalShortSizeVault);
         if(globalShortSizeVault==0){
             return(int(nextFundingRateForLong), 0);
         }
@@ -695,7 +691,21 @@ contract Utils is IUtils, Governable {
         } else {
             return (-1 * int256(nextFundingRateForLong), int256(nextFundingRateForShort));
         }
-        
+    }
+
+    function calculateAdaptiveFundingRate(uint256 fundingRateFactor, uint256 fundingExponent, address _indexToken) public view returns(uint256, uint256) {
+        uint256 globalLongSizeVault = vault.globalLongSizes(_indexToken); 
+        uint256 globalShortSizeVault = vault.globalShortSizes(_indexToken);
+        uint256 oiImbalance = globalLongSizeVault>globalShortSizeVault? globalLongSizeVault - globalShortSizeVault: globalShortSizeVault - globalLongSizeVault;
+        uint256 oiImbalanceThreshold = IVault(vault).oiImbalanceThreshold(_indexToken);
+        uint256 oiImbalanceInBps = oiImbalance*BASIS_POINTS_DIVISOR/(globalLongSizeVault + globalShortSizeVault);
+        if(globalLongSizeVault ==0 || globalShortSizeVault ==0 || oiImbalanceInBps <= oiImbalanceThreshold){
+            return (fundingRateFactor, fundingExponent);
+        } else {
+            uint256 deviation = oiImbalanceInBps - oiImbalanceThreshold;
+            uint256 updatedFundingRateFactor = fundingRateFactor + ((IVault(vault).maxFundingRateFactor() - fundingRateFactor)*deviation)/(BASIS_POINTS_DIVISOR - oiImbalanceThreshold);
+            return (updatedFundingRateFactor, fundingExponent);
+        }
     }
 
     function getNextBorrowingRate(uint lastBorrowingTime, uint borrowingInterval, uint borrowingRateFactor, uint poolAmount, uint reservedAmount) public view returns(uint){
@@ -811,8 +821,12 @@ contract Utils is IUtils, Governable {
         return (differenceInFundingRate * int(size))/FUNDING_RATE_PRECISION;
     }
 
-    function getTPPrice(uint256 /*sizeDelta*/, address /*indexToken*/, address /*collateralToken*/, bool /*isLong*/, uint256 markPrice) pure public returns(uint256) {
-        return markPrice;
+    function getTPPrice(uint256 sizeDelta, bool isLong, uint256 markPrice, uint256 _maxTPAmount, address collateralToken) view public returns(uint256) {        
+        uint256 profitDelta = (_maxTPAmount * markPrice * 10**(30 - vault.tokenDecimals(collateralToken)))/sizeDelta;
+        if(isLong){
+            return markPrice + profitDelta;
+        }
+        return markPrice - profitDelta;
     }
 
     function calcLiquidationFee(uint size, address indexToken) view public returns(uint) {

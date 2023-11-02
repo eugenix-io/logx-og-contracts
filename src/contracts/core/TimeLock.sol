@@ -59,22 +59,22 @@ contract Timelock is ITimelock {
     event ClearAction(bytes32 action);
 
     modifier onlyAdmin() {
-        require(msg.sender == admin, "Timelock: forbidden");
+        require(msg.sender == admin, "Timelock: admin forbidden");
         _;
     }
 
     modifier onlyHandlerAndAbove() {
-        require(msg.sender == admin || isHandler[msg.sender], "Timelock: forbidden");
+        require(msg.sender == admin || isHandler[msg.sender], "Timelock: handler forbidden");
         _;
     }
 
     modifier onlyKeeperAndAbove() {
-        require(msg.sender == admin || isHandler[msg.sender] || isKeeper[msg.sender], "Timelock: forbidden");
+        require(msg.sender == admin || isHandler[msg.sender] || isKeeper[msg.sender], "Timelock: keeper forbidden");
         _;
     }
 
     modifier onlyTokenManager() {
-        require(msg.sender == tokenManager, "Timelock: forbidden");
+        require(msg.sender == tokenManager, "Timelock: token manager forbidden");
         _;
     }
 
@@ -189,6 +189,10 @@ contract Timelock is ITimelock {
         ILlpManager(llpManager).setCooldownDuration(_cooldownDuration);
     }
 
+    function setMaxGlobalLongSize(address _vault, address _token, uint256 _amount) external onlyAdmin{
+        IVault(_vault).setMaxGlobalLongSize(_token, _amount);
+    }
+    
     function setMaxGlobalShortSize(address _vault, address _token, uint256 _amount) external onlyAdmin {
         IVault(_vault).setMaxGlobalShortSize(_token, _amount);
     }
@@ -399,11 +403,11 @@ contract Timelock is ITimelock {
         );
     }
 
-    function setCeaseTradingActivity(address _vault, bool _ceaseTradingActivity) external {
+    function setCeaseTradingActivity(address _vault, bool _ceaseTradingActivity) external onlyAdmin {
         IVault(_vault).setCeaseTradingActivity(_ceaseTradingActivity);
     }
 
-    function setCeaseLPActivity(address _vault, bool _ceaseLPActivity) external {
+    function setCeaseLPActivity(address _vault, bool _ceaseLPActivity) external onlyAdmin {
         IVault(_vault).setCeaseLPActivity(_ceaseLPActivity);
     }
 

@@ -26,8 +26,7 @@ contract Helper is Test {
     uint constant minExecutionFeeLimitOrder = 37 * 10 ** 16;
     uint constant maxAllowedDelayPriceFeed = 300;
     uint constant depositFee = 10; //0.1%
-    uint constant maxLongMultiplier = 8;
-    uint constant maxShortMultiplier = 8;
+    uint constant maxProfitMultiplier = 9;
     uint256 public maxLiquidityPerUser = 10;
     uint256 public maxOIImbalance = 10**36;
 
@@ -325,7 +324,7 @@ contract Helper is Test {
         priceFeed  = deployAndInitializePriceFeed();
         utils = deployUtils(vault, priceFeed);
         utils.setValidate(false);
-        orderManager = new OrderManager(address(vault), address(utils), address(priceFeed), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxLongMultiplier, maxShortMultiplier);
+        orderManager = new OrderManager(address(vault), address(utils), address(priceFeed), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxProfitMultiplier);
         initializeOrderManager();
         initializeVault();
         mockPricesOfToken(1,1,"USDCL");

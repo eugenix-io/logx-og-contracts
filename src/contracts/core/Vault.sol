@@ -37,7 +37,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public constant MIN_BORROWING_RATE_INTERVAL = 1 seconds;
     uint256 public constant MIN_FUNDING_RATE_INTERVAL = 1 seconds;
     uint256 public constant MAX_BORROWING_RATE_FACTOR = 100000000; // 1%
-    uint256 public constant MAX_FUNDING_RATE_FACTOR = 100000000; // 1%
 
     bool public override isInitialized;
     address public usdc;
@@ -56,6 +55,7 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override liquidationFactor;
     uint256 public override mintBurnFeeBasisPoints = 30; // 0.3%
     uint256 public override marginFeeBasisPoints = 10; // 0.1%
+    uint256 public override maxFundingRateFactor = 100000000; // 1%
 
     uint256 public override minProfitTime;
     bool public override hasDynamicFees = false;
@@ -70,6 +70,7 @@ contract Vault is ReentrancyGuard, IVault {
 
     uint256 public override maxGasPrice;
     mapping (address=>uint256) public maxOIImbalance;
+    mapping (address=>uint256) public override oiImbalanceThreshold; 
     mapping (address=>uint256) public maxLiquidityPerUser;
     uint256 public safetyFactor;
     
@@ -273,6 +274,16 @@ contract Vault is ReentrancyGuard, IVault {
         safetyFactor = _safetyFactor;
     }   
 
+    function setMaxFundingRateFactor( uint256 _maxFundingRateFactor) public {
+        _onlyGov();
+        maxFundingRateFactor = _maxFundingRateFactor;
+    }
+
+    function setOiImbalanceThreshold( address _token, uint256 _oiImbalanceThreshold) public {
+        _onlyGov();
+        oiImbalanceThreshold[_token] = _oiImbalanceThreshold;
+    }
+
     function directPoolDeposit(address _token) external override nonReentrant {
         _validate(whitelistedTokens[_token], "Vault: Not a whitelisted token");
         uint256 tokenAmount = _transferIn(_token);
@@ -385,7 +396,6 @@ contract Vault is ReentrancyGuard, IVault {
     ) external override {
         _onlyGov();
         _validate(_fundingInterval >= MIN_FUNDING_RATE_INTERVAL, "Vault: funding interval too low");
-        _validate(_fundingRateFactor <= MAX_FUNDING_RATE_FACTOR, "Vault: fundingRateFactor too high");
         fundingInterval = _fundingInterval;
         fundingRateFactor = _fundingRateFactor;
         fundingExponent = _fundingExponent;
