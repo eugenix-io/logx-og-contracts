@@ -968,16 +968,16 @@ contract OrderManager is
                     IERC20(_collateralToken).transferFrom(msg.sender, address(this), _collateralDelta);
                     uint256 _collateralAmountUsd = IUtils(utils).tokenToUsdMin(_collateralToken, _collateralDelta);
                     require(_collateralAmountUsd >= minPurchaseTokenAmountUsd, "OrderManager: too less collateral");
-                    _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _limitPrice, !_isLong, minExecutionFeeLimitOrder, _isIncreaseOrder, _maxOrder);
+                    _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _limitPrice, !_isLong, minExecutionFeeLimitOrder, true, _maxOrder);
             }else{
                 // tpsl order or limit order when closing position
                 uint256 currMarketPrice = !_isLong? IPriceFeed(pricefeed).getMaxPriceOfToken(_indexToken):IPriceFeed(pricefeed).getMinPriceOfToken(_indexToken);
                 _validateTPSLOrderPrices(currMarketPrice, _isLong, _tpPrice, _slPrice);
                 if(tpPrice != 0){
-                    _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _tpPrice, _isLong, minExecutionFeeLimitOrder, _isIncreaseOrder, _maxOrder);
+                    _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, _tpPrice, _isLong, minExecutionFeeLimitOrder, false, _maxOrder);
                 }
                 if(slPrice !=0){
-                    _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _slPrice, !_isLong, minExecutionFeeLimitOrder, _isIncreaseOrder, _maxOrder);
+                    _createOrder(msg.sender, 0, _collateralToken, _indexToken, _sizeDelta, _isLong, _slPrice, !_isLong, minExecutionFeeLimitOrder, false, _maxOrder);
                 }
             }
         }
@@ -1088,8 +1088,8 @@ contract OrderManager is
             else{
                 IERC20(order.collateralToken).transfer(order.account, collateralDelta);
             }
+            order.collateralDelta = _newCollateralAmount;
         }
-        order.collateralDelta = _newCollateralAmount;
 
         order.triggerPrice = _triggerPrice;
         order.sizeDelta = _sizeDelta;
@@ -1099,9 +1099,9 @@ contract OrderManager is
             order.collateralToken,
             order.indexToken,
             _orderIndex,
-            _newCollateralAmount,
-            _sizeDelta,
-            _triggerPrice,
+            order.collateralDelta,
+            order.sizeDelta,
+            order.triggerPrice,
             order.isLong,
             order.triggerAboveThreshold,
             order.isIncreaseOrder,
