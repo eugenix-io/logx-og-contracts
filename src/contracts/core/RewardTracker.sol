@@ -79,7 +79,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         isDepositToken[_depositToken] = _isDepositToken;
     }
 
-    function setRewardPrecision(uint _rewardPrecision) public {
+    function setRewardPrecision(uint _rewardPrecision) public onlyGov {
         rewardPrecision = _rewardPrecision;
     }
 

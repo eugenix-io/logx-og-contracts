@@ -108,7 +108,7 @@ contract PriceFeed is IPriceFeed, Governable {
         executePositions(_orderManager, _endIndexForIncreasePositions, _endIndexForDecreasePositions);
     }
 
-    function _setMntPrice() public {
+    function _setMntPrice() internal {
         address mntAddress = supportedTokens[0]; // leave 0 index for a custom token like MNT
         bytes32 MNTPriceId = tokenPriceIdMapping[mntAddress];
         PythStructs.Price memory mntPythPrice = IPyth(pythContract).getPriceNoOlderThan(MNTPriceId, maxAllowedDelay);
@@ -116,7 +116,7 @@ contract PriceFeed is IPriceFeed, Governable {
         tokenToPrice[mntAddress] = mntPriceObject;
     }
 
-    function _setPrice(address _tokenAddress,  PriceArgs memory _darkOraclePrice) public {
+    function _setPrice(address _tokenAddress,  PriceArgs memory _darkOraclePrice) internal {
         validateData(_darkOraclePrice.publishTime);
         TokenPrice memory priceObject = TokenPrice(_darkOraclePrice.price, _darkOraclePrice.price, _darkOraclePrice.expo, _darkOraclePrice.expo, _darkOraclePrice.publishTime);
         tokenToPrice[_tokenAddress] = priceObject;
@@ -149,7 +149,7 @@ contract PriceFeed is IPriceFeed, Governable {
         }
     }
 
-    function compareAndSetPrice(address _tokenAddress, PythStructs.Price memory _pythPrice, PriceArgs memory _darkOraclePrice) public {
+    function compareAndSetPrice(address _tokenAddress, PythStructs.Price memory _pythPrice, PriceArgs memory _darkOraclePrice) internal {
         uint256 pythPrice = getFinalPrice(uint64(_pythPrice.price), _pythPrice.expo);
         uint256 darkOraclePrice = getFinalPrice(uint64(_darkOraclePrice.price),_darkOraclePrice.expo);
 
