@@ -1065,25 +1065,45 @@ contract OrderManager is
         );
     }
 
-    function updateOrder(uint256 _orderIndex, uint256 _sizeDelta, uint256 _collateralDelta,  uint256 _triggerPrice, bool _triggerAboveThreshold) external nonReentrant {
+    function updateOrder(uint256 _orderIndex, uint256 _sizeDelta, uint256 _newCollateralAmount,  uint256 _triggerPrice) external nonReentrant {
         Order storage order = orders[getOrderKey(msg.sender,_orderIndex)];
         require(order.account != address(0), "OrderManager: non-existent order");
+        uint256 currMarketPrice = order.isLong? IPriceFeed(pricefeed).getMaxPriceOfToken(order.indexToken):IPriceFeed(pricefeed).getMinPriceOfToken(order.indexToken);
+        if(order.triggerPrice > currMarketPrice){
+            require(_triggerPrice > currMarketPrice, "OrderManager: Invalid price update");
+        }
+        else{
+            require(_triggerPrice < currMarketPrice, "OrderManager: Invalid price update");
+        }
+
+        uint256 oldCollateralAmount = order.collateralDelta;
+        if(order.isIncreaseOrder){
+            uint256 _collateralAmountUsd = IUtils(utils).tokenToUsdMin(order.collateralToken, _newCollateralAmount);
+            require(_collateralAmountUsd >= minPurchaseTokenAmountUsd, "OrderManager: too less collateral");
+            bool increaseCollateral = _newCollateralAmount > oldCollateralAmount;
+            uint256 collateralDelta = increaseCollateral ? (_newCollateralAmount - oldCollateralAmount) : (oldCollateralAmount - _newCollateralAmount);
+            if(increaseCollateral){
+                IERC20(order.collateralToken).transferFrom(msg.sender, address(this), collateralDelta);
+            }
+            else{
+                IERC20(order.collateralToken).transfer(order.account, collateralDelta);
+            }
+        }
+        order.collateralDelta = _newCollateralAmount;
 
         order.triggerPrice = _triggerPrice;
-        order.triggerAboveThreshold = _triggerAboveThreshold;
         order.sizeDelta = _sizeDelta;
-        order.collateralDelta = _collateralDelta;
 
         emit UpdateOrder(
             msg.sender,
             order.collateralToken,
             order.indexToken,
             _orderIndex,
-            _collateralDelta,
+            _newCollateralAmount,
             _sizeDelta,
             _triggerPrice,
             order.isLong,
-            _triggerAboveThreshold,
+            order.triggerAboveThreshold,
             order.isIncreaseOrder,
             order.isMaxOrder
         );
