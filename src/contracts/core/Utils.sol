@@ -821,8 +821,9 @@ contract Utils is IUtils, Governable {
         return (differenceInFundingRate * int(size))/FUNDING_RATE_PRECISION;
     }
 
-    function getTPPrice(uint256 sizeDelta, bool isLong, uint256 markPrice, uint256 _maxTPAmount, address collateralToken) view public returns(uint256) {        
-        uint256 profitDelta = (_maxTPAmount * markPrice * 10**(30 - vault.tokenDecimals(collateralToken)))/sizeDelta;
+    function getTPPrice(uint256 sizeDelta, bool isLong, uint256 markPrice, uint256 _maxTPAmount, address collateralToken) view public returns(uint256) {  
+        uint maxProfitInUsd =( _maxTPAmount * getMinPrice(collateralToken))/10**vault.tokenDecimals(collateralToken);      
+        uint256 profitDelta = (maxProfitInUsd * markPrice)/sizeDelta;
         if(isLong){
             return markPrice + profitDelta;
         }

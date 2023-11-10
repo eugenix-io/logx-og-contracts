@@ -351,7 +351,7 @@ contract OrderManager is
             address collateralToken = _collateralToken;
             address indexToken = _indexToken;
             uint256 sizeDelta = _sizeDelta;
-            tpPrice = IUtils(utils).getTPPrice(_sizeDelta, true, _acceptablePrice, collateralAmount * maxProfitMultiplier, collateralToken);
+            tpPrice = IUtils(utils).getTPPrice(_sizeDelta, _isLong, _acceptablePrice, collateralAmount * maxProfitMultiplier, collateralToken);
             _createOrder(msg.sender, 0, collateralToken, indexToken, sizeDelta, isLong, tpPrice, isLong, minExecutionFeeLimitOrder, false , true);
             return positionKey;
         }
