@@ -314,11 +314,11 @@ contract OrderManager is
         require(!IVault(vault).ceaseTradingActivity(), "OrderManager: Trading Activity is ceased!");
         require(_executionFee == msg.value, "OrderManager: execution fee not equal to value in msg.value");
         if(takeProfitPrice ==0 && stopLossPrice ==0){
-            require(_executionFee >= minExecutionFeeMarketOrder, "OrderManager: market order execution fee less than min execution fee");
+            require(_executionFee >= minExecutionFeeMarketOrder + minExecutionFeeLimitOrder, "OrderManager: market order execution fee less than min execution fee");
         } else if(takeProfitPrice !=0 && stopLossPrice !=0){
-            require(_executionFee >= minExecutionFeeMarketOrder + 2 * minExecutionFeeLimitOrder, "OrderManager: tpsl execution fee less than min execution fee");
+            require(_executionFee >= minExecutionFeeMarketOrder + 3 * minExecutionFeeLimitOrder, "OrderManager: tpsl execution fee less than min execution fee");
         } else {
-            require(_executionFee >= minExecutionFeeMarketOrder + minExecutionFeeLimitOrder, "OrderManager: tp or sl execution fee less than min execution fee");
+            require(_executionFee >= minExecutionFeeMarketOrder + 2* minExecutionFeeLimitOrder, "OrderManager: tp or sl execution fee less than min execution fee");
         }
 
         if (_amountIn > 0) {
