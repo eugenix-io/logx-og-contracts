@@ -27,7 +27,6 @@ contract Helper is Test {
     uint constant maxAllowedDelayPriceFeed = 300;
     uint constant depositFee = 10; //0.1%
     uint constant maxProfitMultiplier = 9;
-    uint256 public maxLiquidityPerUser = 10;
     uint256 public maxOIImbalance = 10**36;
 
     uint256 constant collateralSize = 10 * 10**18;
@@ -323,7 +322,6 @@ contract Helper is Test {
         // initialize vault
         priceFeed  = deployAndInitializePriceFeed();
         utils = deployUtils(vault, priceFeed);
-        utils.setValidate(false);
         orderManager = new OrderManager(address(vault), address(utils), address(priceFeed), minExecutionFeeMarketOrder, minExecutionFeeLimitOrder, depositFee, maxProfitMultiplier);
         initializeOrderManager();
         initializeVault();
@@ -332,8 +330,8 @@ contract Helper is Test {
 
     function initializeVault() public {
         vault.setOrderManager(address(orderManager), true);
-        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000, maxLiquidityPerUser, maxOIImbalance);
-        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000, maxOIImbalance);
         vault.setUtils(utils);
         vault.setPriceFeed(address(priceFeed));
         vault.setSafetyFactor(100);

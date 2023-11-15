@@ -32,17 +32,12 @@ contract Utils is IUtils, Governable {
     int256 public FUNDING_RATE_PRECISION = 10000000000;
     uint256 public constant USDL_DECIMALS = 18;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
-    bool public isValidate = true;
 
 
 
     constructor(IVault _vault, IPriceFeed _pricefeed) {
         vault = _vault;
         priceFeed = _pricefeed;
-    }
-
-    function setValidate(bool _isValidate) external onlyGov{
-        isValidate = _isValidate;
     }
 
     function setVault(IVault _vault) external onlyGov {
@@ -64,27 +59,7 @@ contract Utils is IUtils, Governable {
         address _indexToken,
         uint256  _sizeDelta,
         bool  _isLong 
-    ) external view override {
-
-        if(!isValidate){
-            return;
-        }
-
-        Position memory prevPosition = getPosition(_account, _collateralToken, _indexToken, _isLong);
-        uint256 sizeAfterUpdate = _sizeDelta + prevPosition.size;
-        uint256 length = vault.allWhitelistedTokensLength();
-        uint256 availableLiquidityInUsd = 0;
-
-        for (uint256 i = 0; i < length; i++) {
-            address token = vault.allWhitelistedTokens(i);
-            if(!vault.canBeCollateralToken(token)){ // instead of whitelistedToken we should check for canBeCollateralToken true false?
-                continue;
-            }
-            uint256 price = getMinPrice(token);
-            availableLiquidityInUsd += vault.poolAmounts(token) * price;
-        }
-        require(sizeAfterUpdate*100/(availableLiquidityInUsd) < vault.maxLiquidityPerUser(_indexToken), "Utils: Huge liquidity captured for single user");
-    }
+    ) external view override {}
 
     // Will we be implementing this validation function
     function validateDecreasePosition(

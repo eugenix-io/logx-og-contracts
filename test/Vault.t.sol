@@ -16,8 +16,8 @@ contract vaultTest is Test, Helper {
         vault.setUtils(utils);
         vault.setSafetyFactor(1);
         vault.setUsdl(address(usdl));
-        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000, maxLiquidityPerUser, maxOIImbalance);
-        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000, maxLiquidityPerUser, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000, maxOIImbalance);
+        vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000, maxOIImbalance);
         vault.setMaxLeverage(54*10000, vm.envAddress("ETH"));
         vault.setMaxLeverage(54*10000, vm.envAddress("BTC"));
         orderManager = new OrderManager(
@@ -96,7 +96,6 @@ contract vaultTest is Test, Helper {
     //         sizeDelta,
     //         true
     //     );
-    //     // default maxLiquidityPerUser is 0 hence it will fail
     // }
 
     //6.5 Check if opening a position for first time, values are set correctly

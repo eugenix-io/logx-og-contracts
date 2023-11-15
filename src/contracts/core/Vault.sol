@@ -71,7 +71,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public override maxGasPrice;
     mapping (address=>uint256) public maxOIImbalance;
     mapping (address=>uint256) public override oiImbalanceThreshold; 
-    mapping (address=>uint256) public maxLiquidityPerUser;
     uint256 public safetyFactor;
     
 
@@ -263,12 +262,6 @@ contract Vault is ReentrancyGuard, IVault {
         usdl = newUsdl;
     }
 
-    function setMaxLiquidityPerUser(uint256 _maxLiquidityPerUser, address _token) public  {
-        _onlyGov();
-        maxLiquidityPerUser[_token] = _maxLiquidityPerUser;
-        
-    }
-
     function setSafetyFactor(uint256 _safetyFactor) public  {
         _onlyGov();
         safetyFactor = _safetyFactor;
@@ -418,7 +411,6 @@ contract Vault is ReentrancyGuard, IVault {
         bool _canBeCollateralToken,
         bool _canBeIndexToken,
         uint _maxLeverage,
-        uint256 _maxLiquidity,
         uint256 _maxOiImbalance
     ) external override {
         _onlyGov();
@@ -437,7 +429,6 @@ contract Vault is ReentrancyGuard, IVault {
         canBeCollateralToken[_token] = _canBeCollateralToken;
         canBeIndexToken[_token] = _canBeIndexToken;
         maxLeverage[_token] = _maxLeverage;
-        maxLiquidityPerUser[_token] = _maxLiquidity;
         maxOIImbalance[_token] = _maxOiImbalance;
     }
 
@@ -769,6 +760,7 @@ contract Vault is ReentrancyGuard, IVault {
         if(feeUsd >0){
             feeReserves[_collateralToken] = feeReserves[_collateralToken] + (feeTokens);
         } else {
+            //TODO: handle case when feeReserves[_collateralToken] < feeTokens
             feeReserves[_collateralToken] = feeReserves[_collateralToken] - (feeTokens);
         }
         

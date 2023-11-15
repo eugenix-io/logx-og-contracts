@@ -140,7 +140,6 @@ contract Timelock is ITimelock {
         address _token,
         uint256 _minProfitBps,
         uint _maxLeverage,
-        uint256 _maxLiquidityPerUser,
         uint256 _maxOiImbalance
     ) external onlyKeeperAndAbove {
         require(_minProfitBps <= 500, "Timelock: invalid _minProfitBps");
@@ -161,7 +160,6 @@ contract Timelock is ITimelock {
             canBeCollateralToken,
             canBeIndexToken,
             _maxLeverage,
-            _maxLiquidityPerUser,
             _maxOiImbalance
         );
     }
@@ -373,7 +371,6 @@ contract Timelock is ITimelock {
         bool canBeCollateralToken,
         bool canBeIndexToken,
         uint _maxLeverage,
-        uint256 _maxLiquidityPerUser,
         uint256 _maxOiImbalance
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
@@ -398,7 +395,6 @@ contract Timelock is ITimelock {
             canBeCollateralToken,
             canBeIndexToken,
             _maxLeverage,
-            _maxLiquidityPerUser,
             _maxOiImbalance
         );
     }
