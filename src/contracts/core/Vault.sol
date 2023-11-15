@@ -1103,7 +1103,7 @@ contract Vault is ReentrancyGuard, IVault {
             _sizeDelta,
             _isLong
         );
-        if (usdOut > 0) {
+        if (usdOutAfterFee > 0) {
             amountOutAfterFees = utils.usdToTokenMin(
                 _collateralToken,
                 usdOutAfterFee
@@ -1276,6 +1276,7 @@ contract Vault is ReentrancyGuard, IVault {
             if (usdOut > uint(fee)) {
                 usdOutAfterFee = usdOut - uint(fee);
             } else {
+                //TODO:handle if fee>position.collateral
                 position.collateral = position.collateral - uint(fee); // Revist to check for fee > position.collateral
             }
         }
