@@ -479,7 +479,9 @@ contract OrderManager is
                     if (!_wasCancelled) {
                         break;
                     }
-                } catch {}
+                } catch {
+                    continue;
+                }
             }
 
             delete increasePositionRequestKeys[index];
