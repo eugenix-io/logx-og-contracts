@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.19;
 
+import '../libraries/token/SafeERC20.sol';
 import '../libraries/utils/ReentrancyGuard.sol';
 import '../libraries/token/IERC20.sol';
 import './BaseOrderManager.sol';
@@ -14,8 +15,7 @@ contract OrderManager is
     IOrderManager,
     ReentrancyGuard
 {
-    
-
+    using SafeERC20 for IERC20;
     struct DecreasePositionRequest {
         address account;
         address _collateralToken;
@@ -322,7 +322,7 @@ contract OrderManager is
         }
 
         if (_amountIn > 0) {
-            IERC20(_collateralToken).transferFrom(
+            IERC20(_collateralToken).safeTransferFrom(
                 msg.sender,
                 address(this),
                 _amountIn
@@ -422,7 +422,7 @@ contract OrderManager is
         }
 
         delete increasePositionRequests[_key];
-        IERC20(request._collateralToken).transfer(request.account, request.amountIn);
+        IERC20(request._collateralToken).safeTransfer(request.account, request.amountIn);
         (bool success,  ) = _executionFeeReceiver.call{value: request.executionFee}("");
         require(success, "OrderManager: failed to return execution fee");
 
@@ -513,7 +513,7 @@ contract OrderManager is
         delete increasePositionRequests[_key];
 
         uint256 afterFeeAmount = _collectFees(request.account, request._collateralToken, request.amountIn, request.indexToken, request.isLong, request.sizeDelta);
-        IERC20(request._collateralToken).transfer(vault, afterFeeAmount);
+        IERC20(request._collateralToken).safeTransfer(vault, afterFeeAmount);
 
         _increasePosition(
             request.account,
@@ -767,7 +767,7 @@ contract OrderManager is
             request.acceptablePrice
         );
 
-        IERC20(request._collateralToken).transfer(
+        IERC20(request._collateralToken).safeTransfer(
             request.receiver,
             amountOut
         );
@@ -855,7 +855,7 @@ contract OrderManager is
     function withdrawFunds(address _token, uint256 _amount) external onlyAdmin {
         uint balance  = IERC20(_token).balanceOf(address(this));
         require(_amount <= balance,"OrderManager: Requested amount exceeds OrderManager balance");
-        IERC20(_token).transfer(admin, _amount);
+        IERC20(_token).safeTransfer(admin, _amount);
     }
 
     function validatePositionOrderPrice(
@@ -967,7 +967,7 @@ contract OrderManager is
                 uint256 currMarketPrice = _isLong? IPriceFeed(pricefeed).getMaxPriceOfToken(_indexToken):IPriceFeed(pricefeed).getMinPriceOfToken(_indexToken);
                     _validateLimitOrderPrices(currMarketPrice, _isLong, _limitPrice);
         
-                    IERC20(_collateralToken).transferFrom(msg.sender, address(this), _collateralDelta);
+                    IERC20(_collateralToken).safeTransferFrom(msg.sender, address(this), _collateralDelta);
                     uint256 _collateralAmountUsd = IUtils(utils).tokenToUsdMin(_collateralToken, _collateralDelta);
                     require(_collateralAmountUsd >= minPurchaseTokenAmountUsd, "OrderManager: too less collateral");
                     _createOrder(msg.sender, _collateralDelta, _collateralToken, _indexToken, _sizeDelta, _isLong, _limitPrice, !_isLong, minExecutionFeeLimitOrder, true, _maxOrder);
@@ -1085,10 +1085,10 @@ contract OrderManager is
             bool increaseCollateral = _newCollateralAmount > oldCollateralAmount;
             uint256 collateralDelta = increaseCollateral ? (_newCollateralAmount - oldCollateralAmount) : (oldCollateralAmount - _newCollateralAmount);
             if(increaseCollateral){
-                IERC20(order.collateralToken).transferFrom(msg.sender, address(this), collateralDelta);
+                IERC20(order.collateralToken).safeTransferFrom(msg.sender, address(this), collateralDelta);
             }
             else{
-                IERC20(order.collateralToken).transfer(order.account, collateralDelta);
+                IERC20(order.collateralToken).safeTransfer(order.account, collateralDelta);
             }
             order.collateralDelta = _newCollateralAmount;
         }
@@ -1124,7 +1124,7 @@ contract OrderManager is
         delete orders[orderKey];
         EnumerableSet.remove(orderKeys, orderKey);
         if(order.isIncreaseOrder){
-            IERC20(order.collateralToken).transfer(order.account, order.collateralDelta);
+            IERC20(order.collateralToken).safeTransfer(order.account, order.collateralDelta);
         }
         (bool success,  ) = (order.account).call{value: order.executionFee}("");
         require(success, "OrderManager: Exectuion Fee transfer failed");
@@ -1174,7 +1174,7 @@ contract OrderManager is
         );
 
         if(order.isIncreaseOrder){
-            IERC20(order.collateralToken).transfer(vault, order.collateralDelta);
+            IERC20(order.collateralToken).safeTransfer(vault, order.collateralDelta);
             IVault(vault).increasePosition(order.account, order.collateralToken, order.indexToken, order.sizeDelta, order.isLong);
 
         } else{
@@ -1184,7 +1184,7 @@ contract OrderManager is
                 return;
             }
             uint256 amountOut = IVault(vault).decreasePosition(order.account, order.collateralToken, order.indexToken, order.collateralDelta, order.sizeDelta, order.isLong, address(this));
-            IERC20(order.collateralToken).transfer(order.account, amountOut);
+            IERC20(order.collateralToken).safeTransfer(order.account, amountOut);
         }
 
         delete orders[orderKey];

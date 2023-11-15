@@ -4,9 +4,10 @@ pragma solidity 0.8.19;
 
 import '../libraries/token/IERC20.sol';
 import './interfaces/IYieldToken.sol';
+import '../libraries/token/SafeERC20.sol';
 
 contract YieldToken is IERC20, IYieldToken {
-
+    using SafeERC20 for IERC20;
     string public name;
     string public symbol;
     uint8 public constant decimals = 18;
@@ -62,7 +63,7 @@ contract YieldToken is IERC20, IYieldToken {
 
     // to help users who accidentally send their tokens to this contract
     function withdrawToken(address _token, address _account, uint256 _amount) external onlyGov {
-        IERC20(_token).transfer(_account, _amount);
+        IERC20(_token).safeTransfer(_account, _amount);
     }
 
     function setInWhitelistMode(bool _inWhitelistMode) external onlyGov {

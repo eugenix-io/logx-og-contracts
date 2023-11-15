@@ -7,10 +7,13 @@ import './interfaces/IUSDL.sol';
 import "./interfaces/IVault.sol";
 import "./interfaces/ILlpManager.sol";
 import "../access/Governable.sol";
+import '../libraries/token/SafeERC20.sol';
+
 
 pragma solidity 0.8.19;
 
 contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
+    using SafeERC20 for IERC20;
 
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     uint256 public constant usdl_DECIMALS = 18;
@@ -184,7 +187,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
         uint256 aumInusdl = utils.getAumInUsdl(true);
         uint256 llpSupply = IERC20(llp).totalSupply();
 
-        IERC20(_token).transferFrom(
+        IERC20(_token).safeTransferFrom(
             _fundingAccount,
             address(vault),
             _amount
@@ -239,7 +242,7 @@ contract LlpManager is ReentrancyGuard, Governable, ILlpManager {
 
         IMintable(llp).burn(_account, _llpAmount);
 
-        IERC20(usdl).transfer(address(vault), usdlAmount);
+        IERC20(usdl).safeTransfer(address(vault), usdlAmount);
         uint256 amountOut = vault.sellUSDL(_tokenOut, _receiver);
         require(amountOut >= _minOut, "LlpManager: insufficient output");
 

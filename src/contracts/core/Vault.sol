@@ -10,8 +10,10 @@ import "./interfaces/IPriceFeed.sol";
 import "./interfaces/IUSDL.sol";
 import "../access/Governable.sol";
 import "../libraries/utils/EnumerableSet.sol";
+import '../libraries/token/SafeERC20.sol';
 
 contract Vault is ReentrancyGuard, IVault {
+    using SafeERC20 for IERC20;
 
     struct Position {
         address account;
@@ -571,7 +573,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 _amount,
         address _receiver
     ) private {
-        IERC20(_token).transfer(_receiver, _amount);
+        IERC20(_token).safeTransfer(_receiver, _amount);
         tokenBalances[_token] = IERC20(_token).balanceOf(address(this));
     }
 

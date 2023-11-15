@@ -8,9 +8,10 @@ import "../libraries/utils/ReentrancyGuard.sol";
 import "./interfaces/IRewardDistributor.sol";
 import "./interfaces/IRewardTracker.sol";
 import "../access/Governable.sol";
+import '../libraries/token/SafeERC20.sol';
 
 contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
-
+    using SafeERC20 for IERC20;
     struct Position{
         uint stakedAmount;
         uint entryRewardPerLPToken;
@@ -96,7 +97,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         address _account,
         uint256 _amount
     ) external onlyGov {
-        IERC20(_token).transfer(_account, _amount);
+        IERC20(_token).safeTransfer(_account, _amount);
     }
 
     function balanceOf(
@@ -166,7 +167,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         uint tokenAmount = claimable(_account);
 
         if (tokenAmount > 0) {
-            IERC20(rewardToken).transfer(_receiver, tokenAmount);
+            IERC20(rewardToken).safeTransfer(_receiver, tokenAmount);
             emit Claim(_account, _receiver, tokenAmount);
         }
 
@@ -262,7 +263,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
             "RewardTracker: invalid _depositToken"
         );
 
-        IERC20(_depositToken).transferFrom(
+        IERC20(_depositToken).safeTransferFrom(
             _fundingAccount,
             address(this),
             _amount
@@ -334,7 +335,7 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
         totalDepositSupply[_depositToken] = totalDepositSupply[_depositToken] - _amount;
 
         _burn(_account, _amount);
-        IERC20(_depositToken).transfer(_receiver, _amount);
+        IERC20(_depositToken).safeTransfer(_receiver, _amount);
         emit Unstakellp(_account, _receiver, _amount);
     }
 }

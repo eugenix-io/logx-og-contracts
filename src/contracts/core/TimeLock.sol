@@ -16,8 +16,10 @@ import './interfaces/ITimelockTarget.sol';
 import './interfaces/IYieldToken.sol';
 import '../libraries/token/IBaseToken.sol';
 import '../core/interfaces/IOrderManager.sol';
+import '../libraries/token/SafeERC20.sol';
 
 contract Timelock is ITimelock {
+    using SafeERC20 for IERC20;
     uint256 public constant PRICE_PRECISION = 10 ** 30;
     uint256 public constant MAX_BUFFER = 5 days;
     uint256 public constant MAX_BORROWING_RATE_FACTOR = 200; // 0.02%
@@ -227,7 +229,7 @@ contract Timelock is ITimelock {
     }
 
     function transferIn(address _sender, address _token, uint256 _amount) external onlyAdmin {
-        IERC20(_token).transferFrom(_sender, address(this), _amount);
+        IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
     }
 
     function signalApprove(address _token, address _spender, uint256 _amount) external onlyAdmin {
@@ -240,7 +242,7 @@ contract Timelock is ITimelock {
         bytes32 action = keccak256(abi.encodePacked("approve", _token, _spender, _amount));
         _validateAction(action);
         _clearAction(action);
-        IERC20(_token).approve(_spender, _amount);
+        IERC20(_token).safeApprove(_spender, _amount);
     }
 
     function signalWithdrawToken(address _target, address _token, address _receiver, uint256 _amount) external onlyAdmin {
@@ -313,7 +315,7 @@ contract Timelock is ITimelock {
         IUSDL(usdl).addVault(address(this));
 
         IUSDL(usdl).mint(address(this), _amount);
-        IERC20(usdl).transfer(address(_vault), _amount);
+        IERC20(usdl).safeTransfer(address(_vault), _amount);
 
         IVault(_vault).sellUSDL(_token, mintReceiver);
 

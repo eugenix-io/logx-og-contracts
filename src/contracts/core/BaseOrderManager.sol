@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.19;
 
+import '../libraries/token/SafeERC20.sol';
 import '../libraries/token/IERC20.sol';
 import './interfaces/IVault.sol';
 import './interfaces/IUtils.sol';
@@ -12,6 +13,8 @@ import './interfaces/IPriceFeed.sol';
 
 
 contract BaseOrderManager{
+    using SafeERC20 for IERC20;
+
     address public admin;
     address public vault;
     address public utils;
@@ -129,9 +132,7 @@ contract BaseOrderManager{
         if (amount == 0) { return; }
 
         feeReserves[_token] = 0;
-        bool transferStatus = IERC20(_token).transfer(_receiver, amount);
-        require(transferStatus, "BaseOrderManager: Fee withdrawl failed!");
-
+        IERC20(_token).safeTransfer(_receiver, amount);
         emit WithdrawFees(_token, _receiver, amount);
     }
 
