@@ -49,12 +49,12 @@ contract Timelock is ITimelock {
         address vault,
         address token,
         uint256 tokenDecimals,
-        uint256 tokenWeight,
         uint256 minProfitBps,
-        uint256 maxUsdlAmount,
         bool isStable,
         bool canBeCollateralToken,
-        bool canBeIndexToken
+        bool canBeIndexToken,
+        uint maxLeverage,
+        uint maxOiImbalance
     );
     event ClearAction(bytes32 action);
 
@@ -325,24 +325,25 @@ contract Timelock is ITimelock {
         address _vault,
         address _token,
         uint256 _tokenDecimals,
-        uint256 _tokenWeight,
         uint256 _minProfitBps,
-        uint256 _maxUsdlAmount,
         bool _isStable,
         bool _canBeCollateralToken,
-        bool _canBeIndexToken
+        bool _canBeIndexToken,
+        uint _maxLeverage,
+        uint _maxOiImbalance
+
     ) external onlyAdmin {
         bytes32 action = keccak256(abi.encodePacked(
             "vaultSetTokenConfig",
             _vault,
             _token,
             _tokenDecimals,
-            _tokenWeight,
             _minProfitBps,
-            _maxUsdlAmount,
             _isStable,
             _canBeCollateralToken,
-            _canBeIndexToken
+            _canBeIndexToken,
+            _maxLeverage,
+            _maxOiImbalance
         ));
 
         _setPendingAction(action);
@@ -351,12 +352,12 @@ contract Timelock is ITimelock {
             _vault,
             _token,
             _tokenDecimals,
-            _tokenWeight,
             _minProfitBps,
-            _maxUsdlAmount,
             _isStable,
             _canBeCollateralToken,
-            _canBeIndexToken
+            _canBeIndexToken,
+            _maxLeverage,
+            _maxOiImbalance
         );
     }
 
@@ -364,9 +365,7 @@ contract Timelock is ITimelock {
         address _vault,
         address _token,
         uint256 _tokenDecimals,
-        uint256 _tokenWeight,
         uint256 _minProfitBps,
-        uint256 _maxUsdlAmount,
         bool _isStable, 
         bool canBeCollateralToken,
         bool canBeIndexToken,
@@ -378,10 +377,12 @@ contract Timelock is ITimelock {
             _vault,
             _token,
             _tokenDecimals,
-            _tokenWeight,
             _minProfitBps,
-            _maxUsdlAmount,
-            _isStable
+            _isStable,
+            canBeCollateralToken,
+            canBeIndexToken,
+            _maxLeverage,
+            _maxOiImbalance
         ));
 
         _validateAction(action);
