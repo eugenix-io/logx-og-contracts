@@ -29,11 +29,8 @@ contract Timelock is ITimelock {
     uint256 public buffer;
     address public admin;
 
-    address public tokenManager;
     address public mintReceiver;
     address public llpManager;
-    address public rewardRouter;
-    uint256 public maxTokenSupply;
 
     mapping (bytes32 => uint256) public pendingActions;
 
@@ -75,31 +72,20 @@ contract Timelock is ITimelock {
         _;
     }
 
-    modifier onlyTokenManager() {
-        require(msg.sender == tokenManager, "Timelock: token manager forbidden");
-        _;
-    }
-
     constructor(
         address _admin,
         uint256 _buffer,
-        address _tokenManager,
         address _mintReceiver,
-        address _llpManager,
-        address _rewardRouter,
-        uint256 _maxTokenSupply
+        address _llpManager
     ) {
         require(_buffer <= MAX_BUFFER, "Timelock: invalid _buffer");
         admin = _admin;
         buffer = _buffer;
-        tokenManager = _tokenManager;
         mintReceiver = _mintReceiver;
         llpManager = _llpManager;
-        rewardRouter = _rewardRouter;
-        maxTokenSupply = _maxTokenSupply;
     }
 
-    function setAdmin(address _admin) external override onlyTokenManager {
+    function setAdmin(address _admin) external override onlyAdmin {
         admin = _admin;
     }
 

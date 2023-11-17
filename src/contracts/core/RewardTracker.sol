@@ -33,7 +33,6 @@ contract RewardTracker is IERC20, ReentrancyGuard, IRewardTracker, Governable {
     mapping(address => mapping(address => uint256)) public allowances;
 
     mapping(address => Position) public positions;
-    mapping(address => uint256) public claimableReward;
     mapping(address => bool) public isHandler;
     address public rewardToken;
     uint public rewardPrecision = 1000000;

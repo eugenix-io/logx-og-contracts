@@ -41,8 +41,6 @@ contract Vault is ReentrancyGuard, IVault {
     uint256 public constant MAX_BORROWING_RATE_FACTOR = 100000000; // 1%
 
     bool public override isInitialized;
-    address public usdc;
-
     IUtils public utils;
 
     mapping(address=>bool) public orderManagers;
@@ -213,8 +211,7 @@ contract Vault is ReentrancyGuard, IVault {
         address _priceFeed,
         uint256 _liquidationFeeUsd,
         uint256 _liquidationFactor,
-        uint256 _borrowingRateFactor,
-        address _usdc
+        uint256 _borrowingRateFactor
     ) external {
         _onlyGov();
         _validate(!isInitialized, "Vault: Already Initialized!");
@@ -225,7 +222,6 @@ contract Vault is ReentrancyGuard, IVault {
         liquidationFeeUsd = _liquidationFeeUsd;
         liquidationFactor = _liquidationFactor;
         borrowingRateFactor = _borrowingRateFactor;
-        usdc = _usdc;
     }
 
 
@@ -719,7 +715,7 @@ contract Vault is ReentrancyGuard, IVault {
             }
             updateFeeReserves(actualFeeUsd, position.collateralToken);
         }
-        emit DecreasePosition(position.account, position.collateralToken, position.indexToken, 0, position.isLong, markPrice, actualFeeUsd, true, 0);
+        emit DecreasePosition(position.account, position.collateralToken, position.indexToken, position.size, position.isLong, markPrice, actualFeeUsd, true, position.realisedPnl);
         emit UpdatePosition(
             position.account,
             position.collateralToken,
@@ -732,7 +728,7 @@ contract Vault is ReentrancyGuard, IVault {
             0,
             0,
             position.realisedPnl,
-            0
+            markPrice
         );
         }
 

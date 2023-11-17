@@ -159,7 +159,7 @@ contract Deployment is Script {
 
     function initializeVault(Vault vault, OrderManager orderManager, PriceFeed priceFeed, USDL usdl, Utils utils, LlpManager llpManager) public {
         usdl.addVault(address(vault));
-        vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd,liquidationFactor, borrowingRateFactor, vm.envAddress("USDCL"));
+        vault.initialize(address(orderManager), address(usdl), address(priceFeed),liquidationFeeUsd,liquidationFactor, borrowingRateFactor);
         vault.setTokenConfig(vm.envAddress("USDCL"), 18, 0, true, true, false, 540000, maxOIImbalance);
         vault.setTokenConfig(vm.envAddress("ETH"), 18, 0, false, false, true, 540000, maxOIImbalance);
         vault.setTokenConfig(vm.envAddress("BTC"), 8, 0, false, false, true, 540000, maxOIImbalance);
