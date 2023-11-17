@@ -752,7 +752,7 @@ contract Utils is IUtils, Governable {
         uint256 _size,
         uint256 _entryBorrowingRate, 
         int256 _entryFundingRate
-    ) public view returns (uint256 feeTokens, int256 feeUsd) {
+    ) public view returns (int256 feeUsd) {
         feeUsd = int(getPositionFee(
             _account,
             _collateralToken,
@@ -772,10 +772,7 @@ contract Utils is IUtils, Governable {
 
         int256 fundingFee = getFundingFee(_account, _collateralToken, _indexToken, _isLong, _size, _entryFundingRate);
         feeUsd = feeUsd + int(borrowingFee) + fundingFee;
-
-        feeTokens = usdToTokenMin(_collateralToken, uint(abs(feeUsd)));
-
-        return (feeTokens, feeUsd);
+        return feeUsd;
     }
 
     function abs(int value) public pure returns(int){

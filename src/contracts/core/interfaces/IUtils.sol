@@ -78,7 +78,7 @@ interface IUtils {
         uint256 _size,
         uint256 _entryBorrowingRate,
         int256 _entryFundingRate
-    ) external returns (uint256 feeTokens, int256 feeUsd);
+    ) external returns (int256 feeUsd);
     function getTPPrice(uint256 sizeDelta, bool isLong, uint256 markPrice, uint256 _maxTPAmount, address collateralToken) external returns(uint256);
     function calcLiquidationFee(uint256 size, address indexToken) external returns(uint);
     function setPriceFeed(address _pricefeed) external;
