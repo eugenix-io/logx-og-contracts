@@ -603,7 +603,8 @@ contract Utils is IUtils, Governable {
             ? averagePrice - (_price)
             : _price - (averagePrice);
         uint256 delta = (_size * (priceDelta)) / (averagePrice);
-        return (averagePrice > _price, delta);
+        bool hasProfit = _isLong ? _price > averagePrice : averagePrice > _price;
+        return (hasProfit, delta);
     }
 
     function validatePosition(
