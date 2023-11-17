@@ -163,6 +163,8 @@ contract Utils is IUtils, Governable {
         uint256 remainingCollateral = position.collateral;
         if (!hasProfit) {
             remainingCollateral = position.collateral - (delta);
+        } else {
+            remainingCollateral = position.collateral + delta;
         }
 
         if(marginFees<0){
