@@ -107,7 +107,6 @@ contract Utils is IUtils, Governable {
         return position;
     }
 
-    //TODO: account for funding fee as well.
     function validateLiquidation(
         address _account,
         address _collateralToken,
@@ -200,7 +199,6 @@ contract Utils is IUtils, Governable {
         return (0, marginFees);
     }
 
-    // TODO: revisit this, check implemention
     function getEntryBorrowingRate(
         address _collateralToken,
         address /* _indexToken */,

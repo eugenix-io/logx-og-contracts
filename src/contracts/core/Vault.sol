@@ -155,7 +155,6 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 price,
         int256 fee
     );
-    //TODO: add realisedPnl to this event.
     event DecreasePosition(
         address indexed account,
         address collateralToken,
@@ -665,7 +664,7 @@ contract Vault is ReentrancyGuard, IVault {
         uint256 markPrice = position.isLong ? getMinPriceOfToken(position.indexToken) : getMaxPriceOfToken(position.indexToken);
         int totalFees;
         {
-        (uint256 liquidationState, int marginFees) = utils.validateLiquidation(
+        (uint256 liquidationState, int256 marginFees) = utils.validateLiquidation(
             position.account,
             position.collateralToken,
             position.indexToken,
@@ -711,7 +710,6 @@ contract Vault is ReentrancyGuard, IVault {
             );
             } else {
                 actualFeeUsd = int(position.collateral);
-                updateFeeReserves(actualFeeUsd, position.collateralToken);
             }
             updateFeeReserves(actualFeeUsd, position.collateralToken);
         }
@@ -1278,14 +1276,13 @@ contract Vault is ReentrancyGuard, IVault {
 
         // if the usdOut is more than the fee then deduct the fee from the usdOut directly
         // else deduct the fee from the position's collateral
-        uint256 usdOutAfterFee = usdOut;
+        uint256 usdOutAfterFee;
         if(fee<0){
             usdOutAfterFee = usdOut + uint(abs(fee));
         } else{
             if (usdOut > uint(fee)) {
                 usdOutAfterFee = usdOut - uint(fee);
             } else {
-                //usdOutAfterFee = 0;
                 uint remainingFee = uint(fee) - usdOut;
                 position.collateral = position.collateral - remainingFee; // Revist to check for fee > position.collateral
             }
